@@ -39,6 +39,11 @@ type ConversationData = {
   }>;
   lastActive: string;
   storeVisitRequests?: number; // Track how many times user asked about visiting physical store
+  manualMode?: boolean; // Manual mode enabled - bot will not auto-respond
+  manualModeEnabledAt?: string; // Timestamp when manual mode was enabled
+  manualModeDisabledAt?: string; // Timestamp when manual mode was disabled
+  botInstruction?: string; // One-time instruction from operator for next bot response
+  botInstructionAt?: string; // Timestamp when instruction was set
 };
 
 async function loadProducts(): Promise<Product[]> {
