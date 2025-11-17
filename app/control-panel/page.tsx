@@ -12,6 +12,8 @@ type Message = {
 
 type Conversation = {
   userId: string;
+  userName?: string;
+  profilePic?: string;
   messages: Message[];
   manualMode?: boolean;
   botInstruction?: string | null;
@@ -33,14 +35,25 @@ export default function ControlPanelPage() {
       const data = await response.json();
       const convos = data.conversations || [];
 
-      // Fetch manual mode status for each conversation
+      // Fetch manual mode status and user profile for each conversation
       for (const convo of convos) {
         try {
+          // Fetch manual mode status
           const statusResponse = await fetch(`/api/manual-control?userId=${convo.userId}`);
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
             convo.manualMode = statusData.manualMode;
             convo.botInstruction = statusData.botInstruction;
+          }
+
+          // Fetch user profile
+          const profileResponse = await fetch(`/api/user-profile?userId=${convo.userId}`);
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            if (profileData.profile) {
+              convo.userName = profileData.profile.name;
+              convo.profilePic = profileData.profile.profile_pic;
+            }
           }
         } catch (err) {
           // Ignore errors for individual conversations
@@ -224,24 +237,56 @@ export default function ControlPanelPage() {
                 }
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: convo.manualMode ? '#ff9800' : '#44b700'
-                }}></div>
-                <span style={{ fontSize: '12px', fontWeight: '600', color: '#333' }}>
-                  User {convo.userId.slice(0, 8)}...
-                </span>
-              </div>
-              <div style={{ fontSize: '11px', color: '#666', marginLeft: '16px' }}>
-                {convo.messages.length} messages
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                {/* Profile Picture */}
+                {convo.profilePic ? (
+                  <img
+                    src={convo.profilePic}
+                    alt={convo.userName || 'User'}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: convo.manualMode ? '2px solid #ff9800' : '2px solid #44b700'
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    backgroundColor: '#e4e6eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    border: convo.manualMode ? '2px solid #ff9800' : '2px solid #44b700'
+                  }}>
+                    👤
+                  </div>
+                )}
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#333',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {convo.userName || `User ${convo.userId.slice(0, 8)}...`}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#666' }}>
+                    {convo.messages.length} messages
+                  </div>
+                </div>
               </div>
               {convo.manualMode && (
                 <div style={{
                   marginTop: '5px',
-                  marginLeft: '16px',
+                  marginLeft: '46px',
                   fontSize: '10px',
                   color: '#ff9800',
                   fontWeight: '600'
@@ -280,20 +325,49 @@ export default function ControlPanelPage() {
                 borderBottom: '2px solid #e0e0e0'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h2 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>
-                      User {selectedUserId.slice(0, 12)}...
-                    </h2>
-                    <div style={{
-                      display: 'inline-block',
-                      padding: '4px 12px',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      backgroundColor: selectedConversation.manualMode ? '#fff3e0' : '#e8f5e9',
-                      color: selectedConversation.manualMode ? '#e65100' : '#2e7d32'
-                    }}>
-                      {selectedConversation.manualMode ? '🎮 MANUAL MODE' : '🤖 AUTO MODE'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* Profile Picture */}
+                    {selectedConversation.profilePic ? (
+                      <img
+                        src={selectedConversation.profilePic}
+                        alt={selectedConversation.userName || 'User'}
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '50%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: '#e4e6eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '24px'
+                      }}>
+                        👤
+                      </div>
+                    )}
+
+                    <div>
+                      <h2 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>
+                        {selectedConversation.userName || `User ${selectedUserId.slice(0, 12)}...`}
+                      </h2>
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        backgroundColor: selectedConversation.manualMode ? '#fff3e0' : '#e8f5e9',
+                        color: selectedConversation.manualMode ? '#e65100' : '#2e7d32'
+                      }}>
+                        {selectedConversation.manualMode ? '🎮 MANUAL MODE' : '🤖 AUTO MODE'}
+                      </div>
                     </div>
                   </div>
 
@@ -351,19 +425,33 @@ export default function ControlPanelPage() {
                     }}
                   >
                     {/* Avatar */}
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      backgroundColor: message.senderType === 'user' ? '#e4e6eb' : message.senderType === 'human' ? '#ff9800' : '#1877f2',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '16px',
-                      flexShrink: 0
-                    }}>
-                      {message.senderType === 'user' ? '👤' : message.senderType === 'human' ? '👨‍💼' : '🤖'}
-                    </div>
+                    {message.senderType === 'user' && selectedConversation.profilePic ? (
+                      <img
+                        src={selectedConversation.profilePic}
+                        alt={selectedConversation.userName || 'User'}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          flexShrink: 0
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: message.senderType === 'user' ? '#e4e6eb' : message.senderType === 'human' ? '#ff9800' : '#1877f2',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '16px',
+                        flexShrink: 0
+                      }}>
+                        {message.senderType === 'user' ? '👤' : message.senderType === 'human' ? '👨‍💼' : '🤖'}
+                      </div>
+                    )}
 
                     {/* Message Bubble */}
                     <div style={{ maxWidth: '70%' }}>
@@ -384,7 +472,7 @@ export default function ControlPanelPage() {
                         marginTop: '4px',
                         textAlign: message.senderType === 'user' ? 'right' : 'left'
                       }}>
-                        {message.senderType === 'bot' ? 'VENERA Bot' : message.senderType === 'human' ? 'Human Operator' : 'User'}
+                        {message.senderType === 'bot' ? 'VENERA Bot' : message.senderType === 'human' ? 'Human Operator' : (selectedConversation.userName || 'User')}
                         {' · '}
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>

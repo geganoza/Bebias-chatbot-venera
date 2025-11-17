@@ -31,6 +31,8 @@ const MAX_HISTORY_LENGTH = 10; // Keep last 10 messages per user
 
 type ConversationData = {
   senderId: string;
+  userName?: string; // Facebook user's display name
+  profilePic?: string; // Facebook user's profile picture URL
   history: Message[];
   orders: Array<{
     orderNumber: string;
@@ -77,6 +79,46 @@ async function loadAllContent() {
   ]);
 
   return { instructions, services, faqs, delivery, payment };
+}
+
+// Fetch and cache Facebook user profile
+async function fetchUserProfile(userId: string): Promise<{ name?: string; profile_pic?: string }> {
+  try {
+    // Check if profile is cached in KV
+    const cacheKey = `user-profile:${userId}`;
+    const cached = await kv.get<{ name?: string; profile_pic?: string }>(cacheKey);
+
+    if (cached) {
+      console.log(`✅ Using cached profile for user ${userId}: ${cached.name || 'Unknown'}`);
+      return cached;
+    }
+
+    // Fetch from Facebook Graph API
+    const url = `https://graph.facebook.com/v18.0/${userId}?fields=id,name,profile_pic&access_token=${PAGE_ACCESS_TOKEN}`;
+    console.log(`📋 Fetching Facebook profile for user ${userId}`);
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(`❌ Facebook API error fetching profile:`, data);
+      return {};
+    }
+
+    const profile = {
+      name: data.name,
+      profile_pic: data.profile_pic
+    };
+
+    // Cache for 7 days
+    await kv.set(cacheKey, profile, { ex: 60 * 60 * 24 * 7 });
+    console.log(`✅ Successfully fetched and cached profile: ${profile.name || 'Unknown'}`);
+
+    return profile;
+  } catch (err) {
+    console.error(`❌ Error fetching Facebook profile for ${userId}:`, err);
+    return {};
+  }
 }
 
 async function loadConversation(senderId: string): Promise<ConversationData> {
@@ -732,6 +774,16 @@ export async function POST(req: Request) {
             // Load conversation data from file
             const conversationData = await loadConversation(senderId);
             console.log(`📝 Retrieved ${conversationData.history.length} previous messages for user ${senderId}`);
+
+            // Fetch and update user profile if not already present
+            if (!conversationData.userName || !conversationData.profilePic) {
+              const profile = await fetchUserProfile(senderId);
+              if (profile.name) {
+                conversationData.userName = profile.name;
+                conversationData.profilePic = profile.profile_pic;
+                console.log(`👤 Updated conversation with user profile: ${profile.name}`);
+              }
+            }
 
             // Show previous orders if any
             if (conversationData.orders.length > 0) {
