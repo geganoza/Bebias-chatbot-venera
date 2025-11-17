@@ -343,20 +343,8 @@ async function sendMessageInChunks(recipientId: string, messageText: string) {
 async function sendImage(recipientId: string, imageUrl: string) {
   const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
 
-  // URL-encode Georgian characters in the image path for Facebook
-  // Facebook requires proper percent-encoding for non-ASCII characters
-  let encodedImageUrl = imageUrl;
-  try {
-    const urlObj = new URL(imageUrl);
-    // Encode the pathname (keeps protocol and domain unchanged)
-    const encodedPath = urlObj.pathname.split('/').map(segment => encodeURIComponent(segment)).join('/');
-    encodedImageUrl = `${urlObj.protocol}//${urlObj.host}${encodedPath}${urlObj.search}`;
-    console.log(`📸 Encoded URL: ${imageUrl} → ${encodedImageUrl}`);
-  } catch (err) {
-    console.log(`⚠️ Could not parse image URL, using as-is:`, imageUrl);
-  }
-
-  console.log(`📸 Sending image to ${recipientId}:`, encodedImageUrl);
+  // WordPress CDN (i0.wp.com) handles Georgian characters natively - no encoding needed
+  console.log(`📸 Sending image to ${recipientId}:`, imageUrl);
 
   try {
     const response = await fetch(url, {
@@ -368,7 +356,7 @@ async function sendImage(recipientId: string, imageUrl: string) {
           attachment: {
             type: "image",
             payload: {
-              url: encodedImageUrl,
+              url: imageUrl,
               is_reusable: true
             }
           }
