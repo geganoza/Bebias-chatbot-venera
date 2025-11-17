@@ -1,0 +1,4 @@
+backups/
+.git/
+node_modules/
+.next/
