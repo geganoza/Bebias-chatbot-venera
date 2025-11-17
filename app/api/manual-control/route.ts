@@ -1,7 +1,167 @@
 import { NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
+import OpenAI from "openai";
+import fs from "fs/promises";
+import path from "path";
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+
+// Helper functions for AI response generation
+async function loadProducts(): Promise<any[]> {
+  try {
+    const file = path.join(process.cwd(), "data", "products.json");
+    const txt = await fs.readFile(file, "utf8");
+    return JSON.parse(txt);
+  } catch (err) {
+    console.error("❌ Error loading products:", err);
+    return [];
+  }
+}
+
+async function loadContentFile(filename: string): Promise<string> {
+  try {
+    const file = path.join(process.cwd(), "data", "content", filename);
+    return await fs.readFile(file, "utf8");
+  } catch (err) {
+    console.error(`❌ Error loading ${filename}:`, err);
+    return "";
+  }
+}
+
+async function loadAllContent() {
+  const [instructions, services, faqs, delivery, payment] = await Promise.all([
+    loadContentFile("bot-instructions.md"),
+    loadContentFile("services.md"),
+    loadContentFile("faqs.md"),
+    loadContentFile("delivery-info.md"),
+    loadContentFile("payment-info.md"),
+  ]);
+
+  return { instructions, services, faqs, delivery, payment };
+}
+
+function detectGeorgian(text: string) {
+  return /[\u10A0-\u10FF]/.test(text);
+}
+
+// Generate AI response with operator instruction
+async function generateInstructedResponse(
+  operatorInstruction: string,
+  conversationHistory: any[] = [],
+  previousOrders: any[] = [],
+  storeVisitCount: number = 0
+): Promise<string> {
+  try {
+    const [products, content] = await Promise.all([
+      loadProducts(),
+      loadAllContent(),
+    ]);
+
+    // Detect language from instruction
+    const isKa = detectGeorgian(operatorInstruction);
+
+    // Build product catalog for AI context
+    const productContext = products
+      .map((p) => {
+        const hasImage = p.image && p.image !== 'IMAGE_URL_HERE' && !p.image.includes('facebook.com') && p.image.startsWith('http');
+        return `${p.name} (ID: ${p.id}) - Price: ${p.price} ${p.currency || ""}, Stock: ${p.stock}, Category: ${p.category || "N/A"}${hasImage ? ' [HAS_IMAGE]' : ''}`;
+      })
+      .join("\n");
+
+    // Get current date/time in Georgia timezone (GMT+4)
+    const now = new Date();
+    const georgiaTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Tbilisi',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(now);
+
+    // Build system prompt
+    const systemPrompt = isKa
+      ? `${content.instructions}
+
+# Our Services
+${content.services}
+
+# Frequently Asked Questions
+${content.faqs}
+
+# Delivery Information
+${content.delivery}
+
+# Payment Information
+${content.payment}
+
+# Product Catalog
+${productContext}
+
+# Current Date and Time
+Georgia Time (GMT+4): ${georgiaTime}
+
+Respond in Georgian, concisely and clearly (max 200 words).`
+      : `${content.instructions}
+
+# Our Services
+${content.services}
+
+# Frequently Asked Questions
+${content.faqs}
+
+# Delivery Information
+${content.delivery}
+
+# Payment Information
+${content.payment}
+
+# Product Catalog
+${productContext}
+
+# Current Date and Time
+Georgia Time (GMT+4): ${georgiaTime}
+
+Respond in English, concisely and clearly (max 200 words).`;
+
+    // Build messages array with conversation history
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+      ...conversationHistory,
+    ];
+
+    // Inject operator instruction as highest priority system message
+    messages.push({
+      role: "system",
+      content: `**URGENT INSTRUCTION FROM HUMAN OPERATOR - HIGHEST PRIORITY:**\n\n${operatorInstruction}\n\n**Follow this instruction for your next response. This overrides any other guidance if there's a conflict.**`,
+    });
+
+    // Add a placeholder user message to trigger response
+    const lastUserMessage = conversationHistory.filter(m => m.role === 'user').pop();
+    const contextMessage = lastUserMessage
+      ? lastUserMessage.content
+      : "[Continue the conversation based on the operator's instruction]";
+
+    messages.push({ role: "user", content: contextMessage });
+
+    console.log(`🤖 Generating instructed AI response with ${conversationHistory.length} history messages`);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages,
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    return completion.choices[0]?.message?.content || (isKa ? "ბოდიში, ვერ გავიგე." : "Sorry, I didn't understand that.");
+  } catch (err) {
+    console.error("❌ OpenAI API error in generateInstructedResponse:", err);
+    return "Sorry, there was an error processing the instruction.";
+  }
+}
 
 // Send message via Facebook API
 async function sendMessageToUser(recipientId: string, text: string) {
@@ -122,18 +282,51 @@ export async function POST(req: Request) {
         }
 
       case "instruct_bot":
-        // Give bot specific instructions for next response
+        // Give bot specific instructions and generate immediate response
         if (!instruction) {
           return NextResponse.json({ error: "Instruction is required" }, { status: 400 });
         }
 
-        // Store instruction in conversation data
-        conversation.botInstruction = instruction;
-        conversation.botInstructionAt = new Date().toISOString();
-        await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+        console.log(`📋 Bot instruction received for user ${userId}: "${instruction}"`);
+        console.log(`🤖 Generating and sending immediate AI response...`);
 
-        console.log(`✅ Bot instruction set for user ${userId}: "${instruction}"`);
-        return NextResponse.json({ success: true, message: "Instruction saved" });
+        // Generate AI response with the operator instruction
+        const aiResponse = await generateInstructedResponse(
+          instruction,
+          conversation.history || [],
+          conversation.orders || [],
+          conversation.storeVisitRequests || 0
+        );
+
+        console.log(`💬 AI Response generated: "${aiResponse.substring(0, 100)}..."`);
+
+        // Send the response to the user immediately
+        const sendResult = await sendMessageToUser(userId, aiResponse);
+
+        if (sendResult.success) {
+          // Log to meta-messages as bot message (with operator instruction tag)
+          await logMetaMessage(userId, 'BOT_OPERATOR_INSTRUCTED', 'bot', aiResponse);
+
+          // Add to conversation history
+          conversation.history.push({
+            role: "assistant",
+            content: `[BOT - OPERATOR INSTRUCTED]: ${aiResponse}`
+          });
+          await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+
+          console.log(`✅ Bot instruction executed and response sent to user ${userId}`);
+          return NextResponse.json({
+            success: true,
+            message: "Instruction executed and response sent",
+            response: aiResponse
+          });
+        } else {
+          console.error(`❌ Failed to send instructed response to user ${userId}`);
+          return NextResponse.json({
+            error: "Failed to send instructed response",
+            details: sendResult.error
+          }, { status: 500 });
+        }
 
       case "clear_instruction":
         // Clear bot instruction
