@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 type Message = {
   id: string;
   senderId: string;
-  senderType: 'user' | 'bot';
+  senderType: 'user' | 'bot' | 'human';
   text: string;
   timestamp: string;
 };
@@ -13,17 +13,41 @@ type Message = {
 type Conversation = {
   userId: string;
   messages: Message[];
+  manualMode?: boolean;
+  botInstruction?: string | null;
 };
 
-export default function MetaReviewPage() {
+export default function ControlPanelPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [directMessage, setDirectMessage] = useState('');
+  const [botInstruction, setBotInstruction] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
 
+  // Fetch messages and manual mode status
   const fetchMessages = async () => {
     try {
       const response = await fetch('/api/meta-messages');
       const data = await response.json();
-      setConversations(data.conversations || []);
+      const convos = data.conversations || [];
+
+      // Fetch manual mode status for each conversation
+      for (const convo of convos) {
+        try {
+          const statusResponse = await fetch(`/api/manual-control?userId=${convo.userId}`);
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            convo.manualMode = statusData.manualMode;
+            convo.botInstruction = statusData.botInstruction;
+          }
+        } catch (err) {
+          // Ignore errors for individual conversations
+        }
+      }
+
+      setConversations(convos);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -38,217 +62,463 @@ export default function MetaReviewPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Control actions
+  const toggleManualMode = async (userId: string, enable: boolean) => {
+    setActionLoading(true);
+    try {
+      const response = await fetch('/api/manual-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: enable ? 'enable_manual_mode' : 'disable_manual_mode',
+          userId
+        })
+      });
+
+      if (response.ok) {
+        setStatusMessage(enable ? '🎮 Manual mode ENABLED' : '🤖 Auto mode RESUMED');
+        setTimeout(() => setStatusMessage(''), 3000);
+        fetchMessages();
+      } else {
+        setStatusMessage('❌ Failed to toggle manual mode');
+      }
+    } catch (err) {
+      setStatusMessage('❌ Error: ' + err);
+    }
+    setActionLoading(false);
+  };
+
+  const sendDirectMessage = async () => {
+    if (!selectedUserId || !directMessage.trim()) return;
+
+    setActionLoading(true);
+    try {
+      const response = await fetch('/api/manual-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_direct_message',
+          userId: selectedUserId,
+          message: directMessage
+        })
+      });
+
+      if (response.ok) {
+        setStatusMessage('✅ Message sent directly');
+        setDirectMessage('');
+        setTimeout(() => setStatusMessage(''), 3000);
+        fetchMessages();
+      } else {
+        setStatusMessage('❌ Failed to send message');
+      }
+    } catch (err) {
+      setStatusMessage('❌ Error: ' + err);
+    }
+    setActionLoading(false);
+  };
+
+  const instructBot = async () => {
+    if (!selectedUserId || !botInstruction.trim()) return;
+
+    setActionLoading(true);
+    try {
+      const response = await fetch('/api/manual-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'instruct_bot',
+          userId: selectedUserId,
+          instruction: botInstruction
+        })
+      });
+
+      if (response.ok) {
+        setStatusMessage('✅ Bot instruction saved');
+        setBotInstruction('');
+        setTimeout(() => setStatusMessage(''), 3000);
+        fetchMessages();
+      } else {
+        setStatusMessage('❌ Failed to save instruction');
+      }
+    } catch (err) {
+      setStatusMessage('❌ Error: ' + err);
+    }
+    setActionLoading(false);
+  };
+
+  const selectedConversation = conversations.find(c => c.userId === selectedUserId);
+
   return (
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#f5f5f5',
-      padding: '40px 20px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{
-          backgroundColor: '#1877f2',
-          color: 'white',
-          padding: '30px',
-          borderRadius: '12px',
-          marginBottom: '30px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-        }}>
-          <h1 style={{ margin: '0 0 10px 0', fontSize: '32px', fontWeight: 'bold' }}>
-            VENERA - Meta Review Dashboard
-          </h1>
-          <p style={{ margin: 0, fontSize: '16px', opacity: 0.9 }}>
-            Real-time Two-Way Messaging Display for Meta App Review
-          </p>
-        </div>
-
-        {/* Instructions */}
-        <div style={{
-          backgroundColor: '#fff3cd',
-          border: '2px solid #ffc107',
-          borderRadius: '8px',
-          padding: '20px',
-          marginBottom: '30px'
-        }}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#856404' }}>📋 For Meta Reviewers:</h3>
-          <p style={{ margin: 0, color: '#856404', lineHeight: '1.6' }}>
-            This dashboard shows <strong>real-time incoming messages</strong> from Facebook Messenger users
-            and our bot's responses. Each message displays the <strong>User PSID</strong> (Page-Scoped ID)
-            and timestamp. Messages auto-refresh every 3 seconds.
-          </p>
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              border: '4px solid #f3f3f3',
-              borderTop: '4px solid #1877f2',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 20px'
-            }}></div>
-            <p>Loading conversations...</p>
-          </div>
-        )}
-
-        {/* No Messages */}
-        {!loading && conversations.length === 0 && (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '60px 40px',
-            borderRadius: '12px',
-            textAlign: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px' }}>💬</div>
-            <h2 style={{ color: '#666', margin: '0 0 10px 0' }}>No conversations yet</h2>
-            <p style={{ color: '#999', margin: 0 }}>
-              Send a message to your Facebook Page to see the conversation appear here
-            </p>
-          </div>
-        )}
-
-        {/* Conversations */}
-        {!loading && conversations.map((conversation) => (
-          <div key={conversation.userId} style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}>
-            {/* Conversation Header */}
-            <div style={{
-              borderBottom: '2px solid #e0e0e0',
-              paddingBottom: '15px',
-              marginBottom: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: '#44b700',
-                  borderRadius: '50%'
-                }}></div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
-                  Active Conversation
-                </h3>
-              </div>
-              <div style={{
-                backgroundColor: '#f0f2f5',
-                padding: '10px 15px',
-                borderRadius: '6px',
-                marginTop: '10px',
-                fontSize: '14px',
-                fontFamily: 'monospace'
-              }}>
-                <strong>User PSID:</strong> {conversation.userId}
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {conversation.messages.map((message) => (
-                <div
-                  key={message.id}
-                  style={{
-                    display: 'flex',
-                    flexDirection: message.senderType === 'bot' ? 'row' : 'row-reverse',
-                    alignItems: 'flex-end',
-                    gap: '10px'
-                  }}
-                >
-                  {/* Avatar */}
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: message.senderType === 'bot' ? '#1877f2' : '#e4e6eb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '18px',
-                    flexShrink: 0
-                  }}>
-                    {message.senderType === 'bot' ? '🤖' : '👤'}
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div style={{ maxWidth: '70%' }}>
-                    <div style={{
-                      backgroundColor: message.senderType === 'bot' ? '#1877f2' : '#e4e6eb',
-                      color: message.senderType === 'bot' ? 'white' : 'black',
-                      padding: '12px 16px',
-                      borderRadius: '18px',
-                      wordWrap: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      {message.text}
-                    </div>
-
-                    {/* Timestamp and Sender Info */}
-                    <div style={{
-                      fontSize: '11px',
-                      color: '#65676b',
-                      marginTop: '4px',
-                      textAlign: message.senderType === 'bot' ? 'left' : 'right'
-                    }}>
-                      {message.senderType === 'bot' ? 'VENERA Bot' : `User ${message.senderId.slice(0, 8)}...`}
-                      {' · '}
-                      {new Date(message.timestamp).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Stats */}
-            <div style={{
-              marginTop: '20px',
-              paddingTop: '15px',
-              borderTop: '1px solid #e0e0e0',
-              fontSize: '12px',
-              color: '#666',
-              display: 'flex',
-              justifyContent: 'space-between'
-            }}>
-              <span>Total messages: {conversation.messages.length}</span>
-              <span>Last activity: {new Date(conversation.messages[conversation.messages.length - 1]?.timestamp).toLocaleString()}</span>
-            </div>
-          </div>
-        ))}
-
-        {/* Footer */}
-        <div style={{
-          textAlign: 'center',
-          marginTop: '40px',
-          padding: '20px',
-          color: '#666',
-          fontSize: '14px'
-        }}>
-          <p style={{ margin: '0 0 10px 0' }}>
-            🔄 Auto-refreshing every 3 seconds
-          </p>
-          <p style={{ margin: 0 }}>
-            BEBIAS VENERA · Facebook Messenger Integration · Two-Way Messaging Enabled
-          </p>
-        </div>
+      {/* Header */}
+      <div style={{
+        backgroundColor: '#1877f2',
+        color: 'white',
+        padding: '20px 40px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
+        <h1 style={{ margin: '0 0 5px 0', fontSize: '24px', fontWeight: 'bold' }}>
+          🎮 VENERA Control Panel
+        </h1>
+        <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+          Take over conversations • Instruct bot • Send direct messages
+        </p>
       </div>
 
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+      <div style={{ display: 'flex', height: 'calc(100vh - 85px)' }}>
+        {/* Left Sidebar - Conversation List */}
+        <div style={{
+          width: '300px',
+          backgroundColor: 'white',
+          borderRight: '1px solid #e0e0e0',
+          overflowY: 'auto'
+        }}>
+          <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
+            <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', fontWeight: '600', color: '#666' }}>
+              ACTIVE CONVERSATIONS
+            </h3>
+            <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>
+              {conversations.length} total
+            </p>
+          </div>
+
+          {loading && (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
+              Loading...
+            </div>
+          )}
+
+          {!loading && conversations.length === 0 && (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: '#999' }}>
+              <div style={{ fontSize: '32px', marginBottom: '10px' }}>💬</div>
+              <p style={{ fontSize: '13px', margin: 0 }}>No conversations yet</p>
+            </div>
+          )}
+
+          {!loading && conversations.map((convo) => (
+            <div
+              key={convo.userId}
+              onClick={() => setSelectedUserId(convo.userId)}
+              style={{
+                padding: '15px',
+                borderBottom: '1px solid #f0f0f0',
+                cursor: 'pointer',
+                backgroundColor: selectedUserId === convo.userId ? '#e3f2fd' : 'white',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedUserId !== convo.userId) {
+                  e.currentTarget.style.backgroundColor = '#f9f9f9';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedUserId !== convo.userId) {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: convo.manualMode ? '#ff9800' : '#44b700'
+                }}></div>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: '#333' }}>
+                  User {convo.userId.slice(0, 8)}...
+                </span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#666', marginLeft: '16px' }}>
+                {convo.messages.length} messages
+              </div>
+              {convo.manualMode && (
+                <div style={{
+                  marginTop: '5px',
+                  marginLeft: '16px',
+                  fontSize: '10px',
+                  color: '#ff9800',
+                  fontWeight: '600'
+                }}>
+                  🎮 MANUAL MODE
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Main Content Area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {!selectedUserId && (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#999'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '64px', marginBottom: '20px' }}>👈</div>
+                <h2 style={{ margin: '0 0 10px 0' }}>Select a conversation</h2>
+                <p style={{ margin: 0 }}>Choose a user from the left to start</p>
+              </div>
+            </div>
+          )}
+
+          {selectedUserId && selectedConversation && (
+            <>
+              {/* Conversation Header */}
+              <div style={{
+                backgroundColor: 'white',
+                padding: '20px',
+                borderBottom: '2px solid #e0e0e0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h2 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>
+                      User {selectedUserId.slice(0, 12)}...
+                    </h2>
+                    <div style={{
+                      display: 'inline-block',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      backgroundColor: selectedConversation.manualMode ? '#fff3e0' : '#e8f5e9',
+                      color: selectedConversation.manualMode ? '#e65100' : '#2e7d32'
+                    }}>
+                      {selectedConversation.manualMode ? '🎮 MANUAL MODE' : '🤖 AUTO MODE'}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => toggleManualMode(selectedUserId, !selectedConversation.manualMode)}
+                    disabled={actionLoading}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: actionLoading ? 'not-allowed' : 'pointer',
+                      backgroundColor: selectedConversation.manualMode ? '#4caf50' : '#ff9800',
+                      color: 'white',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      opacity: actionLoading ? 0.6 : 1
+                    }}
+                  >
+                    {selectedConversation.manualMode ? '🤖 Resume Auto' : '🎮 Take Over'}
+                  </button>
+                </div>
+
+                {statusMessage && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: statusMessage.startsWith('❌') ? '#ffebee' : '#e8f5e9',
+                    color: statusMessage.startsWith('❌') ? '#c62828' : '#2e7d32',
+                    fontSize: '13px',
+                    fontWeight: '500'
+                  }}>
+                    {statusMessage}
+                  </div>
+                )}
+              </div>
+
+              {/* Messages Area */}
+              <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px',
+                backgroundColor: '#fafafa'
+              }}>
+                {selectedConversation.messages.map((message) => (
+                  <div
+                    key={message.id}
+                    style={{
+                      display: 'flex',
+                      flexDirection: message.senderType === 'user' ? 'row-reverse' : 'row',
+                      alignItems: 'flex-end',
+                      gap: '10px',
+                      marginBottom: '15px'
+                    }}
+                  >
+                    {/* Avatar */}
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: message.senderType === 'user' ? '#e4e6eb' : message.senderType === 'human' ? '#ff9800' : '#1877f2',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      flexShrink: 0
+                    }}>
+                      {message.senderType === 'user' ? '👤' : message.senderType === 'human' ? '👨‍💼' : '🤖'}
+                    </div>
+
+                    {/* Message Bubble */}
+                    <div style={{ maxWidth: '70%' }}>
+                      <div style={{
+                        backgroundColor: message.senderType === 'user' ? '#e4e6eb' : message.senderType === 'human' ? '#ff9800' : '#1877f2',
+                        color: message.senderType === 'user' ? 'black' : 'white',
+                        padding: '10px 14px',
+                        borderRadius: '18px',
+                        wordWrap: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {message.text}
+                      </div>
+
+                      <div style={{
+                        fontSize: '10px',
+                        color: '#65676b',
+                        marginTop: '4px',
+                        textAlign: message.senderType === 'user' ? 'right' : 'left'
+                      }}>
+                        {message.senderType === 'bot' ? 'VENERA Bot' : message.senderType === 'human' ? 'Human Operator' : 'User'}
+                        {' · '}
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Control Panel Footer */}
+              <div style={{
+                backgroundColor: 'white',
+                borderTop: '2px solid #e0e0e0',
+                padding: '20px'
+              }}>
+                {/* Bot Instruction */}
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#666',
+                    marginBottom: '8px'
+                  }}>
+                    📋 INSTRUCT BOT (next response only):
+                  </label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                      type="text"
+                      value={botInstruction}
+                      onChange={(e) => setBotInstruction(e.target.value)}
+                      placeholder="e.g., Tell them we'll call back tomorrow"
+                      disabled={selectedConversation.manualMode}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        fontSize: '14px',
+                        opacity: selectedConversation.manualMode ? 0.5 : 1
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') instructBot();
+                      }}
+                    />
+                    <button
+                      onClick={instructBot}
+                      disabled={actionLoading || !botInstruction.trim() || selectedConversation.manualMode}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: (actionLoading || !botInstruction.trim() || selectedConversation.manualMode) ? 'not-allowed' : 'pointer',
+                        backgroundColor: '#2196f3',
+                        color: 'white',
+                        opacity: (actionLoading || !botInstruction.trim() || selectedConversation.manualMode) ? 0.5 : 1
+                      }}
+                    >
+                      Instruct
+                    </button>
+                  </div>
+                  {selectedConversation.manualMode && (
+                    <div style={{ fontSize: '11px', color: '#ff9800', marginTop: '5px' }}>
+                      ⚠️ Disable manual mode to use bot instructions
+                    </div>
+                  )}
+                </div>
+
+                {/* Direct Message */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#666',
+                    marginBottom: '8px'
+                  }}>
+                    💬 SEND DIRECT MESSAGE (you answer):
+                  </label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                      type="text"
+                      value={directMessage}
+                      onChange={(e) => setDirectMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        fontSize: '14px'
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') sendDirectMessage();
+                      }}
+                    />
+                    <button
+                      onClick={sendDirectMessage}
+                      disabled={actionLoading || !directMessage.trim()}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: (actionLoading || !directMessage.trim()) ? 'not-allowed' : 'pointer',
+                        backgroundColor: '#ff9800',
+                        color: 'white',
+                        opacity: (actionLoading || !directMessage.trim()) ? 0.5 : 1
+                      }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+
+                {selectedConversation.botInstruction && (
+                  <div style={{
+                    marginTop: '15px',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: '#e3f2fd',
+                    fontSize: '12px',
+                    color: '#1565c0'
+                  }}>
+                    📋 Active instruction: "{selectedConversation.botInstruction}"
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

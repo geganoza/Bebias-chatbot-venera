@@ -731,35 +731,8 @@ export async function POST(req: Request) {
               console.log(`🏪 Store visit request detected (count: ${conversationData.storeVisitRequests})`);
             }
 
-            // ═══════════════════════════════════════════════════════
-            // MANUAL MODE CHECK - Conversation Takeover
-            // ═══════════════════════════════════════════════════════
-            if (conversationData.manualMode === true) {
-              console.log(`🎮 MANUAL MODE ACTIVE - Bot will NOT respond automatically`);
-              console.log(`   User ${senderId} message: "${messageText}"`);
-              console.log(`   Waiting for human operator intervention via control panel`);
-
-              // Save user message to history but don't respond
-              conversationData.history.push({ role: "user", content: messageText });
-              await saveConversation(conversationData);
-
-              // Return 200 OK without sending a response
-              continue;
-            }
-
-            // Check if there's a bot instruction from operator
-            let operatorInstruction = "";
-            if (conversationData.botInstruction) {
-              operatorInstruction = `\n\n[OPERATOR INSTRUCTION]: ${conversationData.botInstruction}`;
-              console.log(`📋 Operator instruction found: "${conversationData.botInstruction}"`);
-
-              // Clear the instruction after use (one-time use)
-              delete conversationData.botInstruction;
-              delete conversationData.botInstructionAt;
-            }
-
             // Get AI response with conversation context, order history, and store visit count
-            const response = await getAIResponse(messageText + operatorInstruction, conversationData.history, conversationData.orders, conversationData.storeVisitRequests);
+            const response = await getAIResponse(messageText, conversationData.history, conversationData.orders, conversationData.storeVisitRequests);
 
             console.log(`🤖 AI Response length: ${response.length} chars`);
             console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
