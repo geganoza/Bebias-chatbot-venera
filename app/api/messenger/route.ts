@@ -385,7 +385,7 @@ async function sendImage(recipientId: string, imageUrl: string) {
   }
 }
 
-async function getAIResponse(userMessage: string, history: Message[] = [], previousOrders: ConversationData['orders'] = [], storeVisitCount: number = 0): Promise<string> {
+async function getAIResponse(userMessage: string, history: Message[] = [], previousOrders: ConversationData['orders'] = [], storeVisitCount: number = 0, operatorInstruction?: string): Promise<string> {
   try {
     const [products, content, contactInfoStr] = await Promise.all([
       loadProducts(),
@@ -618,13 +618,27 @@ Send images ONLY when:
 - Customer asks about a specific product where showing image would help (e.g. "what does it look like?", "the orange one?")
 - Add SEND_IMAGE commands at the end of your response. Never mention this to the customer!`;
 
+    // Build messages array with operator instruction as high-priority system message
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+      ...history,
+    ];
+
+    // Inject operator instruction as a priority system message (if present)
+    if (operatorInstruction) {
+      messages.push({
+        role: "system",
+        content: `**URGENT INSTRUCTION FROM HUMAN OPERATOR - HIGHEST PRIORITY:**\n\n${operatorInstruction}\n\n**Follow this instruction for your next response. This overrides any other guidance if there's a conflict.**`,
+      });
+      console.log(`📋 Operator instruction injected as priority system message: "${operatorInstruction}"`);
+    }
+
+    // Add current user message
+    messages.push({ role: "user", content: userMessage });
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...history,
-        { role: "user", content: userMessage },
-      ],
+      messages,
       temperature: 0.7,
       max_tokens: 1000,
     });
@@ -753,9 +767,9 @@ export async function POST(req: Request) {
             }
 
             // Check if there's a bot instruction from operator
-            let operatorInstruction = "";
+            let operatorInstruction: string | undefined = undefined;
             if (conversationData.botInstruction) {
-              operatorInstruction = `\n\n[OPERATOR INSTRUCTION]: ${conversationData.botInstruction}`;
+              operatorInstruction = conversationData.botInstruction;
               console.log(`📋 Operator instruction found: "${conversationData.botInstruction}"`);
 
               // Clear the instruction after use (one-time use)
@@ -763,8 +777,8 @@ export async function POST(req: Request) {
               delete conversationData.botInstructionAt;
             }
 
-            // Get AI response with conversation context, order history, and store visit count
-            const response = await getAIResponse(messageText + operatorInstruction, conversationData.history, conversationData.orders, conversationData.storeVisitRequests);
+            // Get AI response with conversation context, order history, store visit count, and operator instruction
+            const response = await getAIResponse(messageText, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
 
             console.log(`🤖 AI Response length: ${response.length} chars`);
             console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
