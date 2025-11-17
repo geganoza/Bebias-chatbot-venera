@@ -107,7 +107,7 @@ export default function RootLayout({
         </noscript>
 
         {children}
-        <ConditionalChatWidget /> {/* floating button bottom-right, hidden on meta-review */}
+        <ConditionalChatWidget /> {/* floating button bottom-right, hidden on control-panel */}
       </body>
     </html>
   );
