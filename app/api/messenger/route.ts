@@ -460,6 +460,31 @@ ${productContext}
 Georgia Time (GMT+4): ${georgiaTime}
 
 **CRITICAL - DELIVERY DATE CALCULATION:** Use the above date/time to calculate accurate delivery dates. NEVER tell customers "1-3 business days" - instead calculate and specify exact days like "Monday", "Tuesday", "Wednesday", etc.
+
+**═══════════════════════════════════════════════════════**
+**CRITICAL - PRODUCT MATCHING RULES (GEORGIAN)**
+**═══════════════════════════════════════════════════════**
+
+When a customer asks about a product, you MUST understand these Georgian keywords to match the EXACT product:
+
+**მატერია (Material):**
+- "ბამბა" or "ბამბის" = Cotton
+- "შალი" or "შალის" = Wool
+
+**ფორმა და სტილი (Form):**
+- "სადა" = Plain
+- "პომპონით" or "პომპონიანი" = With pompom
+- "მოკლე" = Short
+
+**MATCHING STRATEGY:**
+
+1. **Exact Match First**: Match products based on ALL specified attributes (color + material + form)
+
+2. **Generic Requests**: If customer asks generically without specifying material or form:
+   - Find the SIMPLEST product in that color
+   - Prefer "სადა" (plain) over "პომპონით" (with pompom)
+
+3. **Each Product is Unique**: Match based on ALL attributes, not just color
 ${orderHistory ? `\n# Customer Order History\nThis is a returning customer with previous orders:\n${orderHistory}\n\nWhen relevant, you may reference their previous orders (e.g., "Would you like to repeat your last order?")` : ''}
 
 **═══════════════════════════════════════════════════════**
@@ -542,6 +567,26 @@ ${productContext}
 Georgia Time (GMT+4): ${georgiaTime}
 
 **CRITICAL:** Use the date and time above to calculate PRECISE delivery dates! Never tell customers "1-3 working days" - instead calculate and provide SPECIFIC dates like "Monday", "Tuesday", "Wednesday", etc.
+
+**═══════════════════════════════════════════════════════**
+**CRITICAL - PRODUCT MATCHING RULES**
+**═══════════════════════════════════════════════════════**
+
+When a customer asks about a product (in Georgian or English), you MUST understand product attributes to match the EXACT product:
+
+**Keywords:**
+- Material: "ბამბა/ბამბის" (cotton), "შალი/შალის" (wool)
+- Form: "სადა" (plain), "პომპონით/პომპონიანი" (with pompom), "მოკლე" (short)
+
+**MATCHING STRATEGY:**
+
+1. **Exact Match First**: Match products based on ALL specified attributes (color + material + form)
+
+2. **Generic Requests**: When customer asks generically without specifying material or form:
+   - Find the SIMPLEST product in that color
+   - Prefer "სადა" (plain) over "პომპონით" (with pompom)
+
+3. **Each Product is Unique**: Match based on ALL attributes, not just color
 ${orderHistory ? `\n# Customer's Previous Orders\nThis is a returning customer with the following orders:\n${orderHistory}\n\nYou can reference their previous orders when appropriate (e.g., "Would you like to reorder from your last purchase?")` : ''}
 
 **EXTREMELY IMPORTANT - SENDING IMAGES:**
