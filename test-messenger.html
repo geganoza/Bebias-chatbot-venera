@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VENERA Messenger Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 700px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            background: #0084FF;
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .message.user {
+            background: #0084FF;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .message.bot {
+            background: #f0f0f0;
+            color: #333;
+            align-self: flex-start;
+        }
+        .message.loading {
+            background: #f0f0f0;
+            color: #666;
+            font-style: italic;
+            align-self: flex-start;
+        }
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            align-self: center;
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        .message img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+        }
+        .chat-input:focus {
+            border-color: #0084FF;
+        }
+        .send-button {
+            padding: 12px 24px;
+            background: #0084FF;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .send-button:hover {
+            background: #0073e6;
+        }
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .reset-button {
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .user-id-input {
+            width: 150px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            VENERA - Messenger Webhook Test
+            <div style="font-size: 12px; margin-top: 8px; opacity: 0.9;">
+                User ID: <input type="text" class="user-id-input" id="userIdInput" value="test_user_123">
+                <button class="reset-button" id="resetButton">Reset Conversation</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="messages"></div>
+        <div class="chat-input-container">
+            <input
+                type="text"
+                class="chat-input"
+                id="messageInput"
+                placeholder="Type your message..."
+                autocomplete="off"
+            />
+            <button class="send-button" id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const userIdInput = document.getElementById('userIdInput');
+        const resetButton = document.getElementById('resetButton');
+
+        function addMessage(text, isUser, isSystem = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : (isSystem ? 'system' : 'bot')}`;
+            messageDiv.textContent = text;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addImageMessage(imageUrl) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            messageDiv.appendChild(img);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message loading';
+            messageDiv.textContent = 'VENERA is typing...';
+            messageDiv.id = 'loading';
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.remove();
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            const userId = userIdInput.value.trim() || 'test_user_123';
+
+            if (!message) return;
+
+            // Disable input
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Show user message
+            addMessage(message, true);
+
+            // Clear input
+            messageInput.value = '';
+
+            // Show loading
+            addLoadingMessage();
+
+            try {
+                // Simulate Facebook Messenger webhook format
+                const webhookPayload = {
+                    object: 'page',
+                    entry: [{
+                        id: 'page_id',
+                        time: Date.now(),
+                        messaging: [{
+                            sender: { id: userId },
+                            recipient: { id: 'page_id' },
+                            timestamp: Date.now(),
+                            message: {
+                                mid: 'mid.' + Date.now(),
+                                text: message
+                            }
+                        }]
+                    }]
+                };
+
+                console.log('Sending webhook payload:', webhookPayload);
+
+                const response = await fetch('http://localhost:3020/api/messenger', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(webhookPayload)
+                });
+
+                // Wait a bit for the response
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                removeLoadingMessage();
+
+                if (response.ok) {
+                    addMessage('✓ Message sent successfully', false, true);
+                    // In real Messenger, we'd receive the reply via webhook callback
+                    // For testing, we just show that it was processed
+                } else {
+                    const errorText = await response.text();
+                    addMessage('Error: ' + errorText, false, true);
+                }
+            } catch (error) {
+                removeLoadingMessage();
+                addMessage('Error: Could not connect to server. Make sure the server is running on port 3020.', false, true);
+                console.error('Error:', error);
+            }
+
+            // Re-enable input
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            messageInput.focus();
+        }
+
+        async function resetConversation() {
+            const userId = userIdInput.value.trim() || 'test_user_123';
+
+            if (!confirm(`Reset conversation for user ${userId}?`)) {
+                return;
+            }
+
+            try {
+                // Delete the conversation file
+                const response = await fetch(`http://localhost:3020/api/reset-conversation?userId=${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    addMessage('🔄 Conversation reset successfully', false, true);
+                    messagesContainer.innerHTML = '';
+                } else {
+                    addMessage('❌ Failed to reset conversation', false, true);
+                }
+            } catch (error) {
+                addMessage('❌ Error resetting conversation: ' + error.message, false, true);
+                console.error('Error:', error);
+            }
+        }
+
+        // Send on button click
+        sendButton.addEventListener('click', sendMessage);
+        resetButton.addEventListener('click', resetConversation);
+
+        // Send on Enter key
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Focus input on load
+        messageInput.focus();
+
+        // Add initial message
+        addMessage('This test simulates Facebook Messenger webhook calls. Each message is sent individually, just like in production.', false, true);
+    </script>
+</body>
+</html>
