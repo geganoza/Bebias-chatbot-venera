@@ -680,9 +680,32 @@ export async function POST(req: Request) {
 
           const senderId = event.sender?.id;
           const messageText = event.message?.text;
+          const messageId = event.message?.mid; // Facebook's unique message ID
 
           if (senderId && messageText) {
             console.log(`👤 User ${senderId} said: "${messageText}"`);
+
+            // ═══════════════════════════════════════════════════════
+            // MESSAGE DEDUPLICATION CHECK
+            // Facebook webhooks often deliver the same message multiple times
+            // ═══════════════════════════════════════════════════════
+            if (messageId) {
+              const dedupeKey = `msg_processed:${messageId}`;
+
+              // Check if we've already processed this message
+              const alreadyProcessed = await kv.get(dedupeKey);
+
+              if (alreadyProcessed) {
+                console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
+                continue; // Skip to next event
+              }
+
+              // Mark this message as processed (TTL: 1 hour = 3600 seconds)
+              await kv.set(dedupeKey, '1', { ex: 3600 });
+              console.log(`✅ Message ${messageId} marked as processed`);
+            } else {
+              console.warn(`⚠️ No message ID found - cannot deduplicate`);
+            }
 
             // Log incoming message for Meta review dashboard
             await logMetaMessage(senderId, senderId, 'user', messageText);
