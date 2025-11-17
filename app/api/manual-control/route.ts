@@ -45,6 +45,64 @@ function detectGeorgian(text: string) {
   return /[\u10A0-\u10FF]/.test(text);
 }
 
+// Parse SEND_IMAGE commands from response
+function parseImageCommands(response: string): { productIds: string[]; cleanResponse: string } {
+  console.log(`🔍 parseImageCommands called with response length: ${response.length}`);
+
+  const imageRegex = /SEND_IMAGE:\s*([A-Z0-9\-_]+)/gi;
+  const matches = [...response.matchAll(imageRegex)];
+  console.log(`🔍 Found ${matches.length} SEND_IMAGE matches`);
+
+  const productIds = matches.map(match => {
+    console.log(`🔍 Matched product ID: "${match[1]}"`);
+    return match[1].trim();
+  });
+
+  // Remove SEND_IMAGE commands from response
+  const cleanResponse = response.replace(imageRegex, '').trim();
+
+  return { productIds, cleanResponse };
+}
+
+// Send image via Facebook API
+async function sendImage(recipientId: string, imageUrl: string) {
+  const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
+
+  console.log(`📸 Sending pre-encoded image to ${recipientId}:`, imageUrl);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: "image",
+            payload: {
+              url: imageUrl,
+              is_reusable: true
+            }
+          }
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("❌ Facebook API error sending image:", data);
+    } else {
+      console.log("✅ Image sent successfully:", data);
+    }
+
+    return { success: response.ok, data };
+  } catch (err) {
+    console.error("❌ Error sending image:", err);
+    return { success: false, error: err };
+  }
+}
+
 // Generate AI response with operator instruction
 async function generateInstructedResponse(
   operatorInstruction: string,
@@ -300,17 +358,42 @@ export async function POST(req: Request) {
 
         console.log(`💬 AI Response generated: "${aiResponse.substring(0, 100)}..."`);
 
-        // Send the response to the user immediately
-        const sendResult = await sendMessageToUser(userId, aiResponse);
+        // Parse image commands from response
+        const { productIds, cleanResponse } = parseImageCommands(aiResponse);
+
+        // Send the text response to the user (without SEND_IMAGE commands)
+        const sendResult = await sendMessageToUser(userId, cleanResponse);
 
         if (sendResult.success) {
+          // Send product images if requested
+          if (productIds.length > 0) {
+            console.log(`🖼️ Found ${productIds.length} image(s) to send:`, productIds);
+
+            // Load products to get image URLs
+            const allProducts = await loadProducts();
+            const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+            for (const productId of productIds) {
+              const product = productMap.get(productId);
+              if (product && product.image &&
+                  product.image !== "IMAGE_URL_HERE" &&
+                  !product.image.includes('facebook.com') &&
+                  product.image.startsWith('http')) {
+                await sendImage(userId, product.image);
+                console.log(`✅ Sent image for ${productId}`);
+              } else {
+                console.warn(`⚠️ No valid image found for product ${productId}`);
+              }
+            }
+          }
+
           // Log to meta-messages as bot message (with operator instruction tag)
-          await logMetaMessage(userId, 'BOT_OPERATOR_INSTRUCTED', 'bot', aiResponse);
+          await logMetaMessage(userId, 'BOT_OPERATOR_INSTRUCTED', 'bot', cleanResponse);
 
           // Add to conversation history
           conversation.history.push({
             role: "assistant",
-            content: `[BOT - OPERATOR INSTRUCTED]: ${aiResponse}`
+            content: `[BOT - OPERATOR INSTRUCTED]: ${cleanResponse}`
           });
           await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
 
@@ -318,7 +401,8 @@ export async function POST(req: Request) {
           return NextResponse.json({
             success: true,
             message: "Instruction executed and response sent",
-            response: aiResponse
+            response: cleanResponse,
+            imagesSent: productIds.length
           });
         } else {
           console.error(`❌ Failed to send instructed response to user ${userId}`);
