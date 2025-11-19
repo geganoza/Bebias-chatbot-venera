@@ -12,9 +12,13 @@ export async function GET(request: Request) {
     const hasClientSecret = !!process.env.BOG_CLIENT_SECRET;
     const hasAccountId = !!process.env.BOG_ACCOUNT_ID;
 
+    const clientIdLength = process.env.BOG_CLIENT_ID?.length || 0;
+    const clientSecretLength = process.env.BOG_CLIENT_SECRET?.length || 0;
+    const clientIdPreview = process.env.BOG_CLIENT_ID?.substring(0, 10) + '...';
+
     console.log('Environment check:');
-    console.log(`  BOG_CLIENT_ID: ${hasClientId ? '✅ Set' : '❌ Missing'}`);
-    console.log(`  BOG_CLIENT_SECRET: ${hasClientSecret ? '✅ Set' : '❌ Missing'}`);
+    console.log(`  BOG_CLIENT_ID: ${hasClientId ? '✅ Set' : '❌ Missing'} (length: ${clientIdLength}, preview: ${clientIdPreview})`);
+    console.log(`  BOG_CLIENT_SECRET: ${hasClientSecret ? '✅ Set' : '❌ Missing'} (length: ${clientSecretLength})`);
     console.log(`  BOG_ACCOUNT_ID: ${hasAccountId ? '✅ Set' : '❌ Missing'}`);
 
     if (!hasClientId || !hasClientSecret) {
