@@ -28,9 +28,8 @@
 4. ჩარიცხეთ ჯამური თანხა (პროდუქტი + მიწოდება)
 
 5. ჩარიცხვის შემდეგ გვიზიარეთ:
-   - გადახდის სქრინშოტი
-   - მისამართი
    - მიმღების სახელი და გვარი
+   - მისამართი
    - საკონტაქტო ტელეფონი
 
 ---
@@ -51,7 +50,6 @@
 4. Transfer total amount (product + delivery)
 
 5. After payment, share:
-   - Payment screenshot
-   - Delivery address
    - Recipient's full name
+   - Delivery address
    - Contact phone number

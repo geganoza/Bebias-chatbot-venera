@@ -1,45 +1,45 @@
-
 // lib/bank.ts
+import { getBOGClient } from './bogClient';
 
 export interface Transaction {
   id: string;
   date: string;
   amount: number;
   description: string;
+  senderName?: string;
 }
 
-const BANK_API_URL = process.env.BANK_API_URL;
-const BANK_API_TOKEN = process.env.BANK_API_TOKEN;
-
 /**
- * Fetches recent transactions from the bank's API.
- *
- * This is a mock implementation. In a real-world scenario, this function
- * would make a request to the bank's API to fetch real transaction data.
- *
- * @returns {Promise<Transaction[]>} A promise that resolves to a list of transactions.
+ * Fetches recent transactions from Bank of Georgia (last 10 minutes)
+ * Uses real-time todayactivities endpoint for instant payment detection
  */
 export async function getRecentTransactions(): Promise<Transaction[]> {
-  console.log('Fetching recent transactions from the bank...');
+  console.log('🏦 Fetching recent transactions from BOG...');
 
-  // In a real implementation, you would use BANK_API_URL and BANK_API_TOKEN
-  // to make an authenticated request to the bank's API.
-  if (!BANK_API_URL || !BANK_API_TOKEN) {
-    console.error('Bank API URL or Token is not set. Please check your .env.local file.');
+  try {
+    const bog = getBOGClient();
+    const transactions = await bog.getTodayActivities();
+
+    // Filter to last 10 minutes and credit transactions only
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+    const recentTransactions = transactions
+      .filter(tx => {
+        const txDate = new Date(tx.date);
+        return txDate >= tenMinutesAgo && tx.type === 'credit';
+      })
+      .map(tx => ({
+        id: tx.id,
+        date: tx.date,
+        amount: tx.amount,
+        description: tx.counterpartyName || tx.description || 'Unknown',
+        senderName: tx.counterpartyName || '',
+      }));
+
+    console.log(`✅ Found ${recentTransactions.length} recent transactions (last 10 min)`);
+    return recentTransactions;
+  } catch (error) {
+    console.error('❌ Error fetching BOG transactions:', error);
     return [];
   }
-
-  // Mock data for demonstration purposes
-  const mockTransactions: Transaction[] = [
-    { id: '1', date: '2025-11-19', amount: 120.50, description: 'Payment from John Doe' },
-    { id: '2', date: '2025-11-18', amount: 75.00, description: 'Payment from Jane Smith' },
-    { id: '3', date: '2025-11-17', amount: 200.00, description: 'Payment from Foo Bar' },
-  ];
-
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  console.log('Finished fetching recent transactions.');
-
-  return mockTransactions;
 }

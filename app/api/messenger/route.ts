@@ -6,7 +6,8 @@ import { kv } from "@vercel/kv";
 import { sendOrderEmail, parseOrderNotification } from "../../../lib/sendOrderEmail";
 import { logOrder } from "../../../lib/orderLogger";
 
-type Message = { role: "system" | "user" | "assistant"; content: string };
+type MessageContent = string | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
+type Message = { role: "system" | "user" | "assistant"; content: MessageContent };
 type Product = {
   id: string;
   name: string;
@@ -46,6 +47,14 @@ type ConversationData = {
   manualModeDisabledAt?: string; // Timestamp when manual mode was disabled
   botInstruction?: string; // One-time instruction from operator for next bot response
   botInstructionAt?: string; // Timestamp when instruction was set
+
+  // Escalation system fields
+  needsAttention?: boolean; // Flag for manager attention
+  escalatedAt?: string; // When the conversation was escalated
+  escalationReason?: string; // Why it needs attention (e.g., "late order", "delivery issue")
+  escalationDetails?: string; // Order details provided by customer
+  managerNotified?: boolean; // Whether manager was notified
+  managerPhoneOffered?: boolean; // Whether phone number was already offered
 };
 
 async function loadProducts(): Promise<Product[]> {
@@ -228,6 +237,227 @@ function detectGeorgian(text: string) {
   return /[\u10A0-\u10FF]/.test(text);
 }
 
+/**
+ * Handle automatic payment verification when user provides payment details
+ */
+async function handlePaymentVerification(userMessage: string, history: Message[]): Promise<string | null> {
+  const isKa = detectGeorgian(userMessage);
+
+  // Check if bot just provided bank account in previous message
+  const lastBotMsg = [...history].reverse().find((m) => m.role === "assistant");
+  const lastBotText = typeof lastBotMsg?.content === 'string' ? lastBotMsg.content : '';
+  const botProvidedBankAccount = lastBotText.includes('GE09TB') || lastBotText.includes('GE31BG');
+
+  // Keywords indicating payment was made
+  const paymentKeywords = isKa
+    ? ['გადავიხადე', 'გადმოვრიცხე', 'გავაგზავნე', 'ჩავრიცხე', 'გადავრიცხე']
+    : ['paid', 'sent', 'transferred'];
+  const mentionsPayment = paymentKeywords.some(keyword => userMessage.toLowerCase().includes(keyword));
+
+  // If user just sent name + phone + address after bank account was provided, treat as payment confirmation
+  const hasPhoneNumber = /\d{9}/.test(userMessage); // Georgian phone numbers
+  const hasName = /[ა-ჰ]{2,}/.test(userMessage) || /[a-z]{2,}/i.test(userMessage);
+
+  const likelyPaymentConfirmation = botProvidedBankAccount && hasPhoneNumber && hasName;
+
+  if (!mentionsPayment && !likelyPaymentConfirmation) {
+    return null;
+  }
+
+  // Extract expected amount from conversation history
+  // Prioritize total amount patterns over individual prices
+  let expectedAmount: number | null = null;
+  for (let i = history.length - 1; i >= 0 && i >= history.length - 5; i--) {
+    const msg = history[i];
+    if (msg.role === 'assistant') {
+      const msgText = typeof msg.content === 'string' ? msg.content : '';
+      // Priority 1: Look for "ჯამში X ლარი" (total)
+      let amountMatch = msgText.match(/ჯამში\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
+
+      // Priority 2: Look for "ჩარიცხოთ X ლარი" (transfer X GEL)
+      if (!amountMatch) {
+        amountMatch = msgText.match(/ჩარიცხოთ\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
+      }
+
+      // Priority 3: Amount right before bank account number
+      if (!amountMatch) {
+        amountMatch = msgText.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ[ი\s]*\s*(?:საქართველოს ბანკის|თიბისის|ანგარიშზე|GE\d)/);
+      }
+
+      if (amountMatch) {
+        expectedAmount = parseFloat(amountMatch[1]);
+        break;
+      }
+    }
+  }
+
+  // Extract name from user message (Georgian or Latin)
+  let name: string | null = null;
+  const georgianNameMatch = userMessage.match(/([ა-ჰ]+\s+[ა-ჰ]+)/);
+  const latinNameMatch = userMessage.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+  name = georgianNameMatch?.[1] || latinNameMatch?.[1] || null;
+
+  if (!expectedAmount || !name) {
+    console.log(`⚠️ Payment verification skipped - missing amount (${expectedAmount}) or name (${name})`);
+    return null;
+  }
+
+  console.log(`🏦 Verifying payment: ${expectedAmount} GEL from "${name}"`);
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app'}/api/bank/verify-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: expectedAmount, name }),
+    });
+
+    const data = await response.json();
+
+    console.log(`🏦 Payment verification result:`, data);
+
+    if (data.paymentFound) {
+      const reply = isKa
+        ? `✅ გადახდა დადასტურდა! ${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\nგთხოვთ, გაგრძელდეს შეკვეთის დამუშავება მიწოდების დეტალებით.`
+        : `✅ Payment confirmed! ${expectedAmount} GEL received from "${name}".\n\nPlease proceed with the order using the delivery details provided.`;
+
+      console.log(`✅ Payment verified - proceeding with order`);
+      return reply;
+    } else {
+      const reply = isKa
+        ? `❌ გადახდა ვერ მოიძებნა. ვეძებთ ${expectedAmount} ლარს "${name}"-ისგან.\n\nგთხოვთ დარწმუნდით რომ:\n- გადახდა დასრულებულია\n- სახელი სწორია: ${name}\n- თანხა შეესაბამება: ${expectedAmount} ლარი`
+        : `❌ Payment not found. Looking for ${expectedAmount} GEL from "${name}".\n\nPlease make sure:\n- Payment is complete\n- Name matches: ${name}\n- Amount is correct: ${expectedAmount} GEL`;
+
+      console.log(`❌ Payment NOT verified`);
+      return reply;
+    }
+  } catch (error) {
+    console.error('❌ Error verifying payment:', error);
+    return null; // Continue with normal flow
+  }
+}
+
+/**
+ * Handle customer issue escalation
+ * Returns a response if escalation is triggered, null otherwise
+ */
+async function handleIssueEscalation(
+  userMessage: string,
+  conversationData: ConversationData
+): Promise<{ escalated: boolean; response: string | null; updatedData: ConversationData }> {
+  const isKa = detectGeorgian(userMessage);
+  const issue = detectCustomerIssue(userMessage);
+
+  // If no issue detected, return
+  if (!issue.detected) {
+    return { escalated: false, response: null, updatedData: conversationData };
+  }
+
+  console.log(`🚨 Issue escalation triggered: ${issue.reason}`);
+
+  // Check if we're already in escalation mode
+  if (conversationData.needsAttention) {
+    // Customer is providing more details - collect them
+    const orderInfo = extractOrderInfo(userMessage);
+
+    // If customer provided order details, escalate to manager
+    if (orderInfo.orderNumber || orderInfo.orderDate || orderInfo.shippingMethod) {
+      const details = `Order #${orderInfo.orderNumber || 'N/A'}, Date: ${orderInfo.orderDate || 'N/A'}, Shipping: ${orderInfo.shippingMethod || 'N/A'}`;
+
+      conversationData.escalationDetails = details;
+      conversationData.manualMode = true; // Enable manual mode
+      conversationData.manualModeEnabledAt = new Date().toISOString();
+      conversationData.managerNotified = false; // Will be notified via KV store
+
+      // Store escalation notification in KV for manager
+      await kv.set(`manager_notification:${conversationData.senderId}`, {
+        senderId: conversationData.senderId,
+        userName: conversationData.userName || 'Unknown User',
+        reason: conversationData.escalationReason,
+        details: details,
+        message: userMessage,
+        timestamp: new Date().toISOString()
+      }, { ex: 86400 }); // 24 hours TTL
+
+      const response = isKa
+        ? `✅ გმადლობთ ინფორმაციისთვის. მენეჯერი გადახედავს თქვენს შეკვეთას და უახლოეს დროში დაგიკავშირდებათ.`
+        : `✅ Thank you for the information. The manager will review your order and get back to you as soon as possible.`;
+
+      console.log(`📢 Manager notified about ${issue.reason} for user ${conversationData.senderId}`);
+
+      return { escalated: true, response, updatedData: conversationData };
+    }
+  }
+
+  // First time issue detected - ask for order details
+  if (!conversationData.needsAttention) {
+    conversationData.needsAttention = true;
+    conversationData.escalatedAt = new Date().toISOString();
+    conversationData.escalationReason = issue.reason;
+
+    const response = isKa
+      ? `გასაგებია, დაგეხმარებით.\n\nგთხოვთ მიუთითოთ:\n- შეკვეთის ნომერი\n- შეკვეთის თარიღი\n- მიწოდების მეთოდი (სტანდარტული/ექსპრესი)`
+      : `I understand, I'll help you.\n\nPlease provide:\n- Order number\n- Order date\n- Shipping method (standard/express)`;
+
+    return { escalated: true, response, updatedData: conversationData };
+  }
+
+  return { escalated: false, response: null, updatedData: conversationData };
+}
+
+/**
+ * Check if we should offer manager's phone number
+ * Returns phone number message if conditions are met, null otherwise
+ */
+async function checkPhoneNumberFallback(conversationData: ConversationData, userMessage: string): Promise<string | null> {
+  // Don't offer phone if already offered
+  if (conversationData.managerPhoneOffered) {
+    return null;
+  }
+
+  // Must be in manual mode (escalated)
+  if (!conversationData.manualMode || !conversationData.escalatedAt) {
+    return null;
+  }
+
+  // Check if 1 hour has passed since escalation
+  const escalatedTime = new Date(conversationData.escalatedAt).getTime();
+  const now = Date.now();
+  const hoursPassed = (now - escalatedTime) / (1000 * 60 * 60);
+
+  if (hoursPassed < 1) {
+    return null; // Not enough time passed
+  }
+
+  // Check if it's a workday and working hours (Mon-Fri, 9:00-18:00 Georgian time)
+  const georgianTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Tbilisi' });
+  const date = new Date(georgianTime);
+  const dayOfWeek = date.getDay(); // 0=Sunday, 6=Saturday
+  const hour = date.getHours();
+
+  const isWorkday = dayOfWeek >= 1 && dayOfWeek <= 5; // Monday to Friday
+  const isWorkingHours = hour >= 9 && hour < 18;
+
+  if (!isWorkday || !isWorkingHours) {
+    return null; // Not during working hours
+  }
+
+  // Check if customer is persisting (asking again)
+  const issue = detectCustomerIssue(userMessage);
+  if (!issue.detected) {
+    return null; // Customer not asking about their issue anymore
+  }
+
+  // All conditions met - offer phone number
+  conversationData.managerPhoneOffered = true;
+
+  const isKa = detectGeorgian(userMessage);
+  const managerPhone = process.env.MANAGER_PHONE || '+995 XXX XXX XXX';
+
+  return isKa
+    ? `ვწუხვართ რომ მენეჯერმა ჯერ ვერ მოახერხა პასუხი. შეგიძლიათ დაუკავშირდეთ პირდაპირ ტელეფონზე: ${managerPhone}`
+    : `Sorry the manager hasn't responded yet. You can call directly at: ${managerPhone}`;
+}
+
 function detectStoreVisitRequest(text: string): boolean {
   // Georgian patterns
   const georgianPatterns = [
@@ -253,6 +483,70 @@ function detectStoreVisitRequest(text: string): boolean {
 
   const allPatterns = [...georgianPatterns, ...englishPatterns];
   return allPatterns.some(pattern => pattern.test(text));
+}
+
+/**
+ * Detect if customer is reporting an issue that needs manager attention
+ */
+function detectCustomerIssue(text: string): { detected: boolean; reason: string } {
+  const lowerText = text.toLowerCase();
+
+  // Georgian issue patterns
+  const georgianIssues = [
+    { patterns: [/როდის\s+(მოვა|მოვიდა|მოვდა|მოვიღებ|ჩამოდის)/i, /მიწოდების\s+დრო/i, /ჩამოსვლის\s+დრო/i], reason: 'arrival_time' },
+    { patterns: [/დაგვიან|დააგვიან|ვერ\s+მოდის|ვერ\s+მოვიდა|არ\s+მომდის|არ\s+მოვიდა/i], reason: 'late_order' },
+    { patterns: [/პრობლემა|შეცდომა|ბრალი|უხერხემლობა|ცუდი|დაზიანდა|არასწორი/i], reason: 'problem' },
+    { patterns: [/სად\s+არის|სად\s+იყო|ვერ\s+ვიპოვე|ვერ\s+ვიღებ/i], reason: 'tracking' },
+    { patterns: [/შეკვეთა.*არ.*მივიღე|არ\s+მოვიდა\s+შეკვეთა/i], reason: 'not_received' },
+  ];
+
+  // English issue patterns
+  const englishIssues = [
+    { patterns: [/when\s+(will|does|is)\s+(it|my\s+order)\s+(arrive|come|get\s+here)/i, /arrival\s+time/i, /delivery\s+time/i], reason: 'arrival_time' },
+    { patterns: [/late|delayed|still\s+waiting|hasn't\s+arrived|not\s+arrived/i], reason: 'late_order' },
+    { patterns: [/problem|issue|error|wrong|damaged|bad|broken/i], reason: 'problem' },
+    { patterns: [/where\s+is\s+my\s+order|track|tracking/i], reason: 'tracking' },
+    { patterns: [/didn't\s+receive|haven't\s+received|not\s+received/i], reason: 'not_received' },
+  ];
+
+  const allIssues = [...georgianIssues, ...englishIssues];
+
+  for (const issueGroup of allIssues) {
+    if (issueGroup.patterns.some(pattern => pattern.test(text))) {
+      console.log(`🚨 Customer issue detected: ${issueGroup.reason}`);
+      return { detected: true, reason: issueGroup.reason };
+    }
+  }
+
+  return { detected: false, reason: '' };
+}
+
+/**
+ * Extract order information from customer message
+ */
+function extractOrderInfo(text: string): { orderNumber?: string; orderDate?: string; shippingMethod?: string } {
+  const info: { orderNumber?: string; orderDate?: string; shippingMethod?: string } = {};
+
+  // Order number patterns (e.g., #12345, order 12345, შეკვეთა 12345)
+  const orderNumMatch = text.match(/#?(\d{4,6})|order\s+(\d{4,6})|შეკვეთა\s+(\d{4,6})/i);
+  if (orderNumMatch) {
+    info.orderNumber = orderNumMatch[1] || orderNumMatch[2] || orderNumMatch[3];
+  }
+
+  // Date patterns
+  const dateMatch = text.match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})|(\d{1,2}\s+(იანვარი|თებერვალი|მარტი|აპრილი|მაისი|ივნისი|ივლისი|აგვისტო|სექტემბერი|ოქტომბერი|ნოემბერი|დეკემბერი))/i);
+  if (dateMatch) {
+    info.orderDate = dateMatch[0];
+  }
+
+  // Shipping method patterns
+  if (/სტანდარტ|standard/i.test(text)) {
+    info.shippingMethod = 'standard';
+  } else if (/ექსპრეს|express/i.test(text)) {
+    info.shippingMethod = 'express';
+  }
+
+  return info;
 }
 
 function parseImageCommands(response: string): { productIds: string[]; cleanResponse: string } {
@@ -427,7 +721,7 @@ async function sendImage(recipientId: string, imageUrl: string) {
   }
 }
 
-async function getAIResponse(userMessage: string, history: Message[] = [], previousOrders: ConversationData['orders'] = [], storeVisitCount: number = 0, operatorInstruction?: string): Promise<string> {
+async function getAIResponse(userMessage: MessageContent, history: Message[] = [], previousOrders: ConversationData['orders'] = [], storeVisitCount: number = 0, operatorInstruction?: string): Promise<string> {
   try {
     const [products, content, contactInfoStr] = await Promise.all([
       loadProducts(),
@@ -437,7 +731,8 @@ async function getAIResponse(userMessage: string, history: Message[] = [], previ
 
     const contactInfo = contactInfoStr ? JSON.parse(contactInfoStr) : null;
 
-    const isKa = detectGeorgian(userMessage);
+    const userText = typeof userMessage === 'string' ? userMessage : userMessage.find(c => c.type === 'text')?.text ?? '';
+    const isKa = detectGeorgian(userText);
 
     // Build product catalog for AI context - show all products
     const productContext = products
@@ -661,7 +956,7 @@ Send images ONLY when:
 - Add SEND_IMAGE commands at the end of your response. Never mention this to the customer!`;
 
     // Build messages array with operator instruction as high-priority system message
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    const messages: Message[] = [
       { role: "system", content: systemPrompt },
       ...history,
     ];
@@ -680,14 +975,17 @@ Send images ONLY when:
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages,
+      messages: messages as any, // Cast to any to handle MessageContent type flexibility
       temperature: 0.7,
       max_tokens: 1000,
     });
 
     return completion.choices[0]?.message?.content || (isKa ? "ბოდიში, ვერ გავიგე." : "Sorry, I didn't understand that.");
-  } catch (err) {
+  } catch (err: any) {
     console.error("❌ OpenAI API error:", err);
+    console.error("❌ Error details:", JSON.stringify(err, null, 2));
+    console.error("❌ Error message:", err?.message);
+    console.error("❌ Error stack:", err?.stack);
     return "Sorry, there was an error processing your request.";
   }
 }
@@ -740,11 +1038,50 @@ export async function POST(req: Request) {
           console.log(`💬 Processing messaging event:`, JSON.stringify(event, null, 2));
 
           const senderId = event.sender?.id;
-          const messageText = event.message?.text;
-          const messageId = event.message?.mid; // Facebook's unique message ID
+          if (!senderId) {
+            console.log("⚠️ Event does not contain sender ID, skipping.");
+            continue;
+          }
 
-          if (senderId && messageText) {
-            console.log(`👤 User ${senderId} said: "${messageText}"`);
+          const message = event.message; // Get the full message object
+          const messageText = message?.text;
+          const messageAttachments = message?.attachments;
+          const messageId = message?.mid;
+
+          if (messageText || messageAttachments) {
+            let userContent: MessageContent = "";
+            const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
+            let userTextForProcessing = messageText || ""; // Initialize with text if available
+
+            if (messageText) {
+              contentParts.push({ type: "text", text: messageText });
+            }
+
+            if (messageAttachments) {
+              for (const attachment of messageAttachments) {
+                if (attachment.type === "image") { // Focus on image attachments for now
+                  contentParts.push({ type: "image_url", image_url: { url: attachment.payload.url } });
+                  console.log(`🖼️ Identified image attachment: ${attachment.payload.url}`);
+                }
+                // Other attachment types (video, file, audio) are ignored for now.
+              }
+            }
+            
+            // Determine final userContent based on what was found
+            if (contentParts.length > 1) { // Both text and image(s)
+              userContent = contentParts;
+            } else if (contentParts.length === 1) { // Only text or only image
+              if (contentParts[0].type === 'text') {
+                  userContent = contentParts[0].text;
+              } else { // It's an image_url part
+                  userContent = contentParts;
+              }
+            } else { // Should not happen if previous checks pass, but for safety
+                 console.log("⚠️ Message has no processable content (text or image), skipping.");
+                 continue; // Skip processing this event
+            }
+            
+            console.log(`👤 User ${senderId} sent content. Text: "${userTextForProcessing}"`, messageAttachments ? `with ${messageAttachments.length} attachments.` : '');
 
             // ═══════════════════════════════════════════════════════
             // MESSAGE DEDUPLICATION CHECK
@@ -769,7 +1106,7 @@ export async function POST(req: Request) {
             }
 
             // Log incoming message for Meta review dashboard
-            await logMetaMessage(senderId, senderId, 'user', messageText);
+            await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
 
             // Load conversation data from file
             const conversationData = await loadConversation(senderId);
@@ -791,31 +1128,78 @@ export async function POST(req: Request) {
             }
 
             // Initialize storeVisitRequests if undefined
-            if (conversationData.storeVisitRequests === undefined) {
-              conversationData.storeVisitRequests = 0;
-            }
-
+            conversationData.storeVisitRequests ??= 0;
+            
             // Detect if user is asking about physical store/warehouse visit
-            const isStoreVisitRequest = detectStoreVisitRequest(messageText);
-            if (isStoreVisitRequest) {
-              conversationData.storeVisitRequests += 1;
+            if (detectStoreVisitRequest(userTextForProcessing)) {
+              conversationData.storeVisitRequests++;
               console.log(`🏪 Store visit request detected (count: ${conversationData.storeVisitRequests})`);
             }
 
             // ═══════════════════════════════════════════════════════
-            // MANUAL MODE CHECK - Conversation Takeover
+            // GLOBAL BOT PAUSE & MANUAL MODE CHECKS
             // ═══════════════════════════════════════════════════════
-            if (conversationData.manualMode === true) {
-              console.log(`🎮 MANUAL MODE ACTIVE - Bot will NOT respond automatically`);
-              console.log(`   User ${senderId} message: "${messageText}"`);
-              console.log(`   Waiting for human operator intervention via control panel`);
+            const globalBotPaused = await kv.get<boolean>('global_bot_paused');
+            if (globalBotPaused === true || conversationData.manualMode === true) {
+              console.log(globalBotPaused ? `⏸️ GLOBAL BOT PAUSE ACTIVE` : `🎮 MANUAL MODE ACTIVE`);
+              console.log(`   User ${senderId} message: "${userTextForProcessing}"`);
+              console.log(`   Message stored but no response sent`);
 
               // Save user message to history but don't respond
-              conversationData.history.push({ role: "user", content: messageText });
+              conversationData.history.push({ role: "user", content: userContent });
               await saveConversation(conversationData);
-
-              // Return 200 OK without sending a response
               continue;
+            }
+
+            // ═══════════════════════════════════════════════════════
+            // BANK PAYMENT VERIFICATION
+            // ═══════════════════════════════════════════════════════
+            const paymentVerificationResult = await handlePaymentVerification(userTextForProcessing, conversationData.history);
+            if (paymentVerificationResult) {
+              console.log(`💳 Payment verification triggered`);
+
+              // Add messages to history
+              conversationData.history.push({ role: "user", content: userContent });
+              conversationData.history.push({ role: "assistant", content: paymentVerificationResult });
+
+              // Save and send response
+              await saveConversation(conversationData);
+              await sendMessage(senderId, paymentVerificationResult);
+              continue; // Skip normal AI response
+            }
+
+            // ═══════════════════════════════════════════════════════
+            // ISSUE ESCALATION SYSTEM
+            // ═══════════════════════════════════════════════════════
+            // Check for phone number fallback first (1 hour timeout)
+            const phoneMessage = await checkPhoneNumberFallback(conversationData, userTextForProcessing);
+            if (phoneMessage) {
+              console.log(`📞 Offering manager phone number to user ${senderId}`);
+
+              conversationData.history.push({ role: "user", content: userContent });
+              conversationData.history.push({ role: "assistant", content: phoneMessage });
+
+              await saveConversation(conversationData);
+              await sendMessage(senderId, phoneMessage);
+              continue;
+            }
+
+            // Handle issue escalation
+            const escalationResult = await handleIssueEscalation(userTextForProcessing, conversationData);
+            if (escalationResult.escalated && escalationResult.response) {
+              console.log(`🚨 Issue escalation processed for user ${senderId}`);
+
+              // Update conversation data with escalation info
+              Object.assign(conversationData, escalationResult.updatedData);
+
+              // Add messages to history
+              conversationData.history.push({ role: "user", content: userContent });
+              conversationData.history.push({ role: "assistant", content: escalationResult.response });
+
+              // Save and send response
+              await saveConversation(conversationData);
+              await sendMessage(senderId, escalationResult.response);
+              continue; // Skip normal AI response
             }
 
             // Check if there's a bot instruction from operator
@@ -830,14 +1214,14 @@ export async function POST(req: Request) {
             }
 
             // Get AI response with conversation context, order history, store visit count, and operator instruction
-            const response = await getAIResponse(messageText, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
+            const response = await getAIResponse(userContent, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
 
             console.log(`🤖 AI Response length: ${response.length} chars`);
             console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
             console.log(`🤖 AI Response (last 200 chars):`, response.substring(Math.max(0, response.length - 200)));
 
             // Update conversation history
-            conversationData.history.push({ role: "user", content: messageText });
+            conversationData.history.push({ role: "user", content: userContent });
             conversationData.history.push({ role: "assistant", content: response });
 
             // Trim history if it exceeds maximum length (keeping last N exchanges)

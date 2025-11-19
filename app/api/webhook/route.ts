@@ -161,11 +161,27 @@ export async function POST(req: Request) {
             else if (messageText) {
               console.log(`👤 User ${senderId} said: "${messageText}"`);
 
-              // Get AI response
-              const response = await getAIResponse(messageText);
+              // Call the full chat API which has payment verification logic
+              try {
+                const chatResponse = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app'}/api/chat`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    messages: [{ role: 'user', content: messageText }],
+                  }),
+                });
 
-              // Send response back to user
-              await sendMessage(senderId, response);
+                const chatData = await chatResponse.json();
+                const response = chatData.reply || 'ბოდიში, დაფიქსირდა შეცდომა.';
+
+                // Send response back to user
+                await sendMessage(senderId, response);
+              } catch (error) {
+                console.error('❌ Error calling chat API:', error);
+                // Fallback to simple AI response
+                const response = await getAIResponse(messageText);
+                await sendMessage(senderId, response);
+              }
             } else {
               console.log("⚠️ Event does not contain sender ID or message text");
             }

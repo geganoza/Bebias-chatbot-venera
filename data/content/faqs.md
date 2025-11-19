@@ -30,10 +30,10 @@
 ### შეკვეთისა და გადახდის შესახებ
 
 **როგორ შემიძლია შეკვეთა?**
-შეგიძლიათ შეუკვეთოთ:
-1. ვებსაიტის მეშვეობით: https://bebias.ge
-2. Facebook Messenger-ით
-3. ტელეფონით: +995 XXX XXX XXX
+შეგიძლიათ შეუკვეთოთ ჩვენი პროდუქტები რამდენიმე გზით:
+
+1. ვებ-გვერდის მეშვეობით: შედით ჩვენს ვებსაიტზე bebias.ge და აირჩიეთ სასურველი პროდუქტი.
+2. Facebook Messenger-ით: ამავე ჩატში შეგიძლიათ მოგვწეროთ და დაგეხმარებით შეკვეთაში.
 
 **რა გადახდის მეთოდები არსებობს?**
 ასახელეთ ეს კითხვა მენეჯერს კონკრეტული ინფორმაციისთვის.
@@ -75,10 +75,10 @@ Delivery to regions takes 3-5 working days. If you order before 15:00 on a worki
 ### About Ordering and Payment
 
 **How can I order?**
-You can order:
-1. Through the website: https://bebias.ge
-2. Via Facebook Messenger
-3. By phone: +995 XXX XXX XXX
+You can order our products in several ways:
+
+1. Through the website: Visit our website bebias.ge and choose the product you like.
+2. Via Facebook Messenger: You can message us in this chat and we'll help you with your order.
 
 **What payment methods are available?**
 Please ask our manager for specific payment information.

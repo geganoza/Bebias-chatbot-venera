@@ -17,10 +17,6 @@ type Conversation = {
   messages: Message[];
   manualMode?: boolean;
   botInstruction?: string | null;
-  needsAttention?: boolean;
-  escalationReason?: string;
-  escalationDetails?: string;
-  hasConfirmedOrder?: boolean;
 };
 
 export default function ControlPanelDashboard() {
@@ -32,11 +28,6 @@ export default function ControlPanelDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Bot control states
-  const [botPaused, setBotPaused] = useState<boolean | null>(null);
-  const [botControlLoading, setBotControlLoading] = useState(false);
-  const [botControlMessage, setBotControlMessage] = useState('');
-
 
   const handleLogout = async () => {
     try {
@@ -46,45 +37,6 @@ export default function ControlPanelDashboard() {
       console.error('Logout failed:', err);
     }
   };
-
-  // Check bot status
-  const checkBotStatus = async () => {
-    try {
-      const response = await fetch('/api/bot-status');
-      const data = await response.json();
-      setBotPaused(data.paused || false);
-    } catch (error) {
-      console.error('Error checking bot status:', error);
-    }
-  };
-
-  // Toggle bot pause/resume
-  const toggleBot = async () => {
-    setBotControlLoading(true);
-    setBotControlMessage('');
-
-    try {
-      const response = await fetch('/api/bot-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paused: !botPaused })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBotPaused(data.paused);
-        setBotControlMessage(data.paused ? '✅ Bot paused globally' : '✅ Bot resumed');
-        setTimeout(() => setBotControlMessage(''), 3000);
-      } else {
-        setBotControlMessage('❌ Failed to update bot status');
-      }
-    } catch (error) {
-      setBotControlMessage('❌ Error: ' + error);
-    } finally {
-      setBotControlLoading(false);
-    }
-  };
-
   // Fetch messages and manual mode status
   const fetchMessages = async () => {
     try {
@@ -95,20 +47,12 @@ export default function ControlPanelDashboard() {
       // Fetch manual mode status and user profile for each conversation
       for (const convo of convos) {
         try {
-          // Check if conversation has confirmed order (ORDER_NOTIFICATION in messages)
-          convo.hasConfirmedOrder = convo.messages.some(msg =>
-            msg.senderType === 'bot' && msg.text.includes('ORDER_NOTIFICATION')
-          );
-
-          // Fetch manual mode status and escalation data
+          // Fetch manual mode status
           const statusResponse = await fetch(`/api/manual-control?userId=${convo.userId}`);
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
             convo.manualMode = statusData.manualMode;
             convo.botInstruction = statusData.botInstruction;
-            convo.needsAttention = statusData.needsAttention;
-            convo.escalationReason = statusData.escalationReason;
-            convo.escalationDetails = statusData.escalationDetails;
           }
 
           // Fetch user profile
@@ -135,12 +79,8 @@ export default function ControlPanelDashboard() {
 
   useEffect(() => {
     fetchMessages();
-    checkBotStatus();
     // Auto-refresh every 3 seconds
-    const interval = setInterval(() => {
-      fetchMessages();
-      checkBotStatus();
-    }, 3000);
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -280,11 +220,10 @@ export default function ControlPanelDashboard() {
       <div style={{ display: 'flex', height: 'calc(100vh - 85px)' }}>
         {/* Left Sidebar - Conversation List */}
         <div style={{
-          width: '280px',
+          width: '300px',
           backgroundColor: 'white',
           borderRight: '1px solid #e0e0e0',
-          overflowY: 'auto',
-          flexShrink: 0
+          overflowY: 'auto'
         }}>
           <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
             <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', fontWeight: '600', color: '#666' }}>
@@ -308,25 +247,7 @@ export default function ControlPanelDashboard() {
             </div>
           )}
 
-          {!loading && conversations.map((convo) => {
-            // Determine background color based on status
-            let bgColor = 'white';
-            let hoverColor = '#f9f9f9';
-            let borderColor = 'none';
-
-            if (selectedUserId === convo.userId) {
-              bgColor = '#e3f2fd';
-            } else if (convo.needsAttention) {
-              bgColor = '#fff3cd'; // Yellow for attention needed
-              hoverColor = '#ffe69c';
-              borderColor = '4px solid #ff9800';
-            } else if (convo.hasConfirmedOrder) {
-              bgColor = '#e8f5e9'; // Light green for confirmed orders
-              hoverColor = '#c8e6c9';
-              borderColor = '4px solid #4caf50';
-            }
-
-            return (
+          {!loading && conversations.map((convo) => (
             <div
               key={convo.userId}
               onClick={() => setSelectedUserId(convo.userId)}
@@ -334,24 +255,17 @@ export default function ControlPanelDashboard() {
                 padding: '15px',
                 borderBottom: '1px solid #f0f0f0',
                 cursor: 'pointer',
-                backgroundColor: bgColor,
-                transition: 'background 0.2s',
-                borderLeft: borderColor
+                backgroundColor: selectedUserId === convo.userId ? '#e3f2fd' : 'white',
+                transition: 'background 0.2s'
               }}
               onMouseEnter={(e) => {
                 if (selectedUserId !== convo.userId) {
-                  e.currentTarget.style.backgroundColor = hoverColor;
+                  e.currentTarget.style.backgroundColor = '#f9f9f9';
                 }
               }}
               onMouseLeave={(e) => {
                 if (selectedUserId !== convo.userId) {
-                  if (convo.needsAttention) {
-                    e.currentTarget.style.backgroundColor = '#fff3cd';
-                  } else if (convo.hasConfirmedOrder) {
-                    e.currentTarget.style.backgroundColor = '#e8f5e9';
-                  } else {
-                    e.currentTarget.style.backgroundColor = 'white';
-                  }
+                  e.currentTarget.style.backgroundColor = 'white';
                 }
               }}
             >
@@ -401,18 +315,7 @@ export default function ControlPanelDashboard() {
                   </div>
                 </div>
               </div>
-              {convo.needsAttention && (
-                <div style={{
-                  marginTop: '5px',
-                  marginLeft: '46px',
-                  fontSize: '10px',
-                  color: '#d32f2f',
-                  fontWeight: '600'
-                }}>
-                  ⚠️ NEEDS ATTENTION - {convo.escalationReason?.toUpperCase() || 'ISSUE'}
-                </div>
-              )}
-              {convo.manualMode && !convo.needsAttention && (
+              {convo.manualMode && (
                 <div style={{
                   marginTop: '5px',
                   marginLeft: '46px',
@@ -423,31 +326,18 @@ export default function ControlPanelDashboard() {
                   🎮 MANUAL MODE
                 </div>
               )}
-              {convo.escalationDetails && (
-                <div style={{
-                  marginTop: '5px',
-                  marginLeft: '46px',
-                  fontSize: '10px',
-                  color: '#666',
-                  fontStyle: 'italic'
-                }}>
-                  {convo.escalationDetails}
-                </div>
-              )}
             </div>
-          );
-          })}
+          ))}
         </div>
 
-        {/* Main Content Area - Chat */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Main Content Area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {!selectedUserId && (
             <div style={{
               flex: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#f8f9fa',
               color: '#999'
             }}>
               <div style={{ textAlign: 'center' }}>
@@ -747,157 +637,6 @@ export default function ControlPanelDashboard() {
               </div>
             </>
           )}
-        </div>
-
-        {/* Right Sidebar - Bot Controls (Always Visible) */}
-        <div style={{
-          width: '320px',
-          backgroundColor: 'white',
-          borderLeft: '1px solid #e0e0e0',
-          overflowY: 'auto',
-          flexShrink: 0,
-          padding: '20px'
-        }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '20px', color: '#333' }}>
-            Bot Controls
-          </h3>
-
-          {/* Bot Status */}
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            borderRadius: '10px',
-            padding: '16px',
-            marginBottom: '20px'
-          }}>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px', fontWeight: '600' }}>
-              STATUS
-            </div>
-            <div style={{
-              display: 'inline-block',
-              padding: '8px 16px',
-              borderRadius: '16px',
-              backgroundColor: botPaused ? '#dc3545' : '#28a745',
-              color: 'white',
-              fontSize: '13px',
-              fontWeight: 'bold',
-              marginBottom: '12px'
-            }}>
-              {botPaused ? '⏸ PAUSED' : '▶ ACTIVE'}
-            </div>
-            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 12px 0', lineHeight: '1.5' }}>
-              {botPaused
-                ? 'Bot paused globally. No auto responses.'
-                : 'Bot is active and responding automatically.'}
-            </p>
-            {botControlMessage && (
-              <div style={{
-                padding: '10px',
-                borderRadius: '6px',
-                backgroundColor: botControlMessage.includes('✅') ? '#d4edda' : '#f8d7da',
-                color: botControlMessage.includes('✅') ? '#155724' : '#721c24',
-                fontSize: '12px',
-                marginBottom: '12px'
-              }}>
-                {botControlMessage}
-              </div>
-            )}
-            <button
-              onClick={toggleBot}
-              disabled={botControlLoading}
-              style={{
-                width: '100%',
-                padding: '10px',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                color: 'white',
-                backgroundColor: botPaused ? '#28a745' : '#dc3545',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: botControlLoading ? 'not-allowed' : 'pointer',
-                opacity: botControlLoading ? 0.6 : 1
-              }}
-            >
-              {botControlLoading ? 'Processing...' : (botPaused ? '▶ Resume Bot' : '⏸ Pause Bot')}
-            </button>
-          </div>
-
-          {/* Quick Actions */}
-          <div>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', fontWeight: '600' }}>
-              QUICK ACTIONS
-            </div>
-
-            <button
-              disabled
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px',
-                marginBottom: '10px',
-                backgroundColor: '#f8f9fa',
-                color: '#6c757d',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                cursor: 'not-allowed',
-                opacity: 0.6
-              }}
-            >
-              <div style={{ fontSize: '24px' }}>🚚</div>
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>WOLT Send</div>
-                <div style={{ fontSize: '10px', fontStyle: 'italic' }}>Coming Soon</div>
-              </div>
-            </button>
-
-            <button
-              disabled
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px',
-                marginBottom: '10px',
-                backgroundColor: '#f8f9fa',
-                color: '#6c757d',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                cursor: 'not-allowed',
-                opacity: 0.6
-              }}
-            >
-              <div style={{ fontSize: '24px' }}>⚙️</div>
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Settings</div>
-                <div style={{ fontSize: '10px', fontStyle: 'italic' }}>Coming Soon</div>
-              </div>
-            </button>
-
-            <button
-              disabled
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px',
-                backgroundColor: '#f8f9fa',
-                color: '#6c757d',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                cursor: 'not-allowed',
-                opacity: 0.6
-              }}
-            >
-              <div style={{ fontSize: '24px' }}>📊</div>
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Statistics</div>
-                <div style={{ fontSize: '10px', fontStyle: 'italic' }}>Coming Soon</div>
-              </div>
-            </button>
-          </div>
         </div>
       </div>
     </div>

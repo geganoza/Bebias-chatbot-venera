@@ -462,7 +462,11 @@ export async function GET(req: Request) {
       manualMode: conversation.manualMode || false,
       botInstruction: conversation.botInstruction || null,
       lastActive: conversation.lastActive,
-      messageCount: conversation.history?.length || 0
+      messageCount: conversation.history?.length || 0,
+      needsAttention: conversation.needsAttention || false,
+      escalationReason: conversation.escalationReason || null,
+      escalationDetails: conversation.escalationDetails || null,
+      escalatedAt: conversation.escalatedAt || null
     });
   } catch (error: any) {
     console.error("❌ Error getting manual control status:", error);

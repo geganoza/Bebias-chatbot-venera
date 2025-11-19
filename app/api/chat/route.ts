@@ -10,6 +10,7 @@ type Message = { role: "system" | "user" | "assistant"; content: MessageContent 
 type Product = {
   id: string;
   name: string;
+  name_en?: string;
   price: number;
   currency?: string;
   stock: number;
@@ -73,45 +74,74 @@ async function handlePaymentVerification(messages: Message[]): Promise<NextRespo
   }
 
   const isKa = detectGeorgian(lastUserText);
-  const paymentKeywords = isKa ? ['გადავიხადე', 'გადმოვრიცხე', 'გავაგზავნე'] : ['paid', 'sent', 'transferred'];
+
+  // Check if bot just provided bank account in previous message
+  const lastBotMsg = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastBotText = typeof lastBotMsg?.content === 'string' ? lastBotMsg.content : '';
+  const botProvidedBankAccount = lastBotText.includes('GE09TB') || lastBotText.includes('GE31BG');
+
+  // Keywords indicating payment was made
+  const paymentKeywords = isKa
+    ? ['გადავიხადე', 'გადმოვრიცხე', 'გავაგზავნე', 'ჩავრიცხე', 'გადავრიცხე']
+    : ['paid', 'sent', 'transferred'];
   const mentionsPayment = paymentKeywords.some(keyword => lastUserText.toLowerCase().includes(keyword));
 
-  if (!mentionsPayment) {
+  // If user just sent name + phone + address after bank account was provided, treat as payment confirmation
+  const hasPhoneNumber = /\d{9}/.test(lastUserText); // Georgian phone numbers
+  const hasName = /[ა-ჰ]{2,}/.test(lastUserText) || /[a-z]{2,}/i.test(lastUserText);
+
+  const likelyPaymentConfirmation = botProvidedBankAccount && hasPhoneNumber && hasName;
+
+  if (!mentionsPayment && !likelyPaymentConfirmation) {
     return null;
   }
 
-  let amount: number | null = null;
-  let name: string | null = null;
-
-  const amountRegex = /(\d{1,5}(\.\d{1,2})?)/;
-  const amountMatch = lastUserText.match(amountRegex);
-  if (amountMatch) {
-    amount = parseFloat(amountMatch[1]);
-    let nameString = lastUserText.replace(amountMatch[0], '').replace(/gel/i, '').trim();
-    nameString = nameString.replace(/[-|–]/g, '').trim(); 
-    if (nameString) {
-      name = nameString;
+  // Extract expected amount from conversation history
+  let expectedAmount: number | null = null;
+  for (let i = messages.length - 1; i >= 0 && i >= messages.length - 5; i--) {
+    const msg = messages[i];
+    if (msg.role === 'assistant' && typeof msg.content === 'string') {
+      // Look for patterns like "55 ლარი" or "ჯამური თანხა იქნება 55"
+      const amountMatch = msg.content.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
+      if (amountMatch) {
+        expectedAmount = parseFloat(amountMatch[1]);
+        break;
+      }
     }
   }
 
-  if (amount && name) {
+  // Extract name from user message (Georgian or Latin)
+  let name: string | null = null;
+  const georgianNameMatch = lastUserText.match(/([ა-ჰ]+\s+[ა-ჰ]+)/);
+  const latinNameMatch = lastUserText.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+  name = georgianNameMatch?.[1] || latinNameMatch?.[1] || null;
+
+  if (expectedAmount && name) {
+    console.log(`🏦 Verifying payment: ${expectedAmount} GEL from "${name}"`);
+
     const response = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE}/api/bank/verify-payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, name }),
+      body: JSON.stringify({ amount: expectedAmount, name }),
     });
 
     const data = await response.json();
 
+    console.log(`🏦 Payment verification result:`, data);
+
     if (data.paymentFound) {
       const reply = isKa
-        ? `გმადლობთ! ჩვენ დავადასტურეთ თქვენი გადახდა ${amount} ლარის ოდენობით ${name}-სგან. გთხოვთ, მოგვაწოდოთ თქვენი მიწოდების მისამართი, მიმღების სახელი და ტელეფონის ნომერი, რათა დავამუშაოთ თქვენი შეკვეთა.`
-        : `Thank you! We have confirmed your payment of ${amount} GEL from ${name}. Please share your delivery address, recipient name, and phone number so we can process your order.`;
+        ? `✅ გადახდა დადასტურდა! ${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\nგთხოვთ, გაგრძელდეს შეკვეთის დამუშავება მიწოდების დეტალებით.`
+        : `✅ Payment confirmed! ${expectedAmount} GEL received from "${name}".\n\nPlease proceed with the order using the delivery details provided.`;
+
+      console.log(`✅ Payment verified - proceeding with order`);
       return NextResponse.json({ reply });
     } else {
       const reply = isKa
-        ? `უკაცრავად, მაგრამ მე ვერ ვიპოვე გადახდა ${amount} ლარზე ${name}-სგან. გთხოვთ, გადაამოწმოთ დეტალები ან გამოგვიგზავნოთ გადახდის სქრინშოტი.`
-        : `I'm sorry, but I couldn't find a payment for ${amount} GEL from ${name}. Please double-check the details or send a screenshot of the payment.`;
+        ? `❌ გადახდა ვერ მოიძებნა. ვეძებთ ${expectedAmount} ლარს "${name}"-ისგან.\n\nგთხოვთ დარწმუნდით რომ:\n- გადახდა დასრულებულია\n- სახელი სწორია: ${name}\n- თანხა შეესაბამება: ${expectedAmount} ლარი`
+        : `❌ Payment not found. Looking for ${expectedAmount} GEL from "${name}".\n\nPlease make sure:\n- Payment is complete\n- Name matches: ${name}\n- Amount is correct: ${expectedAmount} GEL`;
+
+      console.log(`❌ Payment NOT verified`);
       return NextResponse.json({ reply });
     }
   } else {
@@ -133,7 +163,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const messages: Message[] = body.messages ?? [];
-    
+
     const paymentVerificationResponse = await handlePaymentVerification(messages);
     if (paymentVerificationResponse) {
       return paymentVerificationResponse;
@@ -176,10 +206,11 @@ export async function POST(req: Request) {
     const productContext = products
       .slice(0, 20)
       .map((p) => {
+        const productName = !isKa && p.name_en ? p.name_en : p.name;
         const attrs = Object.entries(p.attributes || {})
           .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
           .join(", ");
-        return `${p.name} (ID: ${p.id}) - Price: ${p.price} ${p.currency || "GEL"}, Stock: ${p.stock}, Category: ${p.category || "N/A"}${attrs ? `, ${attrs}` : ""}`;
+        return `${productName} (ID: ${p.id}) - Price: ${p.price} ${p.currency || "GEL"}, Stock: ${p.stock}, Category: ${p.category || "N/A"}${attrs ? `, ${attrs}` : ""}`;
       })
       .join("\n");
 
@@ -239,7 +270,7 @@ ${productContext}
 - დაადგინეთ: ქუდია თუ წინდა? პომპონი აქვს?
 - მასალა: ბამბა (გლუვი, მჭიდრო) თუ შალი (რბილი, ფუმფულა)?
 - ფერი: შავი, ფირუზისფერი, სტაფილოსფერი, ლურჯი, მწვანე, ვარდისფერი, ყვითელი, წითელი, ნაცრისფერი, თეთრი?
-- უპასუხეთ: "ეს არის [პროდუქტის სახელი]! ფასი: [ფასი] ლარი. გსურთ შეკვეთა?"
+- უპასუხეთ მოკლედ: "[პროდუქტის სახელი] - [ფასი] ლარი"
 
 უპასუხეთ ქართულად, მოკლედ და გასაგებად (არაუმეტეს 200 სიტყვისა).`
       : `${content.instructions}
@@ -283,7 +314,7 @@ Georgia Time (GMT+4): ${georgiaTime}
 - Determine: Is it a hat or socks? Does it have a pompom?
 - Material: Cotton (smooth, tight knit) or wool (soft, fluffy)?
 - Color: black, turquoise, orange, blue, green, pink, yellow, red, grey, white?
-- Respond: "This is a [product name]! Price: [price] GEL. Would you like to order it?"
+- Respond concisely: "[product name] - [price] GEL"
 
 Respond in English, concisely and clearly (max 200 words).`;
 
