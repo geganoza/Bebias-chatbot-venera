@@ -238,6 +238,80 @@ function detectGeorgian(text: string) {
 }
 
 /**
+ * Extract order details (product, phone, address) from conversation history
+ */
+function extractOrderDetails(history: Message[]): { product: string; telephone: string; address: string } | null {
+  let product = '';
+  let telephone = '';
+  let address = '';
+
+  // Search through recent messages (last 20)
+  const recentMessages = history.slice(-20);
+
+  for (const msg of recentMessages) {
+    const content = typeof msg.content === 'string' ? msg.content : '';
+
+    // Extract phone number (Georgian format: 5XXXXXXXX or +9955XXXXXXXX)
+    if (!telephone) {
+      const phoneMatch = content.match(/(?:\+995)?5\d{8}/);
+      if (phoneMatch) {
+        telephone = phoneMatch[0];
+      }
+    }
+
+    // Extract address (look for common Georgian address patterns)
+    if (!address) {
+      // Look for messages with address keywords in Georgian
+      if (content.match(/მისამართ|ქუჩა|გამზირი|ბინა/i)) {
+        // Extract the line containing address info
+        const lines = content.split('\n');
+        for (const line of lines) {
+          if (line.match(/მისამართ|ქუჩა|გამზირი|ბინა/i) && line.length > 10) {
+            address = line.replace(/მისამართ[ი]?:?\s*/i, '').trim();
+            break;
+          }
+        }
+      }
+      // Also check if entire user message looks like an address
+      if (msg.role === 'user' && !address && content.length > 15 && content.length < 200) {
+        if (content.match(/[ა-ჰ].*(ქუჩა|გამზირი|ბინა|\d+)/)) {
+          address = content.trim();
+        }
+      }
+    }
+
+    // Extract product names (look for bot messages mentioning products)
+    if (!product && msg.role === 'assistant') {
+      // Look for patterns like "პროდუქტი:" or product listings
+      const productMatch = content.match(/პროდუქტი:\s*(.+?)(?:\n|$)/i);
+      if (productMatch) {
+        product = productMatch[1].trim();
+      }
+      // Also check for mentions of specific products (VENERA brand items)
+      if (!product) {
+        const productNames = content.match(/(VENERA[^.\n]*|ვენერა[^.\n]*|კრემი[^.\n]*)/i);
+        if (productNames) {
+          product = productNames[0].trim();
+        }
+      }
+    }
+  }
+
+  // Return null if we're missing critical info
+  if (!telephone || !address) {
+    console.log(`⚠️ Missing order details - product: ${!!product}, phone: ${!!telephone}, address: ${!!address}`);
+    return null;
+  }
+
+  // Use generic product name if not found
+  if (!product) {
+    product = 'VENERA პროდუქტი';
+  }
+
+  return { product, telephone, address };
+}
+
+/**
  * Async payment verification - runs in background and sends follow-up message
  */
 async function verifyPaymentAsync(expectedAmount: number, name: string, isKa: boolean, senderId: string) {
@@ -266,14 +340,58 @@ async function verifyPaymentAsync(expectedAmount: number, name: string, isKa: bo
     if (data.paymentFound) {
       console.log(`✅ Payment verified in background! ${expectedAmount} GEL from "${name}"`);
 
-      // Send success message with order confirmation
-      const successMessage = isKa
-        ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\n📦 თქვენი შეკვეთა დადასტურებულია!\n\n📧 ელექტრონული ზედნადები გამოგზავნილია თქვენს ელ-ფოსტაზე.\n🚚 შეკვეთა მალე იქნება გაგზავნილი თქვენს მისამართზე.\n\nმადლობა შეძენისთვის! 🎉`
-        : `✅ Payment confirmed! ❤️\n\n${expectedAmount} GEL received from "${name}".\n\n📦 Your order is confirmed!\n\n📧 Invoice sent to your email.\n🚚 Your order will be shipped soon.\n\nThank you for your purchase! 🎉`;
+      // Get conversation data to extract order details
+      const conversationData = await getConversation(senderId);
 
-      await sendMessage(senderId, successMessage);
+      // Extract order details from conversation history
+      const orderDetails = extractOrderDetails(conversationData.history);
 
-      // TODO: Trigger email notification
+      // Send email if we have all order details
+      if (orderDetails && orderDetails.product && orderDetails.telephone && orderDetails.address) {
+        const orderData = {
+          product: orderDetails.product,
+          clientName: name,
+          telephone: orderDetails.telephone,
+          address: orderDetails.address,
+          total: `${expectedAmount} ლარი`
+        };
+
+        // Log order and get order number
+        const orderNumber = await logOrder(orderData, 'messenger');
+        console.log(`📝 Order logged with number: ${orderNumber}`);
+
+        // Add order to conversation data
+        conversationData.orders.push({
+          orderNumber,
+          timestamp: new Date().toISOString(),
+          items: orderData.product
+        });
+        await saveConversation(conversationData);
+
+        // Send email
+        const emailSent = await sendOrderEmail(orderData, orderNumber);
+        if (emailSent) {
+          console.log('✅ Order email sent successfully');
+        } else {
+          console.error('❌ Failed to send order email');
+        }
+
+        // Send success message with order number
+        const successMessage = isKa
+          ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\n📦 შეკვეთა #${orderNumber} დადასტურებულია!\n\n📧 ელექტრონული ზედნადები გამოგზავნილია ელ-ფოსტაზე.\n🚚 შეკვეთა მალე იქნება გაგზავნილი თქვენს მისამართზე.\n\nმადლობა შეძენისთვის! 🎉`
+          : `✅ Payment confirmed! ❤️\n\n${expectedAmount} GEL received from "${name}".\n\n📦 Order #${orderNumber} confirmed!\n\n📧 Invoice sent to your email.\n🚚 Your order will be shipped soon.\n\nThank you for your purchase! 🎉`;
+
+        await sendMessage(senderId, successMessage);
+      } else {
+        // Missing order details - send generic confirmation
+        console.warn('⚠️ Missing order details for email');
+        const successMessage = isKa
+          ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\n📦 თქვენი შეკვეთა დადასტურებულია!\n\n🚚 შეკვეთა მალე იქნება გაგზავნილი თქვენს მისამართზე.\n\nმადლობა შეძენისთვის! 🎉`
+          : `✅ Payment confirmed! ❤️\n\n${expectedAmount} GEL received from "${name}".\n\n📦 Your order is confirmed!\n\n🚚 Your order will be shipped soon.\n\nThank you for your purchase! 🎉`;
+
+        await sendMessage(senderId, successMessage);
+      }
+
       // TODO: Reduce stock
     } else {
       console.log(`❌ Payment not found in background verification - retrying in 10s`);
