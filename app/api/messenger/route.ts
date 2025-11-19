@@ -305,11 +305,19 @@ async function handlePaymentVerification(userMessage: string, history: Message[]
   console.log(`🏦 Verifying payment: ${expectedAmount} GEL from "${name}"`);
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app'}/api/bank/verify-payment`, {
+    const apiBase = process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app';
+    console.log(`🔗 Using API base: ${apiBase}`);
+
+    const response = await fetch(`${apiBase}/api/bank/verify-payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount: expectedAmount, name }),
     });
+
+    if (!response.ok) {
+      console.error(`❌ Bank API returned error status: ${response.status}`);
+      return null;
+    }
 
     const data = await response.json();
 
@@ -722,6 +730,9 @@ async function sendImage(recipientId: string, imageUrl: string) {
 }
 
 async function getAIResponse(userMessage: MessageContent, history: Message[] = [], previousOrders: ConversationData['orders'] = [], storeVisitCount: number = 0, operatorInstruction?: string): Promise<string> {
+  const userText = typeof userMessage === 'string' ? userMessage : userMessage.find(c => c.type === 'text')?.text ?? '';
+  const isKa = detectGeorgian(userText);
+
   try {
     const [products, content, contactInfoStr] = await Promise.all([
       loadProducts(),
@@ -730,9 +741,6 @@ async function getAIResponse(userMessage: MessageContent, history: Message[] = [
     ]);
 
     const contactInfo = contactInfoStr ? JSON.parse(contactInfoStr) : null;
-
-    const userText = typeof userMessage === 'string' ? userMessage : userMessage.find(c => c.type === 'text')?.text ?? '';
-    const isKa = detectGeorgian(userText);
 
     // Build product catalog for AI context - show all products
     const productContext = products
@@ -986,7 +994,11 @@ Send images ONLY when:
     console.error("❌ Error details:", JSON.stringify(err, null, 2));
     console.error("❌ Error message:", err?.message);
     console.error("❌ Error stack:", err?.stack);
-    return "Sorry, there was an error processing your request.";
+
+    // Return error message in appropriate language
+    return isKa
+      ? "ბოდიში, შეცდომა მოხდა თქვენი მოთხოვნის დამუშავებისას. გთხოვთ, სცადოთ ხელახლა."
+      : "Sorry, there was an error processing your request. Please try again.";
   }
 }
 

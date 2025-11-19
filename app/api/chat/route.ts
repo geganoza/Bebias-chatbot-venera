@@ -119,11 +119,22 @@ async function handlePaymentVerification(messages: Message[]): Promise<NextRespo
   if (expectedAmount && name) {
     console.log(`🏦 Verifying payment: ${expectedAmount} GEL from "${name}"`);
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE}/api/bank/verify-payment`, {
+    const apiBase = process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app';
+    console.log(`🔗 Using API base: ${apiBase}`);
+
+    const response = await fetch(`${apiBase}/api/bank/verify-payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount: expectedAmount, name }),
     });
+
+    if (!response.ok) {
+      console.error(`❌ Bank API returned error status: ${response.status}`);
+      const reply = isKa
+        ? 'ბოდიში, ვერ ვუკავშირდებით გადახდის სისტემას. გთხოვთ, სცადოთ მოგვიანებით.'
+        : 'Sorry, unable to connect to payment system. Please try again later.';
+      return NextResponse.json({ reply });
+    }
 
     const data = await response.json();
 
