@@ -88,7 +88,12 @@ export class BOGClient {
                 const error = await response.text();
                 console.error('❌ BOG Authentication failed:', response.status, response.statusText);
                 console.error('❌ Response body:', error);
-                console.error('❌ Client ID (first 10 chars):', this.clientId.substring(0, 10) + '...');
+                console.error('❌ Request URL:', 'https://account.bog.ge/auth/realms/bog/protocol/openid-connect/token');
+                console.error('❌ Client ID length:', this.clientId.length, '(first 10 chars:', this.clientId.substring(0, 10) + '...)');
+                console.error('❌ Client Secret length:', this.clientSecret.length);
+                console.error('❌ Grant type: client_credentials, scope: corp');
+                // Store error for retrieval
+                (global as any).lastBOGError = { status: response.status, statusText: response.statusText, body: error };
                 return false;
             }
 

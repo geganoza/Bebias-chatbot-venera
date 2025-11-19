@@ -29,6 +29,8 @@ export async function GET(request: Request) {
           hasClientId,
           hasClientSecret,
           hasAccountId,
+          clientIdLength,
+          clientSecretLength,
         }
       }, { status: 500 });
     }
@@ -39,10 +41,12 @@ export async function GET(request: Request) {
     const authResult = await bog.authenticate();
 
     if (!authResult) {
+      const lastError = (global as any).lastBOGError;
       return NextResponse.json({
         success: false,
         error: 'BOG authentication failed',
-        step: 'authenticate'
+        step: 'authenticate',
+        bogError: lastError || 'No error details captured'
       }, { status: 500 });
     }
 
