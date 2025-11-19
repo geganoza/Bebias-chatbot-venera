@@ -79,8 +79,8 @@ async function getAIResponse(userMessage: string): Promise<string> {
       .join("\n");
 
     const systemPrompt = isKa
-      ? `თქვენ ხართ Martivi Consulting-ის დამხმარე ჩატბოტი. თქვენი დავალებაა დაეხმაროთ მომხმარებლებს პროდუქტების შესახებ. აქ არის პროდუქტების კატალოგი:\n\n${productContext}\n\nუპასუხეთ ქართულად, მოკლედ და კონკრეტულად.`
-      : `You are a helpful assistant for Martivi Consulting. Help users find products. Here is the product catalog:\n\n${productContext}\n\nRespond in English, concisely and accurately.`;
+      ? `თქვენ ხართ Martivi Consulting-ის მეგობრული ასისტენტი. დაეხმარეთ მომხმარებლებს პროდუქტების პოვნაში.\n\nპროდუქტები:\n${productContext}\n\nუპასუხეთ მარტივად და მოკლედ (1-2 წინადადება), თბილად და მეგობრულად.\n\nმნიშვნელოვანი:\n- გამოიყენეთ "ბოდიში" (არა "ბოდიშით")\n- არასოდეს გამოიყენოთ სიტყვა "ბინი", ქართულად beanie არის "ქუდი"\n- იყავით მოკლე, მარტივი და თბილი\n- გამოიყენეთ "თქვენ/გაინტერესებთ" (არა "შენ")\n- იყავით მეგობრული, მაგრამ თავაზიანი`
+      : `You are a friendly assistant for Martivi Consulting. Help users find products.\n\nProducts:\n${productContext}\n\nRespond briefly (1-2 sentences max) using plain, casual but polite language.\n\nImportant:\n- Be concise and warm\n- Avoid overly formal/official language\n- Keep it simple and natural`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -143,17 +143,32 @@ export async function POST(req: Request) {
 
           const senderId = event.sender?.id;
           const messageText = event.message?.text;
+          const hasAttachments = event.message?.attachments && event.message.attachments.length > 0;
 
-          if (senderId && messageText) {
-            console.log(`👤 User ${senderId} said: "${messageText}"`);
+          if (senderId) {
+            // Handle attachments - we don't have permission to view them yet
+            if (hasAttachments) {
+              console.log(`👤 User ${senderId} sent attachment(s)`);
+              const isKa = messageText ? detectGeorgian(messageText) : true; // Default to Georgian
 
-            // Get AI response
-            const response = await getAIResponse(messageText);
+              const attachmentResponse = isKa
+                ? "სურათი არ გაიხსნა 😔 რა ფერის ქუდი გაინტერესებთ? გამოგიგზავნით ფოტოებს."
+                : "The picture didn't open 😔 What color beanie are you looking for? I'll send you some photos.";
 
-            // Send response back to user
-            await sendMessage(senderId, response);
-          } else {
-            console.log("⚠️ Event does not contain sender ID or message text");
+              await sendMessage(senderId, attachmentResponse);
+            }
+            // Handle text messages
+            else if (messageText) {
+              console.log(`👤 User ${senderId} said: "${messageText}"`);
+
+              // Get AI response
+              const response = await getAIResponse(messageText);
+
+              // Send response back to user
+              await sendMessage(senderId, response);
+            } else {
+              console.log("⚠️ Event does not contain sender ID or message text");
+            }
           }
         }
       }
