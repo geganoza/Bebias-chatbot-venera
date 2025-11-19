@@ -341,7 +341,7 @@ async function verifyPaymentAsync(expectedAmount: number, name: string, isKa: bo
       console.log(`✅ Payment verified in background! ${expectedAmount} GEL from "${name}"`);
 
       // Get conversation data to extract order details
-      const conversationData = await getConversation(senderId);
+      const conversationData = await loadConversation(senderId);
 
       // Extract order details from conversation history
       const orderDetails = extractOrderDetails(conversationData.history);
