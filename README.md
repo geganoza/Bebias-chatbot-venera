@@ -4,12 +4,23 @@ Next.js website with bilingual ChatWidget and AI-powered chat functionality.
 
 ## Environment Setup
 
-Required environment variables in `.env.local`:
-```
-OPENAI_API_KEY=your_openai_api_key
-NEXT_PUBLIC_CHAT_API_BASE=https://mc-chat-230925-43vp.vercel.app
-NEXT_PUBLIC_GA_MEASUREMENT_ID=G-4XZ9W578J6
-```
+To set up your local development environment, follow these steps:
+
+1.  **Copy the example environment file:**
+    ```bash
+    cp .env.local.example .env.local
+    ```
+2.  **Edit the `.env.local` file:**
+    Open the `.env.local` file and fill in the required values for the following variables:
+    -   `OPENAI_API_KEY`: Your OpenAI API key.
+    -   `PAGE_ACCESS_TOKEN`: Your Facebook Page Access Token.
+    -   `VERIFY_TOKEN`: Your Facebook Webhook Verify Token.
+    -   `EMAIL_USER`: Your email address for sending order notifications.
+    -   `EMAIL_PASSWORD`: Your email password.
+    -   `BANK_API_URL`: The URL of your bank's API.
+    -   `BANK_API_TOKEN`: Your bank's API token.
+
+    *Note: The `NEXT_PUBLIC_CHAT_API_BASE` and `NEXT_PUBLIC_GA_MEASUREMENT_ID` variables are not included in the `.env.local` file and are set elsewhere.*
 
 ## Development
 

@@ -31,6 +31,7 @@ export default function ChatWidget() {
   const [started, setStarted] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Detect Georgian mode based on current page URL instead of bot messages
   const [georgianMode, setGeorgianMode] = useState(false);
@@ -102,6 +103,12 @@ export default function ChatWidget() {
     setInput("");
     setLoading(true);
 
+    const paymentKeywords = georgianMode ? ['გადავიხადე', 'გადმოვრიცხე', 'გავაგზავნე'] : ['paid', 'sent', 'transferred'];
+    const mentionsPayment = paymentKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    if (mentionsPayment) {
+      setIsVerifying(true);
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
@@ -148,6 +155,7 @@ export default function ChatWidget() {
       setMessages([...nextMessages, botMsg]);
     } finally {
       setLoading(false);
+      setIsVerifying(false);
     }
   }
 
@@ -275,7 +283,9 @@ export default function ChatWidget() {
 
             {loading && (
               <div style={{ opacity: 0.7, fontStyle: "italic" }}>
-                {georgianMode ? "ასისტენტი წერს…" : "assistant is typing…"}
+                {isVerifying
+                  ? georgianMode ? "გადახდის ვერიფიკაცია…" : "Verifying payment…"
+                  : georgianMode ? "ასისტენტი წერს…" : "assistant is typing…"}
               </div>
             )}
 

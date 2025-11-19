@@ -59,6 +59,67 @@ function detectGeorgian(text: string) {
   return /[\u10A0-\u10FF]/.test(text);
 }
 
+async function handlePaymentVerification(messages: Message[]): Promise<NextResponse | null> {
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  const lastUserContent = lastUserMsg?.content ?? "";
+
+  let lastUserText = "";
+  if (typeof lastUserContent === "string") {
+    lastUserText = lastUserContent;
+  } else if (Array.isArray(lastUserContent)) {
+    const textContent = lastUserContent.find(item => item.type === "text");
+    lastUserText = textContent?.text ?? "";
+  }
+
+  const isKa = detectGeorgian(lastUserText);
+  const paymentKeywords = isKa ? ['გადავიხადე', 'გადმოვრიცხე', 'გავაგზავნე'] : ['paid', 'sent', 'transferred'];
+  const mentionsPayment = paymentKeywords.some(keyword => lastUserText.toLowerCase().includes(keyword));
+
+  if (mentionsPayment) {
+    const amountRegex = /(\d{1,5}(\.\d{1,2})?)/;
+    const amountMatch = lastUserText.match(amountRegex);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : null;
+    
+    let name: string | null = null;
+    const nameRegex = isKa ? /([ა-ჰ]+(?:-[ა-ჰ]+)*)-სგან/i : /from\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)*)/i;
+    const nameMatch = lastUserText.match(nameRegex);
+    if (nameMatch) {
+      name = nameMatch[1];
+    }
+
+    if (amount && name) {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE}/api/bank/verify-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount, name }),
+      });
+
+      const data = await response.json();
+
+      if (data.paymentFound) {
+        const reply = isKa
+          ? `გმადლობთ! ჩვენ დავადასტურეთ თქვენი გადახდა ${amount} ლარის ოდენობით ${name}-სგან. გთხოვთ, მოგვაწოდოთ თქვენი მიწოდების მისამართი, მიმღების სახელი და ტელეფონის ნომერი, რათა დავამუშაოთ თქვენი შეკვეთა.`
+          : `Thank you! We have confirmed your payment of ${amount} GEL from ${name}. Please share your delivery address, recipient name, and phone number so we can process your order.`;
+        return NextResponse.json({ reply });
+      } else {
+        const reply = isKa
+          ? `უკაცრავად, მაგრამ მე ვერ ვიპოვე გადახდა ${amount} ლარზე ${name}-სგან. გთხოვთ, გადაამოწმოთ დეტალები ან გამოგვიგზავნოთ გადახდის სქრინშოტი.`
+          : `I'm sorry, but I couldn't find a payment for ${amount} GEL from ${name}. Please double-check the details or send a screenshot of the payment.`;
+        return NextResponse.json({ reply });
+      }
+    } else {
+      const reply = isKa
+        ? 'გადახდის დასადასტურებლად, გთხოვთ მითხრათ ზუსტი თანხა და გამომგზავნის სახელი.'
+        : "To verify your payment, please tell me the exact amount you sent and the sender's name.";
+      return NextResponse.json({ reply });
+    }
+  }
+
+  return null;
+}
+
 export async function POST(req: Request) {
   // Add CORS headers
   const headers = {
@@ -70,6 +131,12 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const messages: Message[] = body.messages ?? [];
+    
+    const paymentVerificationResponse = await handlePaymentVerification(messages);
+    if (paymentVerificationResponse) {
+      return paymentVerificationResponse;
+    }
+
     const lead = body.lead;
 
     // Get last user message - handle both string and array content
@@ -86,6 +153,23 @@ export async function POST(req: Request) {
       hasImage = lastUserContent.some(item => item.type === "image_url");
       const textContent = lastUserContent.find(item => item.type === "text");
       lastUserText = textContent?.text ?? "";
+
+      if (hasImage) {
+        const imageUrl = lastUserContent.find(item => item.type === "image_url")?.image_url?.url;
+        if (imageUrl) {
+          const ocrResponse = await fetch(`${process.env.NEXT_PUBLIC_CHAT_API_BASE}/api/ocr`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageUrl }),
+          });
+          const ocrData = await ocrResponse.json();
+          if (ocrData.text) {
+            lastUserText += `\n\n--- OCR Result ---\n${ocrData.text}`;
+          }
+        }
+      }
     }
 
     const isKa = detectGeorgian(lastUserText);
@@ -172,6 +256,20 @@ ${productContext}
 - ფერი: შავი, ფირუზისფერი, სტაფილოსფერი, ლურჯი, მწვანე, ვარდისფერი, ყვითელი, წითელი, ნაცრისფერი, თეთრი?
 - უპასუხეთ: "ეს არის [პროდუქტის სახელი]! ფასი: [ფასი] ლარი. გსურთ შეკვეთა?"
 
+# გადახდის ვერიფიკაცია
+**მნიშვნელოვანია:** თუ მომხმარებელი ამბობს, რომ გადაიხადა ან გამოაგზავნა ფული, მაგრამ არ აქვს გამოგზავნილი სქრინშოტი, გააკეთეთ შემდეგი:
+
+**ნაბიჯი 1 - მოითხოვეთ დეტალები:**
+- ჰკითხეთ მომხმარებელს ზუსტი თანხა და გამომგზავნის სახელი.
+- მაგალითი: "გადახდის დასადასტურებლად, გთხოვთ მითხრათ ზუსტი თანხა და გამომგზავნის სახელი."
+
+**ნაბიჯი 2 - დაელოდეთ მომხმარებლის პასუხს:**
+- როგორც კი მიიღებთ თანხას და სახელს, მიიღებთ ხელსაწყოს გამოძახებას გადახდის დასადასტურებლად.
+
+**ნაბიჯი 3 - უპასუხეთ ვერიფიკაციის მიხედვით:**
+- **თუ გადახდა დადასტურდა:** "გმადლობთ! ჩვენ დავადასტურეთ თქვენი გადახდა [თანხა] ლარის ოდენობით [სახელი]-სგან. გთხოვთ, მოგვაწოდოთ თქვენი მიწოდების მისამართი, მიმღების სახელი და ტელეფონის ნომერი, რათა დავამუშაოთ თქვენი შეკვეთა."
+- **თუ გადახდა არ დადასტურდა:** "უკაცრავად, მაგრამ მე ვერ ვიპოვე გადახდა [თანხა] ლარზე [სახელი]-სგან. გთხოვთ, გადაამოწმოთ დეტალები ან გამოგვიგზავნოთ გადახდის სქრინშოტი."
+
 უპასუხეთ ქართულად, მოკლედ და გასაგებად (არაუმეტეს 200 სიტყვისა).`
       : `${content.instructions}
 
@@ -215,6 +313,20 @@ Georgia Time (GMT+4): ${georgiaTime}
 - Material: Cotton (smooth, tight knit) or wool (soft, fluffy)?
 - Color: black, turquoise, orange, blue, green, pink, yellow, red, grey, white?
 - Respond: "This is a [product name]! Price: [price] GEL. Would you like to order it?"
+
+# Payment Verification
+**IMPORTANT:** If the user mentions they have paid or sent money, but hasn't sent a screenshot, do the following:
+
+**STEP 1 - Ask for details:**
+- Ask the user for the exact amount they sent and the name of the sender.
+- Example: "To verify your payment, please tell me the exact amount you sent and the sender's name."
+
+**STEP 2 - Await user response:**
+- Once you have the amount and name, you will receive a tool call to verify the payment.
+
+**STEP 3 - Respond based on verification:**
+- **If payment is verified:** "Thank you! We have confirmed your payment of [amount] GEL from [name]. Please share your delivery address, recipient name, and phone number so we can process your order."
+- **If payment is not verified:** "I'm sorry, but I couldn't find a payment for [amount] GEL from [name]. Please double-check the details or send a screenshot of the payment."
 
 Respond in English, concisely and clearly (max 200 words).`;
 
