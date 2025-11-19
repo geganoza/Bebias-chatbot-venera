@@ -238,9 +238,82 @@ function detectGeorgian(text: string) {
 }
 
 /**
+ * Async payment verification - runs in background and sends follow-up message
+ */
+async function verifyPaymentAsync(expectedAmount: number, name: string, isKa: boolean, senderId: string) {
+  console.log(`🔄 Background verification started for ${expectedAmount} GEL from "${name}" (user: ${senderId})`);
+
+  // Wait 10-15 seconds before checking (give bank time to process)
+  await new Promise(resolve => setTimeout(resolve, 10000));
+
+  try {
+    const apiBase = process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app';
+
+    const response = await fetch(`${apiBase}/api/bank/verify-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: expectedAmount, name }),
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Bank API returned error status: ${response.status}`);
+      return;
+    }
+
+    const data = await response.json();
+    console.log(`🏦 Background verification result:`, data);
+
+    if (data.paymentFound) {
+      console.log(`✅ Payment verified in background! ${expectedAmount} GEL from "${name}"`);
+
+      // Send success message with order confirmation
+      const successMessage = isKa
+        ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\n📦 თქვენი შეკვეთა დადასტურებულია!\n\n📧 ელექტრონული ზედნადები გამოგზავნილია თქვენს ელ-ფოსტაზე.\n🚚 შეკვეთა მალე იქნება გაგზავნილი თქვენს მისამართზე.\n\nმადლობა შეძენისთვის! 🎉`
+        : `✅ Payment confirmed! ❤️\n\n${expectedAmount} GEL received from "${name}".\n\n📦 Your order is confirmed!\n\n📧 Invoice sent to your email.\n🚚 Your order will be shipped soon.\n\nThank you for your purchase! 🎉`;
+
+      await sendMessage(senderId, successMessage);
+
+      // TODO: Trigger email notification
+      // TODO: Reduce stock
+    } else {
+      console.log(`❌ Payment not found in background verification - retrying in 10s`);
+
+      // Retry once after 10 more seconds
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      const retryResponse = await fetch(`${apiBase}/api/bank/verify-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: expectedAmount, name }),
+      });
+
+      if (retryResponse.ok) {
+        const retryData = await retryResponse.json();
+        if (retryData.paymentFound) {
+          console.log(`✅ Payment found on retry!`);
+          const successMessage = isKa
+            ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount} ლარი მიღებულია.\n\n📦 თქვენი შეკვეთა დადასტურებულია!`
+            : `✅ Payment confirmed! ❤️\n\n${expectedAmount} GEL received.\n\n📦 Your order is confirmed!`;
+          await sendMessage(senderId, successMessage);
+          return;
+        }
+      }
+
+      // Still not found - notify user
+      const notFoundMessage = isKa
+        ? `❌ გადახდა ჯერ ვერ მოიძებნა.\n\nგთხოვთ დარწმუნდით რომ:\n• გადახდა დასრულებულია\n• თანხა: ${expectedAmount} ლარი\n• სახელი: ${name}\n\nთუ გადახდა განახორციელეთ, დაგვიკავშირდით: ${process.env.MANAGER_PHONE || '555-00-00-00'}`
+        : `❌ Payment not found yet.\n\nPlease make sure:\n• Payment is complete\n• Amount: ${expectedAmount} GEL\n• Name: ${name}\n\nIf you made the payment, contact us: ${process.env.MANAGER_PHONE || '555-00-00-00'}`;
+
+      await sendMessage(senderId, notFoundMessage);
+    }
+  } catch (error) {
+    console.error('❌ Error in background payment verification:', error);
+  }
+}
+
+/**
  * Handle automatic payment verification when user provides payment details
  */
-async function handlePaymentVerification(userMessage: string, history: Message[]): Promise<string | null> {
+async function handlePaymentVerification(userMessage: string, history: Message[], senderId: string): Promise<string | null> {
   const isKa = detectGeorgian(userMessage);
 
   // Check if bot just provided bank account in previous message
@@ -302,46 +375,20 @@ async function handlePaymentVerification(userMessage: string, history: Message[]
     return null;
   }
 
-  console.log(`🏦 Verifying payment: ${expectedAmount} GEL from "${name}"`);
+  console.log(`🏦 Starting async payment verification: ${expectedAmount} GEL from "${name}"`);
 
-  try {
-    const apiBase = process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app';
-    console.log(`🔗 Using API base: ${apiBase}`);
+  // ASYNC: Start verification in background, don't wait
+  // This allows us to respond immediately to the user
+  verifyPaymentAsync(expectedAmount, name, isKa, senderId).catch(err => {
+    console.error('❌ Background payment verification failed:', err);
+  });
 
-    const response = await fetch(`${apiBase}/api/bank/verify-payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: expectedAmount, name }),
-    });
+  // Return immediate acknowledgment - user gets instant feedback
+  const immediateReply = isKa
+    ? `მადლობა! ❤️\n\nთქვენი გადახდა ${expectedAmount} ლარი "${name}"-ის სახელზე მიიღება.\n\n⏳ ვამოწმებთ გადახდას ბანკში... (10-20 წამი)\n\nგადახდის დადასტურების შემდეგ მიიღებთ შეტყობინებას შეკვეთის დეტალებით.`
+    : `Thank you! ❤️\n\nYour payment of ${expectedAmount} GEL from "${name}" is being processed.\n\n⏳ Verifying with bank... (10-20 seconds)\n\nYou'll receive confirmation once payment is verified.`;
 
-    if (!response.ok) {
-      console.error(`❌ Bank API returned error status: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-
-    console.log(`🏦 Payment verification result:`, data);
-
-    if (data.paymentFound) {
-      const reply = isKa
-        ? `✅ გადახდა დადასტურდა! ${expectedAmount} ლარი მიღებულია "${name}"-ისგან.\n\nგთხოვთ, გაგრძელდეს შეკვეთის დამუშავება მიწოდების დეტალებით.`
-        : `✅ Payment confirmed! ${expectedAmount} GEL received from "${name}".\n\nPlease proceed with the order using the delivery details provided.`;
-
-      console.log(`✅ Payment verified - proceeding with order`);
-      return reply;
-    } else {
-      const reply = isKa
-        ? `❌ გადახდა ვერ მოიძებნა. ვეძებთ ${expectedAmount} ლარს "${name}"-ისგან.\n\nგთხოვთ დარწმუნდით რომ:\n- გადახდა დასრულებულია\n- სახელი სწორია: ${name}\n- თანხა შეესაბამება: ${expectedAmount} ლარი`
-        : `❌ Payment not found. Looking for ${expectedAmount} GEL from "${name}".\n\nPlease make sure:\n- Payment is complete\n- Name matches: ${name}\n- Amount is correct: ${expectedAmount} GEL`;
-
-      console.log(`❌ Payment NOT verified`);
-      return reply;
-    }
-  } catch (error) {
-    console.error('❌ Error verifying payment:', error);
-    return null; // Continue with normal flow
-  }
+  return immediateReply;
 }
 
 /**
@@ -1166,7 +1213,7 @@ export async function POST(req: Request) {
             // ═══════════════════════════════════════════════════════
             // BANK PAYMENT VERIFICATION
             // ═══════════════════════════════════════════════════════
-            const paymentVerificationResult = await handlePaymentVerification(userTextForProcessing, conversationData.history);
+            const paymentVerificationResult = await handlePaymentVerification(userTextForProcessing, conversationData.history, senderId);
             if (paymentVerificationResult) {
               console.log(`💳 Payment verification triggered`);
 
