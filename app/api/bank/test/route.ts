@@ -73,6 +73,7 @@ export async function GET(request: Request) {
 
     // Test getting recent transactions
     console.log('📋 Testing recent transactions...');
+    const rawTransactions = await bog.getTodayActivities();
     const transactions = await getRecentTransactions();
 
     console.log(`✅ Retrieved ${transactions.length} recent transactions`);
@@ -84,7 +85,8 @@ export async function GET(request: Request) {
         authenticated: true,
         accountConfigured: hasAccountId,
         recentTransactionsCount: transactions.length,
-        sampleTransaction: transactions[0] || null,
+        rawTransactions: rawTransactions.slice(0, 5), // Show first 5 raw transactions with full details
+        filteredTransactions: transactions.slice(0, 5), // Show first 5 filtered transactions
       }
     });
 

@@ -337,29 +337,38 @@ async function handlePaymentVerification(userMessage: string, history: Message[]
     return null;
   }
 
-  // Extract expected amount from conversation history
-  // Prioritize total amount patterns over individual prices
+  // Extract expected amount - first try user's message, then conversation history
   let expectedAmount: number | null = null;
-  for (let i = history.length - 1; i >= 0 && i >= history.length - 5; i--) {
-    const msg = history[i];
-    if (msg.role === 'assistant') {
-      const msgText = typeof msg.content === 'string' ? msg.content : '';
-      // Priority 1: Look for "ჯამში X ლარი" (total)
-      let amountMatch = msgText.match(/ჯამში\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
 
-      // Priority 2: Look for "ჩარიცხოთ X ლარი" (transfer X GEL)
-      if (!amountMatch) {
-        amountMatch = msgText.match(/ჩარიცხოთ\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
-      }
+  // Priority 1: Check if user included amount in their message (e.g., "ჩავრიცხე 55 ლარი")
+  const userAmountMatch = userMessage.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
+  if (userAmountMatch) {
+    expectedAmount = parseFloat(userAmountMatch[1]);
+  }
 
-      // Priority 3: Amount right before bank account number
-      if (!amountMatch) {
-        amountMatch = msgText.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ[ი\s]*\s*(?:საქართველოს ბანკის|თიბისის|ანგარიშზე|GE\d)/);
-      }
+  // Priority 2: Look in conversation history
+  if (!expectedAmount) {
+    for (let i = history.length - 1; i >= 0 && i >= history.length - 5; i--) {
+      const msg = history[i];
+      if (msg.role === 'assistant') {
+        const msgText = typeof msg.content === 'string' ? msg.content : '';
+        // Look for "ჯამში X ლარი" (total)
+        let amountMatch = msgText.match(/ჯამში\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
 
-      if (amountMatch) {
-        expectedAmount = parseFloat(amountMatch[1]);
-        break;
+        // Look for "ჩარიცხოთ X ლარი" (transfer X GEL)
+        if (!amountMatch) {
+          amountMatch = msgText.match(/ჩარიცხოთ\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
+        }
+
+        // Amount right before bank account number
+        if (!amountMatch) {
+          amountMatch = msgText.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ[ი\s]*\s*(?:საქართველოს ბანკის|თიბისის|ანგარიშზე|GE\d)/);
+        }
+
+        if (amountMatch) {
+          expectedAmount = parseFloat(amountMatch[1]);
+          break;
+        }
       }
     }
   }
