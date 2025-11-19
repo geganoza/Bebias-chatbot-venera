@@ -87,6 +87,8 @@ export class BOGClient {
             if (!response.ok) {
                 const error = await response.text();
                 console.error('❌ BOG Authentication failed:', response.status, response.statusText);
+                console.error('❌ Response body:', error);
+                console.error('❌ Client ID (first 10 chars):', this.clientId.substring(0, 10) + '...');
                 return false;
             }
 
