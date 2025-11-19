@@ -20,14 +20,11 @@ export async function getRecentTransactions(): Promise<Transaction[]> {
     const bog = getBOGClient();
     const transactions = await bog.getTodayActivities();
 
-    // Filter to last 10 minutes and credit transactions only
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-
+    // Filter to today's credit transactions only
+    // BOG todayactivities returns transactions with time 00:00:00, so we can't filter by minutes
+    // All transactions from todayactivities endpoint are by definition "today"
     const recentTransactions = transactions
-      .filter(tx => {
-        const txDate = new Date(tx.date);
-        return txDate >= tenMinutesAgo && tx.type === 'credit';
-      })
+      .filter(tx => tx.type === 'credit')
       .map(tx => ({
         id: tx.id,
         date: tx.date,
@@ -36,7 +33,7 @@ export async function getRecentTransactions(): Promise<Transaction[]> {
         senderName: tx.counterpartyName || '',
       }));
 
-    console.log(`✅ Found ${recentTransactions.length} recent transactions (last 10 min)`);
+    console.log(`✅ Found ${recentTransactions.length} incoming transactions today`);
     return recentTransactions;
   } catch (error) {
     console.error('❌ Error fetching BOG transactions:', error);
