@@ -1333,13 +1333,9 @@ async function processMessagingEvent(event: any) {
         } else { // It's an image_url part
             userContent = contentParts;
         }
-      } else { // No content - only allowed for trigger messages
-           if (!isTriggerOnly) {
-             console.log("⚠️ Message has no processable content (text or image), skipping.");
-             return;
-           }
-           // For trigger messages, continue with empty content (will process history)
-           userContent = "";
+      } else { // No content - skip
+        console.log("⚠️ Message has no processable content (text or image), skipping.");
+        return;
       }
 
       console.log(`👤 User ${senderId} sent content. Text: "${userTextForProcessing}"`, messageAttachments ? `with ${messageAttachments.length} attachments.` : '');
