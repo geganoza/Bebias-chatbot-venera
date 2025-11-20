@@ -1622,21 +1622,23 @@ export async function POST(req: Request) {
           }
 
           // ═══════════════════════════════════════════════════════
-          // ASYNC PROCESSING - DON'T AWAIT
-          // Process message in background after returning 200 OK
+          // PROCESS MESSAGE SYNCHRONOUSLY
+          // Vercel serverless functions terminate after returning response
+          // so we must await processing to ensure messages are sent
           // ═══════════════════════════════════════════════════════
-          console.log(`🚀 Kicking off async processing for ${senderId}`);
-          processMessagingEvent(event).catch(err => {
-            console.error(`❌ Error in async processing for ${senderId}:`, err);
-          });
+          console.log(`🚀 Processing message synchronously for ${senderId}`);
+          try {
+            await processMessagingEvent(event);
+          } catch (err) {
+            console.error(`❌ Error processing message for ${senderId}:`, err);
+          }
         }
       }
 
       // ═══════════════════════════════════════════════════════
-      // RETURN 200 OK IMMEDIATELY
-      // This prevents Facebook from retrying the webhook
+      // RETURN 200 OK AFTER PROCESSING
       // ═══════════════════════════════════════════════════════
-      console.log("✅ Returning 200 OK to Facebook (processing continues in background)");
+      console.log("✅ Returning 200 OK to Facebook");
       return NextResponse.json({ status: "ok" }, { status: 200 });
     }
 
