@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { db } from "@/lib/firestore";
 
 type Message = {
   id: string;
@@ -14,20 +14,35 @@ type Conversation = {
   messages: Message[];
 };
 
+// Cache to reduce Firestore calls
+let cachedData: { conversations: Conversation[]; timestamp: number } | null = null;
+const CACHE_TTL = 30000; // 30 seconds
+
 export async function GET() {
   try {
-    // Get all meta-message keys (stored as meta-messages:{userId})
-    const keys = await kv.keys('meta-messages:*');
+    // Return cached data if fresh
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+      console.log("Returning cached meta-messages");
+      return NextResponse.json({
+        success: true,
+        conversations: cachedData.conversations,
+        count: cachedData.conversations.length,
+        cached: true
+      });
+    }
+
+    // Get all meta messages from Firestore
+    const snapshot = await db.collection('metaMessages').get();
 
     const conversations: Conversation[] = [];
 
     // Fetch each conversation
-    for (const key of keys) {
-      const data = await kv.get<Conversation>(key);
+    snapshot.forEach((doc) => {
+      const data = doc.data() as Conversation;
       if (data && data.messages && data.messages.length > 0) {
         conversations.push(data);
       }
-    }
+    });
 
     // Sort conversations by most recent message
     conversations.sort((a, b) => {
@@ -36,10 +51,17 @@ export async function GET() {
       return bTime - aTime;
     });
 
+    // Update cache
+    cachedData = {
+      conversations,
+      timestamp: Date.now()
+    };
+
     return NextResponse.json({
       success: true,
       conversations,
-      count: conversations.length
+      count: conversations.length,
+      cached: false
     });
   } catch (error) {
     console.error("Error fetching meta messages:", error);

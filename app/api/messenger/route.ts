@@ -389,30 +389,19 @@ async function fetchUserProfile(userId: string): Promise<{ name?: string; profil
 
 async function loadConversation(senderId: string): Promise<ConversationData> {
   try {
-    // Try Vercel KV first (for production)
-    if (process.env.KV_REST_API_URL) {
-      const data = await kv.get<ConversationData>(`conversation:${senderId}`);
-      if (data) {
-        console.log(`📂 Loaded conversation from KV for user ${senderId}`);
-        return data;
-      }
-    } else {
-      // Fallback to file system for local development
-      const baseDir = path.join(process.cwd(), "data", "conversations");
-      try {
-        await fs.mkdir(baseDir, { recursive: true });
-      } catch (mkdirErr) {
-        // Ignore if already exists
-      }
+    // Use Firestore for all conversation storage
+    const { db } = await import('@/lib/firestore');
+    const docRef = db.collection('conversations').doc(senderId);
+    const doc = await docRef.get();
 
-      const file = path.join(baseDir, `${senderId}.json`);
-      const txt = await fs.readFile(file, "utf8");
-      const data = JSON.parse(txt) as ConversationData;
-      console.log(`📂 Loaded conversation from file for user ${senderId}`);
+    if (doc.exists) {
+      const data = doc.data() as ConversationData;
+      console.log(`📂 Loaded conversation from Firestore for user ${senderId}`);
       return data;
     }
   } catch (err) {
-    // Return new conversation if not found
+    console.error(`❌ Error loading conversation from Firestore:`, err);
+    // Return new conversation if error or not found
   }
 
   console.log(`📂 Creating new conversation for user ${senderId}`);
@@ -428,24 +417,11 @@ async function saveConversation(data: ConversationData): Promise<void> {
   try {
     data.lastActive = new Date().toISOString();
 
-    // Try Vercel KV first (for production)
-    if (process.env.KV_REST_API_URL) {
-      // Store conversation with 30-day expiration
-      await kv.set(`conversation:${data.senderId}`, data, { ex: 60 * 60 * 24 * 30 });
-      console.log(`💾 Saved conversation to KV for user ${data.senderId}`);
-    } else {
-      // Fallback to file system for local development
-      const baseDir = path.join(process.cwd(), "data", "conversations");
-      try {
-        await fs.mkdir(baseDir, { recursive: true });
-      } catch (mkdirErr) {
-        // Ignore if already exists
-      }
-
-      const file = path.join(baseDir, `${data.senderId}.json`);
-      await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8");
-      console.log(`💾 Saved conversation to file for user ${data.senderId}`);
-    }
+    // Use Firestore for all conversation storage
+    const { db } = await import('@/lib/firestore');
+    const docRef = db.collection('conversations').doc(data.senderId);
+    await docRef.set(data);
+    console.log(`💾 Saved conversation to Firestore for user ${data.senderId}`);
   } catch (err) {
     console.error(`❌ Error saving conversation for user ${data.senderId}:`, err);
   }
@@ -454,15 +430,13 @@ async function saveConversation(data: ConversationData): Promise<void> {
 // Store message for Meta review dashboard
 async function logMetaMessage(userId: string, senderId: string, senderType: 'user' | 'bot', text: string): Promise<void> {
   try {
-    if (!process.env.KV_REST_API_URL) {
-      console.log("⚠️ Skipping meta message log (no KV in local dev)");
-      return;
-    }
-
-    const key = `meta-messages:${userId}`;
+    // Use Firestore for meta messages dashboard
+    const { db } = await import('@/lib/firestore');
+    const docRef = db.collection('metaMessages').doc(userId);
 
     // Get existing conversation
-    const existing = await kv.get<{ userId: string; messages: any[] }>(key);
+    const doc = await docRef.get();
+    const existing = doc.exists ? doc.data() : null;
 
     const message = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -482,8 +456,7 @@ async function logMetaMessage(userId: string, senderId: string, senderType: 'use
       conversation.messages = conversation.messages.slice(-100);
     }
 
-    // Store with 7-day expiration (for Meta review)
-    await kv.set(key, conversation, { ex: 60 * 60 * 24 * 7 });
+    await docRef.set(conversation);
     console.log(`📋 Logged meta message for dashboard: ${senderType} - "${text.substring(0, 50)}..."`);
   } catch (err) {
     console.error("❌ Error logging meta message:", err);
