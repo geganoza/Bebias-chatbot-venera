@@ -1668,23 +1668,25 @@ export async function POST(req: Request) {
             }
 
             // ═══════════════════════════════════════════════════════
-            // SMART MESSAGE BURST DETECTION - TEMPORARILY DISABLED
+            // SMART MESSAGE BURST DETECTION - CLOUD TASKS
             // Add message to history first, then check if we should wait
             // Strategy: Wait for 3 messages OR 10 seconds (whichever comes first)
             // ═══════════════════════════════════════════════════════
+
+            // Import Cloud Tasks functions (dynamic import to avoid server-side issues)
+            const {
+              addMessageToBurst,
+              shouldProcessNow,
+              clearBurst,
+              scheduleMessageProcessing
+            } = await import('@/lib/cloudTasks');
 
             // Add message to history immediately
             if (!isTriggerOnly) {
               conversationData.history.push({ role: "user", content: userContent });
               await saveConversation(conversationData);
               console.log(`📝 Message added to history for ${senderId}`);
-            }
 
-            // DEBOUNCING DISABLED - Process immediately
-            // TODO: Debug why count-based debouncing breaks bot
-            /*
-            // For trigger messages, skip adding to history (already added earlier)
-            if (!isTriggerOnly) {
               // Add message to burst tracker
               const messageCount = await addMessageToBurst(senderId);
 
@@ -1697,14 +1699,14 @@ export async function POST(req: Request) {
                 await clearBurst(senderId);
                 // Continue to process below (don't return early)
               } else {
-                console.log(`⏳ Waiting for more messages (${messageCount}/${MESSAGE_BURST_COUNT})`);
+                console.log(`⏳ Waiting for more messages (${messageCount}/3)`);
 
-                // Only schedule QStash on first message
+                // Only schedule Cloud Task on first message
                 if (messageCount === 1) {
-                  await scheduleResponseCheck(senderId);
+                  await scheduleMessageProcessing(senderId);
                 }
 
-                // Return immediately - wait for more messages or QStash trigger
+                // Return immediately - wait for more messages or Cloud Task trigger
                 return NextResponse.json({ status: "queued" });
               }
             } else {
@@ -1712,7 +1714,6 @@ export async function POST(req: Request) {
               // Clear burst tracker since we're processing now
               await clearBurst(senderId);
             }
-            */
 
             // ═══════════════════════════════════════════════════════
             // GLOBAL BOT PAUSE & MANUAL MODE CHECKS

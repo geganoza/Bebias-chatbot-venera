@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.0.0",
+    "@google-cloud/tasks": "^6.2.1",
     "@types/nodemailer": "^7.0.3",
     "@upstash/qstash": "^2.8.4",
     "@vercel/kv": "^3.0.0",
