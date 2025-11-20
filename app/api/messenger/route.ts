@@ -1072,8 +1072,8 @@ function splitIntoMessageChunks(text: string): string[] {
 }
 
 /**
- * Send a message split into natural chunks with delays between each
- * Simulates human typing for better user experience
+ * Send a message split into natural chunks with minimal delays
+ * Fast delivery without artificial typing simulation
  */
 async function sendMessageInChunks(recipientId: string, messageText: string) {
   const chunks = splitIntoMessageChunks(messageText);
@@ -1097,18 +1097,13 @@ async function sendMessageInChunks(recipientId: string, messageText: string) {
       console.error("⚠️ Error sending typing indicator:", err);
     }
 
-    // Delay based on chunk length to simulate natural typing speed
-    // Rough estimate: 40-60 chars per second (fast human typing)
-    const typingDelay = Math.min(Math.max(chunk.length * 20, 300), 2000); // 300ms min, 2s max
-    await new Promise(resolve => setTimeout(resolve, typingDelay));
+    // Minimal delay to ensure messages arrive in order (100ms)
+    if (i > 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     // Send the actual message
     await sendMessage(recipientId, chunk);
-
-    // Small pause between messages (like human would pause between sentences)
-    if (i < chunks.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 400));
-    }
   }
 
   console.log(`✅ All ${chunks.length} chunks sent successfully`);
@@ -1477,11 +1472,305 @@ export async function GET(req: Request) {
   return new NextResponse("Forbidden", { status: 403 });
 }
 
+/**
+ * Process a single messaging event asynchronously
+ * This runs in the background after webhook returns 200 OK
+ */
+async function processMessagingEvent(event: any) {
+  try {
+    console.log(`💬 Processing messaging event:`, JSON.stringify(event, null, 2));
+
+    const senderId = event.sender?.id;
+    if (!senderId) {
+      console.log("⚠️ Event does not contain sender ID, skipping.");
+      return;
+    }
+
+    const message = event.message; // Get the full message object
+    const messageText = message?.text;
+    const messageAttachments = message?.attachments;
+    const messageId = message?.mid;
+
+    console.log(`🔍 Message details for ${senderId}:`, {
+      hasText: !!messageText,
+      textLength: messageText?.length,
+      hasAttachments: !!messageAttachments,
+      attachmentCount: messageAttachments?.length,
+      messageId: messageId,
+      messageKeys: message ? Object.keys(message) : []
+    });
+
+    // Check if this is a trigger-only message from QStash
+    const isTriggerOnly = event.__trigger_only === true;
+
+    if (messageText || messageAttachments || isTriggerOnly) {
+      let userContent: MessageContent = "";
+      const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
+      let userTextForProcessing = messageText || ""; // Initialize with text if available
+
+      if (messageText) {
+        contentParts.push({ type: "text", text: messageText });
+      }
+
+      if (messageAttachments) {
+        for (const attachment of messageAttachments) {
+          if (attachment.type === "image") { // Focus on image attachments for now
+            console.log(`🖼️ Identified image attachment: ${attachment.payload.url}`);
+
+            // Convert Facebook image URL to base64 for OpenAI compatibility
+            const base64Image = await facebookImageToBase64(attachment.payload.url);
+
+            if (base64Image) {
+              contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+              console.log(`✅ Image converted to base64 and added to message`);
+            } else {
+              console.warn(`⚠️ Failed to convert image, skipping attachment`);
+              // Add a text note about the image if conversion failed
+              if (!messageText) {
+                contentParts.push({ type: "text", text: "[User sent an image]" });
+              }
+            }
+          }
+          // Other attachment types (video, file, audio) are ignored for now.
+        }
+      }
+
+      // Determine final userContent based on what was found
+      if (contentParts.length > 1) { // Both text and image(s)
+        userContent = contentParts;
+      } else if (contentParts.length === 1) { // Only text or only image
+        if (contentParts[0].type === 'text') {
+            userContent = contentParts[0].text;
+        } else { // It's an image_url part
+            userContent = contentParts;
+        }
+      } else { // No content - only allowed for trigger messages
+           if (!isTriggerOnly) {
+             console.log("⚠️ Message has no processable content (text or image), skipping.");
+             return;
+           }
+           // For trigger messages, continue with empty content (will process history)
+           userContent = "";
+      }
+
+      console.log(`👤 User ${senderId} sent content. Text: "${userTextForProcessing}"`, messageAttachments ? `with ${messageAttachments.length} attachments.` : '');
+
+      // Log incoming message for Meta review dashboard
+      await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
+
+      // Load conversation data from file
+      const conversationData = await loadConversation(senderId);
+      console.log(`📝 Retrieved ${conversationData.history.length} previous messages for user ${senderId}`);
+
+      // Fetch and update user profile if not already present
+      if (!conversationData.userName || !conversationData.profilePic) {
+        const profile = await fetchUserProfile(senderId);
+        if (profile.name) {
+          conversationData.userName = profile.name;
+          conversationData.profilePic = profile.profile_pic;
+          console.log(`👤 Updated conversation with user profile: ${profile.name}`);
+        }
+      }
+
+      // Show previous orders if any
+      if (conversationData.orders.length > 0) {
+        console.log(`🛒 Customer has ${conversationData.orders.length} previous orders`);
+      }
+
+      // Initialize storeVisitRequests if undefined
+      conversationData.storeVisitRequests ??= 0;
+
+      // Detect if user is asking about physical store/warehouse visit
+      if (detectStoreVisitRequest(userTextForProcessing)) {
+        conversationData.storeVisitRequests++;
+        console.log(`🏪 Store visit request detected (count: ${conversationData.storeVisitRequests})`);
+      }
+
+      // Add message to history immediately
+      conversationData.history.push({ role: "user", content: userContent });
+      await saveConversation(conversationData);
+      console.log(`📝 Message added to history for ${senderId}`);
+
+      // ═══════════════════════════════════════════════════════
+      // GLOBAL BOT PAUSE & MANUAL MODE CHECKS
+      // ═══════════════════════════════════════════════════════
+      let globalBotPaused = false;
+      try {
+        globalBotPaused = await kv.get<boolean>('global_bot_paused') === true;
+      } catch (kvError) {
+        console.warn(`⚠️ Redis unavailable for bot pause check - assuming not paused`);
+      }
+
+      if (globalBotPaused || conversationData.manualMode === true) {
+        console.log(globalBotPaused ? `⏸️ GLOBAL BOT PAUSE ACTIVE` : `🎮 MANUAL MODE ACTIVE`);
+        console.log(`   User ${senderId} message: "${userTextForProcessing}"`);
+        console.log(`   Message stored but no response sent`);
+        return; // Exit early
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // BANK PAYMENT VERIFICATION
+      // ═══════════════════════════════════════════════════════
+      const paymentVerificationResult = await handlePaymentVerification(userTextForProcessing, conversationData.history, senderId);
+      if (paymentVerificationResult) {
+        console.log(`💳 Payment verification triggered`);
+
+        // Add assistant response to history (user message already added above)
+        conversationData.history.push({ role: "assistant", content: paymentVerificationResult });
+
+        // Save and send response
+        await saveConversation(conversationData);
+        await sendMessage(senderId, paymentVerificationResult);
+        return; // Exit after payment handling
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // ISSUE ESCALATION SYSTEM
+      // ═══════════════════════════════════════════════════════
+      // Check for phone number fallback first (1 hour timeout)
+      const phoneMessage = await checkPhoneNumberFallback(conversationData, userTextForProcessing);
+      if (phoneMessage) {
+        console.log(`📞 Offering manager phone number to user ${senderId}`);
+
+        // Add assistant response to history (user message already added above)
+        conversationData.history.push({ role: "assistant", content: phoneMessage });
+
+        await saveConversation(conversationData);
+        await sendMessage(senderId, phoneMessage);
+        return; // Exit after phone message
+      }
+
+      // Handle issue escalation
+      const escalationResult = await handleIssueEscalation(userTextForProcessing, conversationData);
+      if (escalationResult.escalated && escalationResult.response) {
+        console.log(`🚨 Issue escalation processed for user ${senderId}`);
+
+        // Update conversation data with escalation info
+        Object.assign(conversationData, escalationResult.updatedData);
+
+        // Add assistant response to history (user message already added above)
+        conversationData.history.push({ role: "assistant", content: escalationResult.response });
+
+        // Save and send response
+        await saveConversation(conversationData);
+        await sendMessage(senderId, escalationResult.response);
+        return; // Exit after escalation
+      }
+
+      // Check if there's a bot instruction from operator
+      let operatorInstruction: string | undefined = undefined;
+      if (conversationData.botInstruction) {
+        operatorInstruction = conversationData.botInstruction;
+        console.log(`📋 Operator instruction found: "${conversationData.botInstruction}"`);
+
+        // Clear the instruction after use (one-time use)
+        delete conversationData.botInstruction;
+        delete conversationData.botInstructionAt;
+      }
+
+      // Get AI response with conversation context, order history, store visit count, and operator instruction
+      const response = await getAIResponse(userContent, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
+
+      console.log(`🤖 AI Response length: ${response.length} chars`);
+      console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
+      console.log(`🤖 AI Response (last 200 chars):`, response.substring(Math.max(0, response.length - 200)));
+
+      // Update conversation history (user message already added above)
+      conversationData.history.push({ role: "assistant", content: response });
+
+      // Trim history if it exceeds maximum length (keeping last N exchanges)
+      // Each exchange = 2 messages (user + assistant), so max = MAX_HISTORY_LENGTH * 2
+      if (conversationData.history.length > MAX_HISTORY_LENGTH * 2) {
+        const trimCount = conversationData.history.length - MAX_HISTORY_LENGTH * 2;
+        conversationData.history.splice(0, trimCount);
+        console.log(`✂️ Trimmed ${trimCount} old messages from history`);
+      }
+
+      // Parse response for image commands
+      const { productIds, cleanResponse: responseWithoutImages } = parseImageCommands(response);
+
+      // Send product images if requested
+      if (productIds.length > 0) {
+        console.log(`🖼️ Found ${productIds.length} image(s) to send:`, productIds);
+
+        // Load products to get image URLs
+        const allProducts = await loadProducts();
+        const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+        for (const productId of productIds) {
+          const product = productMap.get(productId);
+          if (product && product.image &&
+              product.image !== "IMAGE_URL_HERE" &&
+              !product.image.includes('facebook.com') &&
+              product.image.startsWith('http')) {
+            await sendImage(senderId, product.image);
+            console.log(`✅ Sent image for ${productId}`);
+          } else {
+            console.warn(`⚠️ No valid image found for product ${productId}`);
+          }
+        }
+      }
+
+      // Check if response contains order notification and send email
+      const orderData = parseOrderNotification(responseWithoutImages);
+      if (orderData) {
+        console.log("📧 Order notification detected, processing order...");
+
+        // Log order and get order number
+        const orderNumber = await logOrder(orderData, 'messenger');
+        console.log(`📝 Order logged with number: ${orderNumber}`);
+
+        // Add order to conversation data
+        conversationData.orders.push({
+          orderNumber,
+          timestamp: new Date().toISOString(),
+          items: orderData.product || "Unknown items"
+        });
+
+        // Send email with order number
+        const emailSent = await sendOrderEmail(orderData, orderNumber);
+        if (emailSent) {
+          console.log("✅ Order email sent successfully");
+        } else {
+          console.error("❌ Failed to send order email");
+        }
+
+        // Remove the ORDER_NOTIFICATION block from the response shown to user
+        let finalResponse = responseWithoutImages.replace(/ORDER_NOTIFICATION:[\s\S]*?(?=\n\n|$)/g, '').trim();
+
+        // Replace [ORDER_NUMBER] placeholder with actual order number
+        finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, orderNumber);
+
+        // Save conversation data with order
+        await saveConversation(conversationData);
+
+        await sendMessageInChunks(senderId, finalResponse);
+
+        // Log bot response for Meta review dashboard
+        await logMetaMessage(senderId, 'VENERA_BOT', 'bot', finalResponse);
+      } else {
+        // Save conversation data
+        await saveConversation(conversationData);
+
+        // Send response back to user
+        await sendMessageInChunks(senderId, responseWithoutImages);
+
+        // Log bot response for Meta review dashboard
+        await logMetaMessage(senderId, 'VENERA_BOT', 'bot', responseWithoutImages);
+      }
+    } else {
+      console.log("⚠️ Event does not contain message content");
+    }
+  } catch (err: any) {
+    console.error(`❌ Error processing event for ${event.sender?.id}:`, err);
+  }
+}
+
 // POST handler for incoming messages
 export async function POST(req: Request) {
   let body: any;
 
-  // Parse body outside try-catch to ensure this log always appears
+  // Parse body
   try {
     body = await req.json();
   } catch (parseError: any) {
@@ -1493,439 +1782,60 @@ export async function POST(req: Request) {
   console.log(JSON.stringify(body, null, 2));
 
   try {
-
     // Check if this is a page event
     if (body.object === "page") {
-      // Iterate over entries
+      // Iterate over entries and messaging events
       for (const entry of body.entry || []) {
         console.log(`📦 Processing entry ID: ${entry.id}`);
 
-        // Iterate over messaging events
         for (const event of entry.messaging || []) {
-          console.log(`💬 Processing messaging event:`, JSON.stringify(event, null, 2));
-
           const senderId = event.sender?.id;
-          if (!senderId) {
-            console.log("⚠️ Event does not contain sender ID, skipping.");
+          const messageId = event.message?.mid;
+
+          if (!senderId || (!event.message?.text && !event.message?.attachments && !event.__trigger_only)) {
+            console.log("⚠️ Event does not contain required data, skipping.");
             continue;
           }
 
-          const message = event.message; // Get the full message object
-          const messageText = message?.text;
-          const messageAttachments = message?.attachments;
-          const messageId = message?.mid;
-
-          console.log(`🔍 Message details for ${senderId}:`, {
-            hasText: !!messageText,
-            textLength: messageText?.length,
-            hasAttachments: !!messageAttachments,
-            attachmentCount: messageAttachments?.length,
-            messageId: messageId,
-            messageKeys: message ? Object.keys(message) : []
-          });
-
           // ═══════════════════════════════════════════════════════
-          // MESSAGE DEBOUNCING - DISABLED
-          // setTimeout doesn't work reliably in serverless functions
-          // TODO: Need Redis-based queueing with external worker
+          // SYNCHRONOUS MESSAGE DEDUPLICATION
+          // Check deduplication BEFORE doing anything else
           // ═══════════════════════════════════════════════════════
-          // const isDebounced = event.__debounced === true;
-          // if (!isDebounced && (messageText || messageAttachments)) {
-          //   queueMessageForDebounce(senderId, {
-          //     messageId: messageId || `msg_${Date.now()}`,
-          //     text: messageText,
-          //     attachments: messageAttachments,
-          //     timestamp: Date.now()
-          //   });
-          //   console.log(`✅ Message queued, will process in ${MESSAGE_DEBOUNCE_MS}ms`);
-          //   continue;
-          // }
+          if (messageId) {
+            const dedupeKey = `msg_processed:${messageId}`;
 
-          // Check if this is a trigger-only message from QStash
-          const isTriggerOnly = event.__trigger_only === true;
-
-          if (messageText || messageAttachments || isTriggerOnly) {
-            let userContent: MessageContent = "";
-            const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
-            let userTextForProcessing = messageText || ""; // Initialize with text if available
-
-            if (messageText) {
-              contentParts.push({ type: "text", text: messageText });
-            }
-
-            if (messageAttachments) {
-              for (const attachment of messageAttachments) {
-                if (attachment.type === "image") { // Focus on image attachments for now
-                  console.log(`🖼️ Identified image attachment: ${attachment.payload.url}`);
-
-                  // Convert Facebook image URL to base64 for OpenAI compatibility
-                  const base64Image = await facebookImageToBase64(attachment.payload.url);
-
-                  if (base64Image) {
-                    contentParts.push({ type: "image_url", image_url: { url: base64Image } });
-                    console.log(`✅ Image converted to base64 and added to message`);
-                  } else {
-                    console.warn(`⚠️ Failed to convert image, skipping attachment`);
-                    // Add a text note about the image if conversion failed
-                    if (!messageText) {
-                      contentParts.push({ type: "text", text: "[User sent an image]" });
-                    }
-                  }
-                }
-                // Other attachment types (video, file, audio) are ignored for now.
-              }
-            }
-            
-            // Determine final userContent based on what was found
-            if (contentParts.length > 1) { // Both text and image(s)
-              userContent = contentParts;
-            } else if (contentParts.length === 1) { // Only text or only image
-              if (contentParts[0].type === 'text') {
-                  userContent = contentParts[0].text;
-              } else { // It's an image_url part
-                  userContent = contentParts;
-              }
-            } else { // No content - only allowed for trigger messages
-                 if (!isTriggerOnly) {
-                   console.log("⚠️ Message has no processable content (text or image), skipping.");
-                   continue; // Skip processing this event
-                 }
-                 // For trigger messages, continue with empty content (will process history)
-                 userContent = "";
-            }
-            
-            console.log(`👤 User ${senderId} sent content. Text: "${userTextForProcessing}"`, messageAttachments ? `with ${messageAttachments.length} attachments.` : '');
-
-            // ═══════════════════════════════════════════════════════
-            // MESSAGE DEDUPLICATION CHECK
-            // Facebook webhooks often deliver the same message multiple times
-            // ═══════════════════════════════════════════════════════
-            if (messageId) {
-              const dedupeKey = `msg_processed:${messageId}`;
-
-              // Check if we've already processed this message (skip if Redis unavailable)
-              try {
-                const alreadyProcessed = await kv.get(dedupeKey);
-
-                if (alreadyProcessed) {
-                  console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
-                  continue; // Skip to next event
-                }
-
-                // Mark this message as processed (TTL: 1 hour = 3600 seconds)
-                await kv.set(dedupeKey, '1', { ex: 3600 });
-                console.log(`✅ Message ${messageId} marked as processed`);
-              } catch (kvError) {
-                console.warn(`⚠️ Redis unavailable for deduplication - continuing anyway`);
-              }
-            } else {
-              console.warn(`⚠️ No message ID found - cannot deduplicate`);
-            }
-
-            // Log incoming message for Meta review dashboard
-            await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
-
-            // Load conversation data from file
-            const conversationData = await loadConversation(senderId);
-            console.log(`📝 Retrieved ${conversationData.history.length} previous messages for user ${senderId}`);
-
-            // Fetch and update user profile if not already present
-            if (!conversationData.userName || !conversationData.profilePic) {
-              const profile = await fetchUserProfile(senderId);
-              if (profile.name) {
-                conversationData.userName = profile.name;
-                conversationData.profilePic = profile.profile_pic;
-                console.log(`👤 Updated conversation with user profile: ${profile.name}`);
-              }
-            }
-
-            // Show previous orders if any
-            if (conversationData.orders.length > 0) {
-              console.log(`🛒 Customer has ${conversationData.orders.length} previous orders`);
-            }
-
-            // Initialize storeVisitRequests if undefined
-            conversationData.storeVisitRequests ??= 0;
-            
-            // Detect if user is asking about physical store/warehouse visit
-            if (detectStoreVisitRequest(userTextForProcessing)) {
-              conversationData.storeVisitRequests++;
-              console.log(`🏪 Store visit request detected (count: ${conversationData.storeVisitRequests})`);
-            }
-
-            // ═══════════════════════════════════════════════════════
-            // SMART MESSAGE BURST DETECTION WITH QSTASH
-            // Add message to history first, then check if we should wait
-            // Strategy: Wait for 3 messages OR 10 seconds (whichever comes first)
-            // ═══════════════════════════════════════════════════════
-
-            // Import Firestore for burst tracking
-            const { db } = await import('@/lib/firestore');
-
-            // Add message to history
-            if (!isTriggerOnly) {
-              conversationData.history.push({ role: "user", content: userContent });
-              await saveConversation(conversationData);
-              console.log(`📝 Message added to history for ${senderId}`);
-
-              // Track burst in Firestore
-              const burstRef = db.collection('messageBursts').doc(senderId);
-              const burstDoc = await burstRef.get();
-              const now = Date.now();
-
-              let messageCount = 1;
-
-              if (!burstDoc.exists) {
-                // First message in burst
-                await burstRef.set({
-                  count: 1,
-                  firstMessageTime: now,
-                  lastMessageTime: now
-                });
-                console.log(`📊 Message burst started for ${senderId} (count: 1)`);
-              } else {
-                // Increment count
-                const data = burstDoc.data();
-                messageCount = (data?.count || 0) + 1;
-                await burstRef.update({
-                  count: messageCount,
-                  lastMessageTime: now
-                });
-                console.log(`📊 Message burst continues for ${senderId} (count: ${messageCount})`);
-              }
-
-              // Check if we should process now (3 messages reached)
-              if (messageCount >= 3) {
-                console.log(`🚀 Processing now: ${messageCount} messages accumulated`);
-                // Clear burst tracker
-                await burstRef.delete();
-                // Continue to process below (don't return early)
-              } else {
-                console.log(`⏳ Waiting for more messages (${messageCount}/3)`);
-
-                // Only schedule QStash on first message
-                if (messageCount === 1) {
-                  // Schedule QStash callback
-                  if (process.env.QSTASH_TOKEN) {
-                    try {
-                      const { Client } = require('@upstash/qstash');
-                      const qstash = new Client({ token: process.env.QSTASH_TOKEN });
-
-                      const callbackUrl = process.env.VERCEL_URL
-                        ? `https://${process.env.VERCEL_URL}/api/internal/delayed-response`
-                        : 'https://bebias-venera-chatbot.vercel.app/api/internal/delayed-response';
-
-                      console.log(`📡 Scheduling QStash callback to: ${callbackUrl}`);
-
-                      const result = await qstash.publishJSON({
-                        url: callbackUrl,
-                        body: { senderId },
-                        delay: 10 // 10 seconds
-                      });
-
-                      console.log(`✅ QStash scheduled successfully: ${result.messageId}`);
-                    } catch (error: any) {
-                      console.error(`❌ QStash scheduling failed:`, error.message, error.stack);
-                      // Don't throw - process immediately if QStash fails
-                      console.log(`⚠️ Falling back to immediate processing due to QStash error`);
-                      await burstRef.delete();
-                      // Continue to process below
-                      return;
-                    }
-                  } else {
-                    console.warn(`⚠️ QSTASH_TOKEN not configured - processing immediately`);
-                    await burstRef.delete();
-                    // Continue to process below
-                    return;
-                  }
-                }
-
-                // Return immediately - wait for more messages or QStash trigger
-                return NextResponse.json({ status: "queued" });
-              }
-            } else {
-              console.log(`🎯 Trigger message received - processing accumulated history`);
-              // Clear burst tracker since we're processing now
-              const burstRef = db.collection('messageBursts').doc(senderId);
-              await burstRef.delete();
-            }
-
-            // ═══════════════════════════════════════════════════════
-            // GLOBAL BOT PAUSE & MANUAL MODE CHECKS
-            // ═══════════════════════════════════════════════════════
-            let globalBotPaused = false;
             try {
-              globalBotPaused = await kv.get<boolean>('global_bot_paused') === true;
+              const alreadyProcessed = await kv.get(dedupeKey);
+
+              if (alreadyProcessed) {
+                console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
+                continue; // Skip to next event
+              }
+
+              // Mark this message as processed (TTL: 1 hour = 3600 seconds)
+              await kv.set(dedupeKey, '1', { ex: 3600 });
+              console.log(`✅ Message ${messageId} marked as processed`);
             } catch (kvError) {
-              console.warn(`⚠️ Redis unavailable for bot pause check - assuming not paused`);
+              console.warn(`⚠️ Redis unavailable for deduplication - continuing anyway`);
             }
-
-            if (globalBotPaused || conversationData.manualMode === true) {
-              console.log(globalBotPaused ? `⏸️ GLOBAL BOT PAUSE ACTIVE` : `🎮 MANUAL MODE ACTIVE`);
-              console.log(`   User ${senderId} message: "${userTextForProcessing}"`);
-              console.log(`   Message stored but no response sent`);
-
-              // Message already added to history above - just continue
-              continue;
-            }
-
-            // ═══════════════════════════════════════════════════════
-            // BANK PAYMENT VERIFICATION
-            // ═══════════════════════════════════════════════════════
-            const paymentVerificationResult = await handlePaymentVerification(userTextForProcessing, conversationData.history, senderId);
-            if (paymentVerificationResult) {
-              console.log(`💳 Payment verification triggered`);
-
-              // Add assistant response to history (user message already added above)
-              conversationData.history.push({ role: "assistant", content: paymentVerificationResult });
-
-              // Save and send response
-              await saveConversation(conversationData);
-              await sendMessage(senderId, paymentVerificationResult);
-              continue; // Skip normal AI response
-            }
-
-            // ═══════════════════════════════════════════════════════
-            // ISSUE ESCALATION SYSTEM
-            // ═══════════════════════════════════════════════════════
-            // Check for phone number fallback first (1 hour timeout)
-            const phoneMessage = await checkPhoneNumberFallback(conversationData, userTextForProcessing);
-            if (phoneMessage) {
-              console.log(`📞 Offering manager phone number to user ${senderId}`);
-
-              // Add assistant response to history (user message already added above)
-              conversationData.history.push({ role: "assistant", content: phoneMessage });
-
-              await saveConversation(conversationData);
-              await sendMessage(senderId, phoneMessage);
-              continue;
-            }
-
-            // Handle issue escalation
-            const escalationResult = await handleIssueEscalation(userTextForProcessing, conversationData);
-            if (escalationResult.escalated && escalationResult.response) {
-              console.log(`🚨 Issue escalation processed for user ${senderId}`);
-
-              // Update conversation data with escalation info
-              Object.assign(conversationData, escalationResult.updatedData);
-
-              // Add assistant response to history (user message already added above)
-              conversationData.history.push({ role: "assistant", content: escalationResult.response });
-
-              // Save and send response
-              await saveConversation(conversationData);
-              await sendMessage(senderId, escalationResult.response);
-              continue; // Skip normal AI response
-            }
-
-            // Check if there's a bot instruction from operator
-            let operatorInstruction: string | undefined = undefined;
-            if (conversationData.botInstruction) {
-              operatorInstruction = conversationData.botInstruction;
-              console.log(`📋 Operator instruction found: "${conversationData.botInstruction}"`);
-
-              // Clear the instruction after use (one-time use)
-              delete conversationData.botInstruction;
-              delete conversationData.botInstructionAt;
-            }
-
-            // Get AI response with conversation context, order history, store visit count, and operator instruction
-            const response = await getAIResponse(userContent, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
-
-            console.log(`🤖 AI Response length: ${response.length} chars`);
-            console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
-            console.log(`🤖 AI Response (last 200 chars):`, response.substring(Math.max(0, response.length - 200)));
-
-            // Update conversation history (user message already added above)
-            conversationData.history.push({ role: "assistant", content: response });
-
-            // Trim history if it exceeds maximum length (keeping last N exchanges)
-            // Each exchange = 2 messages (user + assistant), so max = MAX_HISTORY_LENGTH * 2
-            if (conversationData.history.length > MAX_HISTORY_LENGTH * 2) {
-              const trimCount = conversationData.history.length - MAX_HISTORY_LENGTH * 2;
-              conversationData.history.splice(0, trimCount);
-              console.log(`✂️ Trimmed ${trimCount} old messages from history`);
-            }
-
-            // Parse response for image commands
-            const { productIds, cleanResponse: responseWithoutImages } = parseImageCommands(response);
-
-            // Send product images if requested
-            if (productIds.length > 0) {
-              console.log(`🖼️ Found ${productIds.length} image(s) to send:`, productIds);
-
-              // Load products to get image URLs
-              const allProducts = await loadProducts();
-              const productMap = new Map(allProducts.map(p => [p.id, p]));
-
-              for (const productId of productIds) {
-                const product = productMap.get(productId);
-                if (product && product.image &&
-                    product.image !== "IMAGE_URL_HERE" &&
-                    !product.image.includes('facebook.com') &&
-                    product.image.startsWith('http')) {
-                  await sendImage(senderId, product.image);
-                  console.log(`✅ Sent image for ${productId}`);
-                } else {
-                  console.warn(`⚠️ No valid image found for product ${productId}`);
-                }
-              }
-            }
-
-            // Check if response contains order notification and send email
-            const orderData = parseOrderNotification(responseWithoutImages);
-            if (orderData) {
-              console.log("📧 Order notification detected, processing order...");
-
-              // Log order and get order number
-              const orderNumber = await logOrder(orderData, 'messenger');
-              console.log(`📝 Order logged with number: ${orderNumber}`);
-
-              // Add order to conversation data
-              conversationData.orders.push({
-                orderNumber,
-                timestamp: new Date().toISOString(),
-                items: orderData.product || "Unknown items"
-              });
-
-              // Send email with order number
-              const emailSent = await sendOrderEmail(orderData, orderNumber);
-              if (emailSent) {
-                console.log("✅ Order email sent successfully");
-              } else {
-                console.error("❌ Failed to send order email");
-              }
-
-              // Remove the ORDER_NOTIFICATION block from the response shown to user
-              let finalResponse = responseWithoutImages.replace(/ORDER_NOTIFICATION:[\s\S]*?(?=\n\n|$)/g, '').trim();
-
-              // Replace [ORDER_NUMBER] placeholder with actual order number
-              finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, orderNumber);
-
-              // Save conversation data with order
-              await saveConversation(conversationData);
-
-              await sendMessageInChunks(senderId, finalResponse);
-
-              // Log bot response for Meta review dashboard
-              await logMetaMessage(senderId, 'VENERA_BOT', 'bot', finalResponse);
-            } else {
-              // Save conversation data
-              await saveConversation(conversationData);
-
-              // Send response back to user
-              await sendMessageInChunks(senderId, responseWithoutImages);
-
-              // Log bot response for Meta review dashboard
-              await logMetaMessage(senderId, 'VENERA_BOT', 'bot', responseWithoutImages);
-            }
-          } else {
-            console.log("⚠️ Event does not contain sender ID or message text");
           }
+
+          // ═══════════════════════════════════════════════════════
+          // ASYNC PROCESSING - DON'T AWAIT
+          // Process message in background after returning 200 OK
+          // ═══════════════════════════════════════════════════════
+          console.log(`🚀 Kicking off async processing for ${senderId}`);
+          processMessagingEvent(event).catch(err => {
+            console.error(`❌ Error in async processing for ${senderId}:`, err);
+          });
         }
       }
 
-      // Return 200 OK to acknowledge receipt
+      // ═══════════════════════════════════════════════════════
+      // RETURN 200 OK IMMEDIATELY
+      // This prevents Facebook from retrying the webhook
+      // ═══════════════════════════════════════════════════════
+      console.log("✅ Returning 200 OK to Facebook (processing continues in background)");
       return NextResponse.json({ status: "ok" }, { status: 200 });
     }
 
