@@ -6,8 +6,48 @@ import { kv } from "@vercel/kv";
 import { sendOrderEmail, parseOrderNotification } from "../../../lib/sendOrderEmail";
 import { logOrder } from "../../../lib/orderLogger";
 
+// Force dynamic rendering to ensure console.log statements appear in production
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'; // Force Node.js runtime (not Edge)
+export const maxDuration = 60; // Maximum duration for this function
+
 type MessageContent = string | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
 type Message = { role: "system" | "user" | "assistant"; content: MessageContent };
+
+/**
+ * Convert Facebook image URL to base64 data URL for OpenAI vision API
+ * Facebook CDN URLs cannot be accessed directly by OpenAI, so we download and convert to base64
+ */
+async function facebookImageToBase64(imageUrl: string): Promise<string | null> {
+  try {
+    console.log(`📥 Downloading Facebook image: ${imageUrl.substring(0, 100)}...`);
+
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.error(`❌ Failed to download image: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+
+    // Detect image type from URL or default to jpeg
+    let mimeType = 'image/jpeg';
+    if (imageUrl.includes('.png')) mimeType = 'image/png';
+    else if (imageUrl.includes('.gif')) mimeType = 'image/gif';
+    else if (imageUrl.includes('.webp')) mimeType = 'image/webp';
+
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    console.log(`✅ Converted image to base64 (${(base64.length / 1024).toFixed(2)} KB)`);
+
+    return dataUrl;
+  } catch (error) {
+    console.error(`❌ Error converting Facebook image to base64:`, error);
+    return null;
+  }
+}
+
 type Product = {
   id: string;
   name: string;
@@ -504,10 +544,22 @@ async function handlePaymentVerification(userMessage: string, history: Message[]
 
   console.log(`🏦 Starting async payment verification: ${expectedAmount} GEL from "${name}"`);
 
-  // ASYNC: Start verification in background, don't wait
+  // ASYNC: Call Cloud Function for verification (doesn't block)
   // This allows us to respond immediately to the user
-  verifyPaymentAsync(expectedAmount, name, isKa, senderId).catch(err => {
-    console.error('❌ Background payment verification failed:', err);
+  const cloudFunctionUrl = process.env.CLOUD_FUNCTION_URL || 'https://us-central1-bebias-wp-db-handler.cloudfunctions.net/verifyPayment';
+
+  fetch(cloudFunctionUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      expectedAmount,
+      name,
+      isKa,
+      senderId,
+      delayMs: 10000
+    })
+  }).catch(err => {
+    console.error('❌ Cloud Function call failed:', err);
   });
 
   // Return immediate acknowledgment - user gets instant feedback
@@ -1169,6 +1221,27 @@ Send images ONLY when:
     console.error("❌ Error message:", err?.message);
     console.error("❌ Error stack:", err?.stack);
 
+    // Log error to KV store for debugging (since console logs don't appear)
+    try {
+      const errorKey = `error:openai:${Date.now()}`;
+      await kv.set(errorKey, {
+        timestamp: new Date().toISOString(),
+        userMessage: userText, // Include user message for context
+        historyLength: history.length, // Track conversation length
+        error: {
+          message: err?.message || String(err),
+          stack: err?.stack,
+          name: err?.name,
+          code: err?.code,
+          status: err?.status,
+          response: err?.response?.data,
+        },
+      }, { ex: 86400 }); // Expire after 24 hours
+      console.log(`✅ Error logged to KV with key: ${errorKey}`);
+    } catch (kvErr) {
+      console.error("Failed to log error to KV:", kvErr);
+    }
+
     // Return error message in appropriate language
     return isKa
       ? "ბოდიში, შეცდომა მოხდა თქვენი მოთხოვნის დამუშავებისას. გთხოვთ, სცადოთ ხელახლა."
@@ -1207,11 +1280,20 @@ export async function GET(req: Request) {
 
 // POST handler for incoming messages
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+  let body: any;
 
-    console.log("📩 Incoming Messenger webhook:");
-    console.log(JSON.stringify(body, null, 2));
+  // Parse body outside try-catch to ensure this log always appears
+  try {
+    body = await req.json();
+  } catch (parseError: any) {
+    console.error("❌ Failed to parse request body:", parseError);
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  console.log("📩 Incoming Messenger webhook:");
+  console.log(JSON.stringify(body, null, 2));
+
+  try {
 
     // Check if this is a page event
     if (body.object === "page") {
@@ -1234,6 +1316,15 @@ export async function POST(req: Request) {
           const messageAttachments = message?.attachments;
           const messageId = message?.mid;
 
+          console.log(`🔍 Message details for ${senderId}:`, {
+            hasText: !!messageText,
+            textLength: messageText?.length,
+            hasAttachments: !!messageAttachments,
+            attachmentCount: messageAttachments?.length,
+            messageId: messageId,
+            messageKeys: message ? Object.keys(message) : []
+          });
+
           if (messageText || messageAttachments) {
             let userContent: MessageContent = "";
             const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
@@ -1246,8 +1337,21 @@ export async function POST(req: Request) {
             if (messageAttachments) {
               for (const attachment of messageAttachments) {
                 if (attachment.type === "image") { // Focus on image attachments for now
-                  contentParts.push({ type: "image_url", image_url: { url: attachment.payload.url } });
                   console.log(`🖼️ Identified image attachment: ${attachment.payload.url}`);
+
+                  // Convert Facebook image URL to base64 for OpenAI compatibility
+                  const base64Image = await facebookImageToBase64(attachment.payload.url);
+
+                  if (base64Image) {
+                    contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+                    console.log(`✅ Image converted to base64 and added to message`);
+                  } else {
+                    console.warn(`⚠️ Failed to convert image, skipping attachment`);
+                    // Add a text note about the image if conversion failed
+                    if (!messageText) {
+                      contentParts.push({ type: "text", text: "[User sent an image]" });
+                    }
+                  }
                 }
                 // Other attachment types (video, file, audio) are ignored for now.
               }

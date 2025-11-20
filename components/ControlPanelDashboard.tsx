@@ -2,6 +2,20 @@
 
 import { useEffect, useState } from 'react';
 
+// Media query hook for mobile detection
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
 type Message = {
   id: string;
   senderId: string;
@@ -24,6 +38,7 @@ type Conversation = {
 };
 
 export default function ControlPanelDashboard() {
+  const isMobile = useIsMobile();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -31,6 +46,10 @@ export default function ControlPanelDashboard() {
   const [botInstruction, setBotInstruction] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+
+  // Mobile view states
+  const [showConversationList, setShowConversationList] = useState(true);
+  const [showBotControls, setShowBotControls] = useState(false);
 
   // Bot control states
   const [botPaused, setBotPaused] = useState<boolean | null>(null);
@@ -240,7 +259,7 @@ export default function ControlPanelDashboard() {
       <div style={{
         backgroundColor: '#1877f2',
         color: 'white',
-        padding: '20px 40px',
+        padding: isMobile ? '12px 15px' : '20px 40px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
         position: 'sticky',
         top: 0,
@@ -249,42 +268,76 @@ export default function ControlPanelDashboard() {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <div>
-          <h1 style={{ margin: '0 0 5px 0', fontSize: '24px', fontWeight: 'bold' }}>
-            🎮 VENERA Control Panel
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{
+            margin: '0 0 5px 0',
+            fontSize: isMobile ? '18px' : '24px',
+            fontWeight: 'bold',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            🎮 VENERA {!isMobile && 'Control Panel'}
           </h1>
-          <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
-            Take over conversations • Instruct bot • Send direct messages
-          </p>
+          {!isMobile && (
+            <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+              Take over conversations • Instruct bot • Send direct messages
+            </p>
+          )}
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          Logout
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {isMobile && (
+            <button
+              onClick={() => setShowBotControls(!showBotControls)}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: 'white',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: '500'
+              }}
+            >
+              ⚙️
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: 'white',
+              padding: isMobile ? '8px 12px' : '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: isMobile ? '12px' : '14px',
+              fontWeight: '500',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 85px)' }}>
+      <div style={{
+        display: 'flex',
+        height: isMobile ? 'calc(100vh - 60px)' : 'calc(100vh - 85px)',
+        flexDirection: isMobile ? 'column' : 'row'
+      }}>
         {/* Left Sidebar - Conversation List */}
+        {(!isMobile || (isMobile && showConversationList)) && (
         <div style={{
-          width: '280px',
+          width: isMobile ? '100%' : '280px',
           backgroundColor: 'white',
-          borderRight: '1px solid #e0e0e0',
+          borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
           overflowY: 'auto',
-          flexShrink: 0
+          flexShrink: 0,
+          display: isMobile && selectedUserId ? 'none' : 'block'
         }}>
           <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
             <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', fontWeight: '600', color: '#666' }}>
@@ -329,7 +382,10 @@ export default function ControlPanelDashboard() {
             return (
             <div
               key={convo.userId}
-              onClick={() => setSelectedUserId(convo.userId)}
+              onClick={() => {
+                setSelectedUserId(convo.userId);
+                if (isMobile) setShowConversationList(false);
+              }}
               style={{
                 padding: '15px',
                 borderBottom: '1px solid #f0f0f0',
@@ -438,9 +494,16 @@ export default function ControlPanelDashboard() {
           );
           })}
         </div>
+        )}
 
         {/* Main Content Area - Chat */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{
+          flex: 1,
+          display: isMobile && selectedUserId ? 'flex' : (isMobile ? 'none' : 'flex'),
+          flexDirection: 'column',
+          minWidth: 0,
+          width: isMobile ? '100%' : 'auto'
+        }}>
           {!selectedUserId && (
             <div style={{
               flex: 1,
@@ -463,52 +526,81 @@ export default function ControlPanelDashboard() {
               {/* Conversation Header */}
               <div style={{
                 backgroundColor: 'white',
-                padding: '20px',
+                padding: isMobile ? '12px 15px' : '20px',
                 borderBottom: '2px solid #e0e0e0'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px' }}>
+                    {/* Back button for mobile */}
+                    {isMobile && (
+                      <button
+                        onClick={() => {
+                          setSelectedUserId(null);
+                          setShowConversationList(true);
+                        }}
+                        style={{
+                          background: '#f0f0f0',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '36px',
+                          height: '36px',
+                          cursor: 'pointer',
+                          fontSize: '18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        ←
+                      </button>
+                    )}
                     {/* Profile Picture */}
                     {selectedConversation.profilePic ? (
                       <img
                         src={selectedConversation.profilePic}
                         alt={selectedConversation.userName || 'User'}
                         style={{
-                          width: '48px',
-                          height: '48px',
+                          width: isMobile ? '36px' : '48px',
+                          height: isMobile ? '36px' : '48px',
                           borderRadius: '50%',
                           objectFit: 'cover'
                         }}
                       />
                     ) : (
                       <div style={{
-                        width: '48px',
-                        height: '48px',
+                        width: isMobile ? '36px' : '48px',
+                        height: isMobile ? '36px' : '48px',
                         borderRadius: '50%',
                         backgroundColor: '#e4e6eb',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '24px'
+                        fontSize: isMobile ? '18px' : '24px'
                       }}>
                         👤
                       </div>
                     )}
 
-                    <div>
-                      <h2 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h2 style={{
+                        margin: '0 0 5px 0',
+                        fontSize: isMobile ? '14px' : '18px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
                         {selectedConversation.userName || `User ${selectedUserId.slice(0, 12)}...`}
                       </h2>
                       <div style={{
                         display: 'inline-block',
-                        padding: '4px 12px',
+                        padding: isMobile ? '3px 8px' : '4px 12px',
                         borderRadius: '12px',
-                        fontSize: '11px',
+                        fontSize: isMobile ? '9px' : '11px',
                         fontWeight: '600',
                         backgroundColor: selectedConversation.manualMode ? '#fff3e0' : '#e8f5e9',
                         color: selectedConversation.manualMode ? '#e65100' : '#2e7d32'
                       }}>
-                        {selectedConversation.manualMode ? '🎮 MANUAL MODE' : '🤖 AUTO MODE'}
+                        {selectedConversation.manualMode ? '🎮 MANUAL' : '🤖 AUTO'}
                       </div>
                     </div>
                   </div>
@@ -517,19 +609,23 @@ export default function ControlPanelDashboard() {
                     onClick={() => toggleManualMode(selectedUserId, !selectedConversation.manualMode)}
                     disabled={actionLoading}
                     style={{
-                      padding: '10px 20px',
+                      padding: isMobile ? '8px 12px' : '10px 20px',
                       borderRadius: '6px',
                       border: 'none',
-                      fontSize: '14px',
+                      fontSize: isMobile ? '11px' : '14px',
                       fontWeight: '600',
                       cursor: actionLoading ? 'not-allowed' : 'pointer',
                       backgroundColor: selectedConversation.manualMode ? '#4caf50' : '#ff9800',
                       color: 'white',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      opacity: actionLoading ? 0.6 : 1
+                      opacity: actionLoading ? 0.6 : 1,
+                      whiteSpace: 'nowrap'
                     }}
                   >
-                    {selectedConversation.manualMode ? '🤖 Resume Auto' : '🎮 Take Over'}
+                    {isMobile
+                      ? (selectedConversation.manualMode ? '🤖' : '🎮')
+                      : (selectedConversation.manualMode ? '🤖 Resume Auto' : '🎮 Take Over')
+                    }
                   </button>
                 </div>
 
@@ -552,7 +648,7 @@ export default function ControlPanelDashboard() {
               <div style={{
                 flex: 1,
                 overflowY: 'auto',
-                padding: '20px',
+                padding: isMobile ? '10px' : '20px',
                 backgroundColor: '#fafafa'
               }}>
                 {selectedConversation.messages.map((message) => (
@@ -627,32 +723,32 @@ export default function ControlPanelDashboard() {
               <div style={{
                 backgroundColor: 'white',
                 borderTop: '2px solid #e0e0e0',
-                padding: '20px'
+                padding: isMobile ? '12px' : '20px'
               }}>
                 {/* Bot Instruction */}
-                <div style={{ marginBottom: '15px' }}>
+                <div style={{ marginBottom: isMobile ? '10px' : '15px' }}>
                   <label style={{
                     display: 'block',
-                    fontSize: '12px',
+                    fontSize: isMobile ? '10px' : '12px',
                     fontWeight: '600',
                     color: '#666',
-                    marginBottom: '8px'
+                    marginBottom: isMobile ? '4px' : '8px'
                   }}>
-                    📋 INSTRUCT BOT (next response only):
+                    📋 INSTRUCT BOT {!isMobile && '(next response only)'}:
                   </label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px' }}>
                     <input
                       type="text"
                       value={botInstruction}
                       onChange={(e) => setBotInstruction(e.target.value)}
-                      placeholder="e.g., Tell them we'll call back tomorrow"
+                      placeholder={isMobile ? "Instruct bot..." : "e.g., Tell them we'll call back tomorrow"}
                       disabled={selectedConversation.manualMode}
                       style={{
                         flex: 1,
-                        padding: '10px',
+                        padding: isMobile ? '8px' : '10px',
                         borderRadius: '6px',
                         border: '1px solid #ddd',
-                        fontSize: '14px',
+                        fontSize: isMobile ? '12px' : '14px',
                         opacity: selectedConversation.manualMode ? 0.5 : 1
                       }}
                       onKeyDown={(e) => {
@@ -663,18 +759,19 @@ export default function ControlPanelDashboard() {
                       onClick={instructBot}
                       disabled={actionLoading || !botInstruction.trim() || selectedConversation.manualMode}
                       style={{
-                        padding: '10px 20px',
+                        padding: isMobile ? '8px 12px' : '10px 20px',
                         borderRadius: '6px',
                         border: 'none',
-                        fontSize: '14px',
+                        fontSize: isMobile ? '12px' : '14px',
                         fontWeight: '600',
                         cursor: (actionLoading || !botInstruction.trim() || selectedConversation.manualMode) ? 'not-allowed' : 'pointer',
                         backgroundColor: '#2196f3',
                         color: 'white',
-                        opacity: (actionLoading || !botInstruction.trim() || selectedConversation.manualMode) ? 0.5 : 1
+                        opacity: (actionLoading || !botInstruction.trim() || selectedConversation.manualMode) ? 0.5 : 1,
+                        whiteSpace: 'nowrap'
                       }}
                     >
-                      Instruct
+                      {isMobile ? '📋' : 'Instruct'}
                     </button>
                   </div>
                   {selectedConversation.manualMode && (
@@ -688,14 +785,14 @@ export default function ControlPanelDashboard() {
                 <div>
                   <label style={{
                     display: 'block',
-                    fontSize: '12px',
+                    fontSize: isMobile ? '10px' : '12px',
                     fontWeight: '600',
                     color: '#666',
-                    marginBottom: '8px'
+                    marginBottom: isMobile ? '4px' : '8px'
                   }}>
-                    💬 SEND DIRECT MESSAGE (you answer):
+                    💬 DIRECT MESSAGE {!isMobile && '(you answer)'}:
                   </label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px' }}>
                     <input
                       type="text"
                       value={directMessage}
@@ -703,10 +800,10 @@ export default function ControlPanelDashboard() {
                       placeholder="Type your message..."
                       style={{
                         flex: 1,
-                        padding: '10px',
+                        padding: isMobile ? '8px' : '10px',
                         borderRadius: '6px',
                         border: '1px solid #ddd',
-                        fontSize: '14px'
+                        fontSize: isMobile ? '12px' : '14px'
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') sendDirectMessage();
@@ -716,18 +813,19 @@ export default function ControlPanelDashboard() {
                       onClick={sendDirectMessage}
                       disabled={actionLoading || !directMessage.trim()}
                       style={{
-                        padding: '10px 20px',
+                        padding: isMobile ? '8px 12px' : '10px 20px',
                         borderRadius: '6px',
                         border: 'none',
-                        fontSize: '14px',
+                        fontSize: isMobile ? '12px' : '14px',
                         fontWeight: '600',
                         cursor: (actionLoading || !directMessage.trim()) ? 'not-allowed' : 'pointer',
                         backgroundColor: '#ff9800',
                         color: 'white',
-                        opacity: (actionLoading || !directMessage.trim()) ? 0.5 : 1
+                        opacity: (actionLoading || !directMessage.trim()) ? 0.5 : 1,
+                        whiteSpace: 'nowrap'
                       }}
                     >
-                      Send
+                      {isMobile ? '💬' : 'Send'}
                     </button>
                   </div>
                 </div>
@@ -749,18 +847,63 @@ export default function ControlPanelDashboard() {
           )}
         </div>
 
-        {/* Right Sidebar - Bot Controls (Always Visible) */}
+        {/* Backdrop for mobile bot controls modal */}
+        {isMobile && showBotControls && (
+          <div
+            onClick={() => setShowBotControls(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              zIndex: 199
+            }}
+          />
+        )}
+
+        {/* Right Sidebar - Bot Controls (Desktop) or Modal (Mobile) */}
+        {(!isMobile || showBotControls) && (
         <div style={{
-          width: '320px',
+          width: isMobile ? '100%' : '320px',
           backgroundColor: 'white',
-          borderLeft: '1px solid #e0e0e0',
+          borderLeft: isMobile ? 'none' : '1px solid #e0e0e0',
           overflowY: 'auto',
           flexShrink: 0,
-          padding: '20px'
+          padding: isMobile ? '15px' : '20px',
+          position: isMobile ? 'fixed' : 'relative',
+          top: isMobile ? 0 : 'auto',
+          left: isMobile ? 0 : 'auto',
+          right: isMobile ? 0 : 'auto',
+          bottom: isMobile ? 0 : 'auto',
+          zIndex: isMobile ? 200 : 'auto',
+          boxShadow: isMobile ? '0 -4px 12px rgba(0,0,0,0.15)' : 'none'
         }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '20px', color: '#333' }}>
-            Bot Controls
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#333' }}>
+              Bot Controls
+            </h3>
+            {isMobile && (
+              <button
+                onClick={() => setShowBotControls(false)}
+                style={{
+                  background: '#f0f0f0',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
           {/* Bot Status */}
           <div style={{
@@ -899,6 +1042,7 @@ export default function ControlPanelDashboard() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
