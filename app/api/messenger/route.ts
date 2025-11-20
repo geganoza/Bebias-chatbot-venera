@@ -1668,51 +1668,100 @@ export async function POST(req: Request) {
             }
 
             // ═══════════════════════════════════════════════════════
-            // SMART MESSAGE BURST DETECTION - CLOUD TASKS
+            // SMART MESSAGE BURST DETECTION WITH QSTASH
             // Add message to history first, then check if we should wait
             // Strategy: Wait for 3 messages OR 10 seconds (whichever comes first)
             // ═══════════════════════════════════════════════════════
 
-            // Import Cloud Tasks functions (dynamic import to avoid server-side issues)
-            const {
-              addMessageToBurst,
-              shouldProcessNow,
-              clearBurst,
-              scheduleMessageProcessing
-            } = await import('@/lib/cloudTasks');
+            // Import Firestore for burst tracking
+            const { db } = await import('@/lib/firestore');
 
-            // Add message to history immediately
+            // Add message to history
             if (!isTriggerOnly) {
               conversationData.history.push({ role: "user", content: userContent });
               await saveConversation(conversationData);
               console.log(`📝 Message added to history for ${senderId}`);
 
-              // Add message to burst tracker
-              const messageCount = await addMessageToBurst(senderId);
+              // Track burst in Firestore
+              const burstRef = db.collection('messageBursts').doc(senderId);
+              const burstDoc = await burstRef.get();
+              const now = Date.now();
 
-              // Check if we should process now (3 messages OR 10 seconds)
-              const shouldProcess = await shouldProcessNow(senderId);
+              let messageCount = 1;
 
-              if (shouldProcess) {
+              if (!burstDoc.exists) {
+                // First message in burst
+                await burstRef.set({
+                  count: 1,
+                  firstMessageTime: now,
+                  lastMessageTime: now
+                });
+                console.log(`📊 Message burst started for ${senderId} (count: 1)`);
+              } else {
+                // Increment count
+                const data = burstDoc.data();
+                messageCount = (data?.count || 0) + 1;
+                await burstRef.update({
+                  count: messageCount,
+                  lastMessageTime: now
+                });
+                console.log(`📊 Message burst continues for ${senderId} (count: ${messageCount})`);
+              }
+
+              // Check if we should process now (3 messages reached)
+              if (messageCount >= 3) {
                 console.log(`🚀 Processing now: ${messageCount} messages accumulated`);
                 // Clear burst tracker
-                await clearBurst(senderId);
+                await burstRef.delete();
                 // Continue to process below (don't return early)
               } else {
                 console.log(`⏳ Waiting for more messages (${messageCount}/3)`);
 
-                // Only schedule Cloud Task on first message
+                // Only schedule QStash on first message
                 if (messageCount === 1) {
-                  await scheduleMessageProcessing(senderId);
+                  // Schedule QStash callback
+                  if (process.env.QSTASH_TOKEN) {
+                    try {
+                      const { Client } = require('@upstash/qstash');
+                      const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+
+                      const callbackUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}/api/internal/delayed-response`
+                        : 'https://bebias-venera-chatbot.vercel.app/api/internal/delayed-response';
+
+                      console.log(`📡 Scheduling QStash callback to: ${callbackUrl}`);
+
+                      const result = await qstash.publishJSON({
+                        url: callbackUrl,
+                        body: { senderId },
+                        delay: 10 // 10 seconds
+                      });
+
+                      console.log(`✅ QStash scheduled successfully: ${result.messageId}`);
+                    } catch (error: any) {
+                      console.error(`❌ QStash scheduling failed:`, error.message, error.stack);
+                      // Don't throw - process immediately if QStash fails
+                      console.log(`⚠️ Falling back to immediate processing due to QStash error`);
+                      await burstRef.delete();
+                      // Continue to process below
+                      return;
+                    }
+                  } else {
+                    console.warn(`⚠️ QSTASH_TOKEN not configured - processing immediately`);
+                    await burstRef.delete();
+                    // Continue to process below
+                    return;
+                  }
                 }
 
-                // Return immediately - wait for more messages or Cloud Task trigger
+                // Return immediately - wait for more messages or QStash trigger
                 return NextResponse.json({ status: "queued" });
               }
             } else {
               console.log(`🎯 Trigger message received - processing accumulated history`);
               // Clear burst tracker since we're processing now
-              await clearBurst(senderId);
+              const burstRef = db.collection('messageBursts').doc(senderId);
+              await burstRef.delete();
             }
 
             // ═══════════════════════════════════════════════════════

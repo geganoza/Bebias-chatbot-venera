@@ -1,41 +1,38 @@
 import { NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { kv } from "@vercel/kv";
+import { db } from "@/lib/firestore";
 
 export const dynamic = 'force-dynamic';
 
 /**
  * QStash callback endpoint for delayed message burst processing
- * Called after 3 seconds of no new messages from a user
+ * Called after 10 seconds of no new messages from a user
  */
 async function handler(req: Request) {
   try {
+    console.log(`📥 [QStash Callback] Received request`);
+
     const { senderId } = await req.json();
 
     if (!senderId) {
+      console.error(`❌ [QStash Callback] No senderId in request`);
       return NextResponse.json({ error: "senderId required" }, { status: 400 });
     }
 
     console.log(`⏱️ [QStash Callback] Delayed response check for ${senderId}`);
 
-    // Check if burst marker still exists
-    const burstKey = `msg_burst:${senderId}`;
+    // Check if burst marker still exists in Firestore
+    const burstRef = db.collection('messageBursts').doc(senderId);
+    const burstDoc = await burstRef.get();
 
-    interface BurstTracker {
-      count: number;
-      firstMessageTime: number;
-      lastMessageTime: number;
-    }
-
-    const tracker = await kv.get<BurstTracker>(burstKey);
-
-    if (!tracker) {
+    if (!burstDoc.exists) {
       console.log(`⚠️ No burst marker found for ${senderId} - may have already processed`);
       return NextResponse.json({ status: "no_burst" });
     }
 
-    const timeSinceFirst = Date.now() - tracker.firstMessageTime;
-    console.log(`📊 Burst status: ${tracker.count} messages, ${timeSinceFirst}ms since first`);
+    const tracker = burstDoc.data();
+    const timeSinceFirst = Date.now() - (tracker?.firstMessageTime || 0);
+    console.log(`📊 Burst status: ${tracker?.count || 0} messages, ${timeSinceFirst}ms since first`);
 
     // Check if enough time passed (10 seconds)
     if (timeSinceFirst < 10000) {
@@ -44,7 +41,7 @@ async function handler(req: Request) {
     }
 
     // Clear burst marker
-    await kv.del(burstKey);
+    await burstRef.delete();
 
     console.log(`✅ Burst period ended for ${senderId} - user messages in history ready to process`);
 
