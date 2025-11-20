@@ -35,6 +35,59 @@ const MESSAGE_DEBOUNCE_MS = 3000; // 3 seconds
 const pendingMessages = new Map<string, UserMessageQueue>();
 
 /**
+ * Check if user is in a "message burst" (sending multiple messages quickly)
+ * Returns true if we should wait for more messages
+ */
+async function isMessageBurst(senderId: string): Promise<boolean> {
+  const burstKey = `msg_burst:${senderId}`;
+  const lastMessageTime = await kv.get<number>(burstKey);
+
+  if (!lastMessageTime) {
+    return false; // No recent message
+  }
+
+  const timeSinceLastMessage = Date.now() - lastMessageTime;
+  return timeSinceLastMessage < MESSAGE_DEBOUNCE_MS;
+}
+
+/**
+ * Mark that user just sent a message (for burst detection)
+ */
+async function markMessageTime(senderId: string): Promise<void> {
+  const burstKey = `msg_burst:${senderId}`;
+  await kv.set(burstKey, Date.now(), { ex: 10 }); // 10 second TTL
+}
+
+/**
+ * Schedule a delayed response check via QStash
+ */
+async function scheduleResponseCheck(senderId: string): Promise<void> {
+  if (!process.env.QSTASH_TOKEN) {
+    console.log(`⚠️ QStash not configured, skipping delayed check`);
+    return;
+  }
+
+  try {
+    const { Client } = require('@upstash/qstash');
+    const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+
+    const callbackUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}/api/internal/delayed-response`
+      : 'https://bebias-venera-chatbot.vercel.app/api/internal/delayed-response';
+
+    await qstash.publishJSON({
+      url: callbackUrl,
+      body: { senderId },
+      delay: Math.ceil(MESSAGE_DEBOUNCE_MS / 1000) // Convert to seconds
+    });
+
+    console.log(`✅ Scheduled delayed response check for ${senderId} in ${MESSAGE_DEBOUNCE_MS}ms`);
+  } catch (error: any) {
+    console.error(`❌ Failed to schedule delayed check:`, error.message);
+  }
+}
+
+/**
  * Process accumulated messages for a user after debounce delay
  */
 async function processAccumulatedMessages(senderId: string) {
@@ -1464,7 +1517,10 @@ export async function POST(req: Request) {
           //   continue;
           // }
 
-          if (messageText || messageAttachments) {
+          // Check if this is a trigger-only message from QStash
+          const isTriggerOnly = event.__trigger_only === true;
+
+          if (messageText || messageAttachments || isTriggerOnly) {
             let userContent: MessageContent = "";
             const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
             let userTextForProcessing = messageText || ""; // Initialize with text if available
@@ -1505,9 +1561,13 @@ export async function POST(req: Request) {
               } else { // It's an image_url part
                   userContent = contentParts;
               }
-            } else { // Should not happen if previous checks pass, but for safety
-                 console.log("⚠️ Message has no processable content (text or image), skipping.");
-                 continue; // Skip processing this event
+            } else { // No content - only allowed for trigger messages
+                 if (!isTriggerOnly) {
+                   console.log("⚠️ Message has no processable content (text or image), skipping.");
+                   continue; // Skip processing this event
+                 }
+                 // For trigger messages, continue with empty content (will process history)
+                 userContent = "";
             }
             
             console.log(`👤 User ${senderId} sent content. Text: "${userTextForProcessing}"`, messageAttachments ? `with ${messageAttachments.length} attachments.` : '');
@@ -1566,6 +1626,31 @@ export async function POST(req: Request) {
             }
 
             // ═══════════════════════════════════════════════════════
+            // SMART MESSAGE BURST DETECTION
+            // Add message to history first, then check if we should wait
+            // ═══════════════════════════════════════════════════════
+
+            // For trigger messages, skip adding to history (already added earlier)
+            if (!isTriggerOnly) {
+              // Add real message to history immediately
+              conversationData.history.push({ role: "user", content: userContent });
+              await saveConversation(conversationData);
+              console.log(`📝 Message added to history for ${senderId}`);
+
+              // Mark current message time for burst detection
+              await markMessageTime(senderId);
+
+              // ALWAYS schedule delayed processing (will trigger after 3 seconds of silence)
+              console.log(`📅 Scheduling delayed response check`);
+              await scheduleResponseCheck(senderId);
+
+              // Return immediately - let QStash trigger handle the response
+              return NextResponse.json({ status: "queued" });
+            } else {
+              console.log(`🎯 Trigger message received - processing accumulated history`);
+            }
+
+            // ═══════════════════════════════════════════════════════
             // GLOBAL BOT PAUSE & MANUAL MODE CHECKS
             // ═══════════════════════════════════════════════════════
             const globalBotPaused = await kv.get<boolean>('global_bot_paused');
@@ -1574,9 +1659,7 @@ export async function POST(req: Request) {
               console.log(`   User ${senderId} message: "${userTextForProcessing}"`);
               console.log(`   Message stored but no response sent`);
 
-              // Save user message to history but don't respond
-              conversationData.history.push({ role: "user", content: userContent });
-              await saveConversation(conversationData);
+              // Message already added to history above - just continue
               continue;
             }
 
@@ -1587,8 +1670,7 @@ export async function POST(req: Request) {
             if (paymentVerificationResult) {
               console.log(`💳 Payment verification triggered`);
 
-              // Add messages to history
-              conversationData.history.push({ role: "user", content: userContent });
+              // Add assistant response to history (user message already added above)
               conversationData.history.push({ role: "assistant", content: paymentVerificationResult });
 
               // Save and send response
@@ -1605,7 +1687,7 @@ export async function POST(req: Request) {
             if (phoneMessage) {
               console.log(`📞 Offering manager phone number to user ${senderId}`);
 
-              conversationData.history.push({ role: "user", content: userContent });
+              // Add assistant response to history (user message already added above)
               conversationData.history.push({ role: "assistant", content: phoneMessage });
 
               await saveConversation(conversationData);
@@ -1621,8 +1703,7 @@ export async function POST(req: Request) {
               // Update conversation data with escalation info
               Object.assign(conversationData, escalationResult.updatedData);
 
-              // Add messages to history
-              conversationData.history.push({ role: "user", content: userContent });
+              // Add assistant response to history (user message already added above)
               conversationData.history.push({ role: "assistant", content: escalationResult.response });
 
               // Save and send response
@@ -1649,8 +1730,7 @@ export async function POST(req: Request) {
             console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
             console.log(`🤖 AI Response (last 200 chars):`, response.substring(Math.max(0, response.length - 200)));
 
-            // Update conversation history
-            conversationData.history.push({ role: "user", content: userContent });
+            // Update conversation history (user message already added above)
             conversationData.history.push({ role: "assistant", content: response });
 
             // Trim history if it exceeds maximum length (keeping last N exchanges)
