@@ -31,31 +31,73 @@ interface UserMessageQueue {
   processing: boolean;
 }
 
-const MESSAGE_DEBOUNCE_MS = 3000; // 3 seconds
+const MESSAGE_DEBOUNCE_MS = 10000; // 10 seconds max wait
+const MESSAGE_BURST_COUNT = 3; // Process after 3 messages
 const pendingMessages = new Map<string, UserMessageQueue>();
 
-/**
- * Check if user is in a "message burst" (sending multiple messages quickly)
- * Returns true if we should wait for more messages
- */
-async function isMessageBurst(senderId: string): Promise<boolean> {
-  const burstKey = `msg_burst:${senderId}`;
-  const lastMessageTime = await kv.get<number>(burstKey);
-
-  if (!lastMessageTime) {
-    return false; // No recent message
-  }
-
-  const timeSinceLastMessage = Date.now() - lastMessageTime;
-  return timeSinceLastMessage < MESSAGE_DEBOUNCE_MS;
+interface BurstTracker {
+  count: number;
+  firstMessageTime: number;
+  lastMessageTime: number;
 }
 
 /**
- * Mark that user just sent a message (for burst detection)
+ * Add message to burst tracker and return current count
  */
-async function markMessageTime(senderId: string): Promise<void> {
+async function addMessageToBurst(senderId: string): Promise<number> {
   const burstKey = `msg_burst:${senderId}`;
-  await kv.set(burstKey, Date.now(), { ex: 10 }); // 10 second TTL
+  const tracker = await kv.get<BurstTracker>(burstKey);
+
+  const now = Date.now();
+
+  if (!tracker) {
+    // First message in burst
+    const newTracker: BurstTracker = {
+      count: 1,
+      firstMessageTime: now,
+      lastMessageTime: now
+    };
+    await kv.set(burstKey, newTracker, { ex: 15 }); // 15 second TTL
+    console.log(`📊 Message burst started for ${senderId} (count: 1)`);
+    return 1;
+  } else {
+    // Increment count
+    tracker.count++;
+    tracker.lastMessageTime = now;
+    await kv.set(burstKey, tracker, { ex: 15 });
+    console.log(`📊 Message burst continues for ${senderId} (count: ${tracker.count})`);
+    return tracker.count;
+  }
+}
+
+/**
+ * Check if we should process now (3 messages OR 10 seconds passed)
+ */
+async function shouldProcessNow(senderId: string): Promise<boolean> {
+  const burstKey = `msg_burst:${senderId}`;
+  const tracker = await kv.get<BurstTracker>(burstKey);
+
+  if (!tracker) {
+    return false; // First message, don't process yet
+  }
+
+  const timeSinceFirst = Date.now() - tracker.firstMessageTime;
+  const shouldProcess = tracker.count >= MESSAGE_BURST_COUNT || timeSinceFirst >= MESSAGE_DEBOUNCE_MS;
+
+  if (shouldProcess) {
+    console.log(`✅ Processing conditions met: count=${tracker.count}, time=${timeSinceFirst}ms`);
+  }
+
+  return shouldProcess;
+}
+
+/**
+ * Clear burst tracker after processing
+ */
+async function clearBurst(senderId: string): Promise<void> {
+  const burstKey = `msg_burst:${senderId}`;
+  await kv.del(burstKey);
+  console.log(`🧹 Cleared burst tracker for ${senderId}`);
 }
 
 /**
@@ -1628,6 +1670,7 @@ export async function POST(req: Request) {
             // ═══════════════════════════════════════════════════════
             // SMART MESSAGE BURST DETECTION
             // Add message to history first, then check if we should wait
+            // Strategy: Wait for 3 messages OR 10 seconds (whichever comes first)
             // ═══════════════════════════════════════════════════════
 
             // For trigger messages, skip adding to history (already added earlier)
@@ -1637,17 +1680,32 @@ export async function POST(req: Request) {
               await saveConversation(conversationData);
               console.log(`📝 Message added to history for ${senderId}`);
 
-              // Mark current message time for burst detection
-              await markMessageTime(senderId);
+              // Add message to burst tracker
+              const messageCount = await addMessageToBurst(senderId);
 
-              // ALWAYS schedule delayed processing (will trigger after 3 seconds of silence)
-              console.log(`📅 Scheduling delayed response check`);
-              await scheduleResponseCheck(senderId);
+              // Check if we should process now (3 messages OR 10 seconds)
+              const shouldProcess = await shouldProcessNow(senderId);
 
-              // Return immediately - let QStash trigger handle the response
-              return NextResponse.json({ status: "queued" });
+              if (shouldProcess) {
+                console.log(`🚀 Processing now: ${messageCount} messages accumulated`);
+                // Clear burst tracker
+                await clearBurst(senderId);
+                // Continue to process below (don't return early)
+              } else {
+                console.log(`⏳ Waiting for more messages (${messageCount}/${MESSAGE_BURST_COUNT})`);
+
+                // Only schedule QStash on first message
+                if (messageCount === 1) {
+                  await scheduleResponseCheck(senderId);
+                }
+
+                // Return immediately - wait for more messages or QStash trigger
+                return NextResponse.json({ status: "queued" });
+              }
             } else {
               console.log(`🎯 Trigger message received - processing accumulated history`);
+              // Clear burst tracker since we're processing now
+              await clearBurst(senderId);
             }
 
             // ═══════════════════════════════════════════════════════
