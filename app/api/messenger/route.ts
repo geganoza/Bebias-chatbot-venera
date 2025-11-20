@@ -350,13 +350,17 @@ async function loadAllContent() {
 // Fetch and cache Facebook user profile
 async function fetchUserProfile(userId: string): Promise<{ name?: string; profile_pic?: string }> {
   try {
-    // Check if profile is cached in KV
-    const cacheKey = `user-profile:${userId}`;
-    const cached = await kv.get<{ name?: string; profile_pic?: string }>(cacheKey);
+    // Check if profile is cached in KV (skip if Redis unavailable)
+    try {
+      const cacheKey = `user-profile:${userId}`;
+      const cached = await kv.get<{ name?: string; profile_pic?: string }>(cacheKey);
 
-    if (cached) {
-      console.log(`✅ Using cached profile for user ${userId}: ${cached.name || 'Unknown'}`);
-      return cached;
+      if (cached) {
+        console.log(`✅ Using cached profile for user ${userId}: ${cached.name || 'Unknown'}`);
+        return cached;
+      }
+    } catch (kvError) {
+      console.warn(`⚠️ Redis unavailable for profile cache - fetching from Facebook`);
     }
 
     // Fetch from Facebook Graph API
@@ -376,9 +380,14 @@ async function fetchUserProfile(userId: string): Promise<{ name?: string; profil
       profile_pic: data.profile_pic
     };
 
-    // Cache for 7 days
-    await kv.set(cacheKey, profile, { ex: 60 * 60 * 24 * 7 });
-    console.log(`✅ Successfully fetched and cached profile: ${profile.name || 'Unknown'}`);
+    // Cache for 7 days (skip if Redis unavailable)
+    try {
+      const cacheKey = `user-profile:${userId}`;
+      await kv.set(cacheKey, profile, { ex: 60 * 60 * 24 * 7 });
+      console.log(`✅ Successfully fetched and cached profile: ${profile.name || 'Unknown'}`);
+    } catch (kvError) {
+      console.log(`✅ Successfully fetched profile (cache unavailable): ${profile.name || 'Unknown'}`);
+    }
 
     return profile;
   } catch (err) {
@@ -1594,17 +1603,21 @@ export async function POST(req: Request) {
             if (messageId) {
               const dedupeKey = `msg_processed:${messageId}`;
 
-              // Check if we've already processed this message
-              const alreadyProcessed = await kv.get(dedupeKey);
+              // Check if we've already processed this message (skip if Redis unavailable)
+              try {
+                const alreadyProcessed = await kv.get(dedupeKey);
 
-              if (alreadyProcessed) {
-                console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
-                continue; // Skip to next event
+                if (alreadyProcessed) {
+                  console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
+                  continue; // Skip to next event
+                }
+
+                // Mark this message as processed (TTL: 1 hour = 3600 seconds)
+                await kv.set(dedupeKey, '1', { ex: 3600 });
+                console.log(`✅ Message ${messageId} marked as processed`);
+              } catch (kvError) {
+                console.warn(`⚠️ Redis unavailable for deduplication - continuing anyway`);
               }
-
-              // Mark this message as processed (TTL: 1 hour = 3600 seconds)
-              await kv.set(dedupeKey, '1', { ex: 3600 });
-              console.log(`✅ Message ${messageId} marked as processed`);
             } else {
               console.warn(`⚠️ No message ID found - cannot deduplicate`);
             }
@@ -1740,8 +1753,14 @@ export async function POST(req: Request) {
             // ═══════════════════════════════════════════════════════
             // GLOBAL BOT PAUSE & MANUAL MODE CHECKS
             // ═══════════════════════════════════════════════════════
-            const globalBotPaused = await kv.get<boolean>('global_bot_paused');
-            if (globalBotPaused === true || conversationData.manualMode === true) {
+            let globalBotPaused = false;
+            try {
+              globalBotPaused = await kv.get<boolean>('global_bot_paused') === true;
+            } catch (kvError) {
+              console.warn(`⚠️ Redis unavailable for bot pause check - assuming not paused`);
+            }
+
+            if (globalBotPaused || conversationData.manualMode === true) {
               console.log(globalBotPaused ? `⏸️ GLOBAL BOT PAUSE ACTIVE` : `🎮 MANUAL MODE ACTIVE`);
               console.log(`   User ${senderId} message: "${userTextForProcessing}"`);
               console.log(`   Message stored but no response sent`);
