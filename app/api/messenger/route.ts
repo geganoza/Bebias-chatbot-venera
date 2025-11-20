@@ -1668,18 +1668,23 @@ export async function POST(req: Request) {
             }
 
             // ═══════════════════════════════════════════════════════
-            // SMART MESSAGE BURST DETECTION
+            // SMART MESSAGE BURST DETECTION - TEMPORARILY DISABLED
             // Add message to history first, then check if we should wait
             // Strategy: Wait for 3 messages OR 10 seconds (whichever comes first)
             // ═══════════════════════════════════════════════════════
 
-            // For trigger messages, skip adding to history (already added earlier)
+            // Add message to history immediately
             if (!isTriggerOnly) {
-              // Add real message to history immediately
               conversationData.history.push({ role: "user", content: userContent });
               await saveConversation(conversationData);
               console.log(`📝 Message added to history for ${senderId}`);
+            }
 
+            // DEBOUNCING DISABLED - Process immediately
+            // TODO: Debug why count-based debouncing breaks bot
+            /*
+            // For trigger messages, skip adding to history (already added earlier)
+            if (!isTriggerOnly) {
               // Add message to burst tracker
               const messageCount = await addMessageToBurst(senderId);
 
@@ -1707,6 +1712,7 @@ export async function POST(req: Request) {
               // Clear burst tracker since we're processing now
               await clearBurst(senderId);
             }
+            */
 
             // ═══════════════════════════════════════════════════════
             // GLOBAL BOT PAUSE & MANUAL MODE CHECKS
