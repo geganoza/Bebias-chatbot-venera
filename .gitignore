@@ -43,3 +43,7 @@ next-env.d.ts
 # User conversation data
 data/conversations/
 .env*.local
+
+# Firestore credentials
+firestore-key.json
+CREDENTIALS.md

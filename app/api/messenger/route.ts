@@ -14,6 +14,128 @@ export const maxDuration = 60; // Maximum duration for this function
 type MessageContent = string | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
 type Message = { role: "system" | "user" | "assistant"; content: MessageContent };
 
+// ═══════════════════════════════════════════════════════
+// MESSAGE DEBOUNCING SYSTEM
+// Collects messages within 3 seconds and processes them together
+// ═══════════════════════════════════════════════════════
+interface PendingMessage {
+  messageId: string;
+  text?: string;
+  attachments?: any[];
+  timestamp: number;
+}
+
+interface UserMessageQueue {
+  messages: PendingMessage[];
+  timer: NodeJS.Timeout | null;
+  processing: boolean;
+}
+
+const MESSAGE_DEBOUNCE_MS = 3000; // 3 seconds
+const pendingMessages = new Map<string, UserMessageQueue>();
+
+/**
+ * Process accumulated messages for a user after debounce delay
+ */
+async function processAccumulatedMessages(senderId: string) {
+  const queue = pendingMessages.get(senderId);
+  if (!queue || queue.messages.length === 0) {
+    console.log(`⚠️ No messages to process for ${senderId}`);
+    return;
+  }
+
+  console.log(`🔄 Processing ${queue.messages.length} accumulated messages for ${senderId}`);
+
+  // Combine all text messages
+  const texts = queue.messages.filter(m => m.text).map(m => m.text);
+  const combinedText = texts.join('\n');
+
+  // Collect all attachments
+  const allAttachments = queue.messages.flatMap(m => m.attachments || []);
+
+  console.log(`📝 Combined text (${texts.length} messages): "${combinedText.substring(0, 100)}..."`);
+  console.log(`📎 Total attachments: ${allAttachments.length}`);
+
+  // Build message object for processing
+  const messageForProcessing: any = {
+    mid: `combined_${Date.now()}`,
+  };
+
+  if (combinedText) {
+    messageForProcessing.text = combinedText;
+  }
+
+  if (allAttachments.length > 0) {
+    messageForProcessing.attachments = allAttachments;
+  }
+
+  // Clear the queue
+  pendingMessages.delete(senderId);
+
+  // Build a simulated Facebook webhook payload
+  const simulatedPayload = {
+    object: 'page',
+    entry: [{
+      messaging: [{
+        sender: { id: senderId },
+        recipient: { id: 'page' },
+        timestamp: Date.now(),
+        message: messageForProcessing,
+        __debounced: true // Flag to skip re-queuing
+      }]
+    }]
+  };
+
+  // Send to our own webhook for processing
+  try {
+    const webhookUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}/api/messenger`
+      : 'https://bebias-venera-chatbot.vercel.app/api/messenger';
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(simulatedPayload)
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Failed to process combined message: ${response.status}`);
+    } else {
+      console.log(`✅ Combined message sent for processing`);
+    }
+  } catch (error) {
+    console.error(`❌ Error sending combined message:`, error);
+  }
+}
+
+/**
+ * Add a message to the debounce queue
+ */
+function queueMessageForDebounce(senderId: string, message: PendingMessage) {
+  let queue = pendingMessages.get(senderId);
+
+  if (!queue) {
+    queue = { messages: [], timer: null, processing: false };
+    pendingMessages.set(senderId, queue);
+  }
+
+  // Clear existing timer
+  if (queue.timer) {
+    clearTimeout(queue.timer);
+    console.log(`⏰ Reset debounce timer for ${senderId}`);
+  }
+
+  // Add message to queue
+  queue.messages.push(message);
+  console.log(`📥 Queued message for ${senderId} (queue size: ${queue.messages.length})`);
+
+  // Set new timer
+  queue.timer = setTimeout(async () => {
+    console.log(`⏱️ Debounce timer fired for ${senderId}`);
+    await processAccumulatedMessages(senderId);
+  }, MESSAGE_DEBOUNCE_MS);
+}
+
 /**
  * Convert Facebook image URL to base64 data URL for OpenAI vision API
  * Facebook CDN URLs cannot be accessed directly by OpenAI, so we download and convert to base64
@@ -1324,6 +1446,23 @@ export async function POST(req: Request) {
             messageId: messageId,
             messageKeys: message ? Object.keys(message) : []
           });
+
+          // ═══════════════════════════════════════════════════════
+          // MESSAGE DEBOUNCING - DISABLED
+          // setTimeout doesn't work reliably in serverless functions
+          // TODO: Need Redis-based queueing with external worker
+          // ═══════════════════════════════════════════════════════
+          // const isDebounced = event.__debounced === true;
+          // if (!isDebounced && (messageText || messageAttachments)) {
+          //   queueMessageForDebounce(senderId, {
+          //     messageId: messageId || `msg_${Date.now()}`,
+          //     text: messageText,
+          //     attachments: messageAttachments,
+          //     timestamp: Date.now()
+          //   });
+          //   console.log(`✅ Message queued, will process in ${MESSAGE_DEBOUNCE_MS}ms`);
+          //   continue;
+          // }
 
           if (messageText || messageAttachments) {
             let userContent: MessageContent = "";

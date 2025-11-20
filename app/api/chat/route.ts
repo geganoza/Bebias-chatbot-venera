@@ -207,6 +207,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ reply }, { headers });
     }
 
+    // If there's an image but no text, add placeholder text so OpenAI can process it
+    if (hasImage && !lastUserText && Array.isArray(lastUserContent)) {
+      const textContent = lastUserContent.find(item => item.type === "text");
+      if (!textContent) {
+        // Add a text prompt for the image
+        const imagePrompt = isKa ? "რა ხედავთ ამ სურათზე?" : "What do you see in this image?";
+        lastUserContent.unshift({ type: "text", text: imagePrompt });
+        lastUserText = imagePrompt;
+      }
+    }
+
     // Load products and content
     const [products, content] = await Promise.all([
       loadProducts(),

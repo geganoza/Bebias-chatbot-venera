@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 // Media query hook for mobile detection
 function useIsMobile() {
@@ -55,6 +55,9 @@ export default function ControlPanelDashboard() {
   const [botPaused, setBotPaused] = useState<boolean | null>(null);
   const [botControlLoading, setBotControlLoading] = useState(false);
   const [botControlMessage, setBotControlMessage] = useState('');
+
+  // Ref for auto-scrolling to bottom of messages
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
 
   const handleLogout = async () => {
@@ -162,6 +165,13 @@ export default function ControlPanelDashboard() {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedUserId, conversations]);
 
   // Control actions
   const toggleManualMode = async (userId: string, enable: boolean) => {
@@ -527,7 +537,10 @@ export default function ControlPanelDashboard() {
               <div style={{
                 backgroundColor: 'white',
                 padding: isMobile ? '12px 15px' : '20px',
-                borderBottom: '2px solid #e0e0e0'
+                borderBottom: '2px solid #e0e0e0',
+                position: 'sticky',
+                top: 0,
+                zIndex: 10
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px' }}>
@@ -649,7 +662,9 @@ export default function ControlPanelDashboard() {
                 flex: 1,
                 overflowY: 'auto',
                 padding: isMobile ? '10px' : '20px',
-                backgroundColor: '#fafafa'
+                backgroundColor: '#fafafa',
+                display: 'flex',
+                flexDirection: 'column'
               }}>
                 {selectedConversation.messages.map((message) => (
                   <div
@@ -717,6 +732,8 @@ export default function ControlPanelDashboard() {
                     </div>
                   </div>
                 ))}
+                {/* Scroll target - always at the bottom */}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Control Panel Footer */}
