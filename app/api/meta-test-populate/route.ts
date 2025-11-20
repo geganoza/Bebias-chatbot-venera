@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { db } from "@/lib/firestore";
 
 export async function POST() {
   try {
-    if (!process.env.KV_REST_API_URL) {
-      return NextResponse.json({
-        error: "KV not available"
-      }, { status: 500 });
-    }
-
     const testUserId = "test_user_12345678";
 
     const conversation = {
@@ -59,7 +53,7 @@ export async function POST() {
       ]
     };
 
-    await kv.set(`meta-messages:${testUserId}`, conversation, { ex: 60 * 60 * 24 * 7 });
+    await db.collection('metaMessages').doc(testUserId).set(conversation);
 
     return NextResponse.json({
       success: true,

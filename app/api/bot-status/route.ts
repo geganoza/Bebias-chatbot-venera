@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
-
-const BOT_PAUSE_KEY = 'global_bot_paused';
+import { db } from '@/lib/firestore';
 
 export async function GET() {
   try {
-    const paused = await kv.get<boolean>(BOT_PAUSE_KEY);
+    const settingsDoc = await db.collection('botSettings').doc('global').get();
+    const paused = settingsDoc.exists ? settingsDoc.data()?.paused === true : false;
 
     return NextResponse.json({
-      paused: paused || false
+      paused
     });
   } catch (error) {
     console.error('❌ Error getting bot status:', error);
@@ -30,7 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await kv.set(BOT_PAUSE_KEY, paused);
+    await db.collection('botSettings').doc('global').set({ paused });
 
     console.log(`🤖 Bot globally ${paused ? 'PAUSED' : 'RESUMED'}`);
 

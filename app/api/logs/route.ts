@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { db } from "@/lib/firestore";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -7,15 +7,19 @@ export async function GET(req: Request) {
   const limit = parseInt(searchParams.get("limit") || "50");
 
   try {
-    // Get logs from KV store
-    const logs = await kv.get<Array<any>>(`logs:${source}`) || [];
+    // Get logs from Firestore
+    let query = db.collection('logs').orderBy('timestamp', 'desc').limit(limit);
 
-    // Return most recent logs
-    const recentLogs = logs.slice(-limit).reverse();
+    if (source !== 'all') {
+      query = query.where('source', '==', source) as any;
+    }
+
+    const snapshot = await query.get();
+    const logs = snapshot.docs.map(doc => doc.data());
 
     return NextResponse.json({
-      logs: recentLogs,
-      count: recentLogs.length,
+      logs,
+      count: logs.length,
       source
     });
   } catch (error) {

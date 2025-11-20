@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { db } from "@/lib/firestore";
 import OpenAI from "openai";
 import fs from "fs/promises";
 import path from "path";
@@ -253,12 +253,8 @@ async function sendMessageToUser(recipientId: string, text: string) {
 // Log message to meta-messages for display
 async function logMetaMessage(userId: string, senderId: string, senderType: 'user' | 'bot' | 'human', text: string) {
   try {
-    if (!process.env.KV_REST_API_URL) {
-      return;
-    }
-
-    const key = `meta-messages:${userId}`;
-    const existing = await kv.get<{ userId: string; messages: any[] }>(key);
+    const docRef = db.collection('metaMessages').doc(userId);
+    const doc = await docRef.get();
 
     const message = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -268,11 +264,12 @@ async function logMetaMessage(userId: string, senderId: string, senderType: 'use
       timestamp: new Date().toISOString()
     };
 
-    if (existing) {
+    if (doc.exists) {
+      const existing = doc.data() as { userId: string; messages: any[] };
       existing.messages.push(message);
-      await kv.set(key, existing, { ex: 60 * 60 * 24 * 7 });
+      await docRef.set(existing);
     } else {
-      await kv.set(key, { userId, messages: [message] }, { ex: 60 * 60 * 24 * 7 });
+      await docRef.set({ userId, messages: [message] });
     }
   } catch (err) {
     console.error("❌ Error logging meta message:", err);
@@ -288,19 +285,20 @@ export async function POST(req: Request) {
     console.log(`🎮 Manual control action: ${action} for user ${userId}`);
 
     // Get conversation data
-    const conversationKey = `conversation:${userId}`;
-    const conversation = await kv.get<any>(conversationKey);
+    const conversationDoc = await db.collection('conversations').doc(userId).get();
 
-    if (!conversation) {
+    if (!conversationDoc.exists) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
+
+    const conversation = conversationDoc.data() as any;
 
     switch (action) {
       case "enable_manual_mode":
         // Enable manual mode - bot will not auto-respond
         conversation.manualMode = true;
         conversation.manualModeEnabledAt = new Date().toISOString();
-        await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+        await db.collection('conversations').doc(userId).set(conversation);
 
         console.log(`✅ Manual mode ENABLED for user ${userId}`);
         return NextResponse.json({ success: true, manualMode: true });
@@ -309,7 +307,7 @@ export async function POST(req: Request) {
         // Disable manual mode - resume auto responses
         conversation.manualMode = false;
         conversation.manualModeDisabledAt = new Date().toISOString();
-        await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+        await db.collection('conversations').doc(userId).set(conversation);
 
         console.log(`✅ Manual mode DISABLED for user ${userId}`);
         return NextResponse.json({ success: true, manualMode: false });
@@ -331,7 +329,7 @@ export async function POST(req: Request) {
             role: "assistant",
             content: `[HUMAN OPERATOR]: ${message}`
           });
-          await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+          await db.collection('conversations').doc(userId).set(conversation);
 
           console.log(`✅ Direct message sent by human operator to user ${userId}`);
           return NextResponse.json({ success: true, message: "Message sent" });
@@ -395,7 +393,7 @@ export async function POST(req: Request) {
             role: "assistant",
             content: `[BOT - OPERATOR INSTRUCTED]: ${cleanResponse}`
           });
-          await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+          await db.collection('conversations').doc(userId).set(conversation);
 
           console.log(`✅ Bot instruction executed and response sent to user ${userId}`);
           return NextResponse.json({
@@ -416,7 +414,7 @@ export async function POST(req: Request) {
         // Clear bot instruction
         delete conversation.botInstruction;
         delete conversation.botInstructionAt;
-        await kv.set(conversationKey, conversation, { ex: 60 * 60 * 24 * 30 });
+        await db.collection('conversations').doc(userId).set(conversation);
 
         console.log(`✅ Bot instruction cleared for user ${userId}`);
         return NextResponse.json({ success: true, message: "Instruction cleared" });
@@ -449,12 +447,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
     }
 
-    const conversationKey = `conversation:${userId}`;
-    const conversation = await kv.get<any>(conversationKey);
+    const conversationDoc = await db.collection('conversations').doc(userId).get();
 
-    if (!conversation) {
+    if (!conversationDoc.exists) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
+
+    const conversation = conversationDoc.data() as any;
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { db } from "@/lib/firestore";
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
@@ -44,13 +44,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
     }
 
-    // Check if profile is cached in KV
-    const cacheKey = `user-profile:${userId}`;
-    const cached = await kv.get<UserProfile>(cacheKey);
+    // Check if profile is cached in Firestore
+    const profileDoc = await db.collection('userProfiles').doc(userId).get();
 
-    if (cached) {
-      console.log(`✅ Returning cached profile for ${userId}`);
-      return NextResponse.json({ success: true, profile: cached, cached: true });
+    if (profileDoc.exists) {
+      const cached = profileDoc.data() as UserProfile & { cachedAt: string };
+      const cacheAge = Date.now() - new Date(cached.cachedAt).getTime();
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+      if (cacheAge < sevenDays) {
+        console.log(`✅ Returning cached profile for ${userId}`);
+        return NextResponse.json({ success: true, profile: cached, cached: true });
+      }
     }
 
     // Fetch from Facebook API
@@ -63,8 +68,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // Cache for 7 days
-    await kv.set(cacheKey, profile, { ex: 60 * 60 * 24 * 7 });
+    // Cache for 7 days in Firestore
+    await db.collection('userProfiles').doc(userId).set({
+      ...profile,
+      cachedAt: new Date().toISOString()
+    });
 
     return NextResponse.json({ success: true, profile, cached: false });
   } catch (error: any) {
