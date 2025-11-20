@@ -1292,10 +1292,7 @@ async function processMessagingEvent(event: any) {
       messageKeys: message ? Object.keys(message) : []
     });
 
-    // Check if this is a trigger-only message from QStash
-    const isTriggerOnly = event.__trigger_only === true;
-
-    if (messageText || messageAttachments || isTriggerOnly) {
+    if (messageText || messageAttachments) {
       let userContent: MessageContent = "";
       const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
       let userTextForProcessing = messageText || ""; // Initialize with text if available
