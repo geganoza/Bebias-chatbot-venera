@@ -1,8 +1,9 @@
 # ARCHIVED: Bank API Payment Verification System
 
-**Status:** ARCHIVED - On hold for future use
+**Status:** ARCHIVED - Code removed from production
 **Date Archived:** 2025-01-20
-**Reason:** Currently using screenshot-based verification only
+**Last Updated:** 2025-11-20
+**Reason:** User requested to disable text-based payment and archive the code
 
 ---
 
@@ -40,7 +41,9 @@ This is an automatic bank API verification system that checks BOG (Bank of Georg
 
 ## Code Location
 
-**Original Location:** `/app/api/messenger/route.ts` (Lines 899-996)
+**Status:** REMOVED from codebase as of 2025-11-20
+**Original Location:** `/app/api/messenger/route.ts` (Lines 465-562, then removed)
+**Archive Location:** This document contains the full working code below
 
 ### Full Function Code
 
@@ -211,13 +214,14 @@ CLOUD_FUNCTION_URL=https://us-central1-bebias-wp-db-handler.cloudfunctions.net/v
 
 To restore this system:
 
-1. **Uncomment the function in route.ts:**
-   - Function is still present at lines 899-996 (currently unused)
-   - Or copy code from this document
+1. **Copy the function code from this document:**
+   - Full `handlePaymentVerification()` function is above
+   - Add it to `/app/api/messenger/route.ts` after the helper functions (around line 465)
 
-2. **Add back the integration point:**
-   - After line 2003 in route.ts (after screenshot verification)
-   - Add the integration code shown above
+2. **Add the integration point:**
+   - Find the comment: `// REMOVED: Bank API payment verification`
+   - Replace it with the integration code shown in "Where It Was Called" section below
+   - Place it AFTER screenshot verification but BEFORE issue escalation
 
 3. **Verify environment variables:**
    - Ensure `CLOUD_FUNCTION_URL` is set in Vercel
@@ -266,6 +270,7 @@ Screenshot verification should ALWAYS run first, as it's more reliable.
 ---
 
 **Date Created:** 2025-01-20
-**Last Modified:** 2025-01-20
+**Last Modified:** 2025-11-20
 **Archived By:** Claude Code
-**Status:** Ready to restore when needed
+**Status:** Code completely removed from production, preserved in this document
+**Restoration:** Copy code from this document back to route.ts when needed
