@@ -5,6 +5,7 @@ import path from "path";
 import { db } from "../../../lib/firestore";
 import { sendOrderEmail, parseOrderNotification } from "../../../lib/sendOrderEmail";
 import { logOrder } from "../../../lib/orderLogger";
+import { Client as QStashClient } from "@upstash/qstash";
 
 // Force dynamic rendering to ensure console.log statements appear in production
 export const dynamic = 'force-dynamic';
@@ -99,6 +100,123 @@ type ConversationData = {
   managerPhoneOffered?: boolean; // Whether phone number was already offered
 };
 
+/**
+ * Save message to Firestore and queue to QStash for async processing
+ * This replaces synchronous processing with async queueing
+ */
+async function saveMessageAndQueue(event: any): Promise<void> {
+  const senderId = event.sender?.id;
+  const message = event.message;
+  const messageText = message?.text;
+  const messageAttachments = message?.attachments;
+  const messageId = message?.mid;
+
+  if (!senderId) {
+    console.log("⚠️ Event does not contain sender ID, skipping.");
+    return;
+  }
+
+  console.log(`📝 Saving message from ${senderId} to Firestore...`);
+
+  // Extract message content (same logic as processMessagingEvent)
+  let userContent: MessageContent = "";
+  const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
+  let userTextForProcessing = messageText || "";
+
+  if (messageText) {
+    contentParts.push({ type: "text", text: messageText });
+  }
+
+  if (messageAttachments) {
+    for (const attachment of messageAttachments) {
+      if (attachment.type === "image") {
+        console.log(`🖼️ Converting image attachment: ${attachment.payload.url.substring(0, 60)}...`);
+
+        // Convert Facebook image to base64 NOW (before queueing)
+        const base64Image = await facebookImageToBase64(attachment.payload.url);
+
+        if (base64Image) {
+          contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+          console.log(`✅ Image converted to base64`);
+        } else {
+          console.warn(`⚠️ Failed to convert image`);
+          if (!messageText) {
+            contentParts.push({ type: "text", text: "[User sent an image]" });
+          }
+        }
+      }
+    }
+  }
+
+  // Determine final userContent
+  if (contentParts.length > 1) {
+    userContent = contentParts;
+  } else if (contentParts.length === 1) {
+    if (contentParts[0].type === 'text') {
+      userContent = contentParts[0].text;
+    } else {
+      userContent = contentParts;
+    }
+  } else {
+    console.log("⚠️ Message has no processable content, skipping.");
+    return;
+  }
+
+  // Load conversation
+  const conversationData = await loadConversation(senderId);
+
+  // Add user message to history
+  conversationData.history.push({
+    role: "user",
+    content: userContent
+  });
+
+  // Trim history if too long
+  while (conversationData.history.length > MAX_HISTORY_LENGTH * 2) {
+    conversationData.history.shift();
+  }
+
+  conversationData.lastActive = new Date().toISOString();
+
+  // Save to Firestore
+  await saveConversation(conversationData);
+  console.log(`💾 Message saved to Firestore for ${senderId}`);
+
+  // Log to meta messages
+  await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
+
+  // ==================== QUEUE TO QSTASH ====================
+  if (!process.env.QSTASH_TOKEN) {
+    console.warn(`⚠️ QSTASH_TOKEN not configured - falling back to synchronous processing`);
+    // Fallback: process synchronously if QStash not configured
+    await processMessagingEvent(event);
+    return;
+  }
+
+  try {
+    const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN });
+
+    const callbackUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}/api/process-message`
+      : 'https://bebias-venera-chatbot.vercel.app/api/process-message';
+
+    await qstash.publishJSON({
+      url: callbackUrl,
+      body: {
+        senderId,
+        messageId
+      }
+    });
+
+    console.log(`✅ Message queued to QStash for ${senderId}`);
+  } catch (error: any) {
+    console.error(`❌ Failed to queue message to QStash:`, error.message);
+    // Fallback: process synchronously if QStash fails
+    console.warn(`⚠️ Falling back to synchronous processing`);
+    await processMessagingEvent(event);
+  }
+}
+
 async function loadProducts(): Promise<Product[]> {
   try {
     const file = path.join(process.cwd(), "data", "products.json");
@@ -191,7 +309,6 @@ async function fetchUserProfile(userId: string): Promise<{ name?: string; profil
 async function loadConversation(senderId: string): Promise<ConversationData> {
   try {
     // Use Firestore for all conversation storage
-    const { db } = await import('@/lib/firestore');
     const docRef = db.collection('conversations').doc(senderId);
     const doc = await docRef.get();
 
@@ -219,7 +336,6 @@ async function saveConversation(data: ConversationData): Promise<void> {
     data.lastActive = new Date().toISOString();
 
     // Use Firestore for all conversation storage
-    const { db } = await import('@/lib/firestore');
     const docRef = db.collection('conversations').doc(data.senderId);
     await docRef.set(data);
     console.log(`💾 Saved conversation to Firestore for user ${data.senderId}`);
@@ -232,7 +348,6 @@ async function saveConversation(data: ConversationData): Promise<void> {
 async function logMetaMessage(userId: string, senderId: string, senderType: 'user' | 'bot', text: string): Promise<void> {
   try {
     // Use Firestore for meta messages dashboard
-    const { db } = await import('@/lib/firestore');
     const docRef = db.collection('metaMessages').doc(userId);
 
     // Get existing conversation
@@ -271,10 +386,11 @@ function detectGeorgian(text: string) {
 /**
  * Extract order details (product, phone, address) from conversation history
  */
-function extractOrderDetails(history: Message[]): { product: string; telephone: string; address: string } | null {
+function extractOrderDetails(history: Message[]): { product: string; telephone: string; address: string; name?: string } | null {
   let product = '';
   let telephone = '';
   let address = '';
+  let name = '';
 
   // Search through recent messages (last 20)
   const recentMessages = history.slice(-20);
@@ -282,19 +398,44 @@ function extractOrderDetails(history: Message[]): { product: string; telephone: 
   for (const msg of recentMessages) {
     const content = typeof msg.content === 'string' ? msg.content : '';
 
-    // Extract phone number (Georgian format: 5XXXXXXXX or +9955XXXXXXXX)
+    // Check for comma-separated format first: "name, phone, address"
+    if (msg.role === 'user' && content.includes(',')) {
+      const parts = content.split(',').map(p => p.trim());
+      if (parts.length >= 3) {
+        // Check if second part looks like a phone number
+        if (parts[1].match(/\d{9}/)) {
+          name = parts[0];
+          telephone = parts[1];
+          address = parts.slice(2).join(', ');
+          console.log(`📋 Extracted from comma-separated: name="${name}", phone="${telephone}", address="${address}"`);
+          continue;
+        }
+      }
+    }
+
+    // Extract phone number (Georgian format: 4XXXXXXXX, 5XXXXXXXX, or +9954/5XXXXXXXX)
     if (!telephone) {
-      const phoneMatch = content.match(/(?:\+995)?5\d{8}/);
+      const phoneMatch = content.match(/(?:\+995)?[45]\d{8}/);
       if (phoneMatch) {
         telephone = phoneMatch[0];
       }
     }
 
-    // Extract address (look for common Georgian address patterns)
+    // Extract name (Georgian or Latin full name)
+    if (!name && msg.role === 'user') {
+      const georgianNameMatch = content.match(/([ა-ჰ]+\s+[ა-ჰ]+)/);
+      const latinNameMatch = content.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+      if (georgianNameMatch) {
+        name = georgianNameMatch[1];
+      } else if (latinNameMatch) {
+        name = latinNameMatch[1];
+      }
+    }
+
+    // Extract address (more flexible patterns)
     if (!address) {
       // Look for messages with address keywords in Georgian
       if (content.match(/მისამართ|ქუჩა|გამზირი|ბინა/i)) {
-        // Extract the line containing address info
         const lines = content.split('\n');
         for (const line of lines) {
           if (line.match(/მისამართ|ქუჩა|გამზირი|ბინა/i) && line.length > 10) {
@@ -303,26 +444,62 @@ function extractOrderDetails(history: Message[]): { product: string; telephone: 
           }
         }
       }
-      // Also check if entire user message looks like an address
-      if (msg.role === 'user' && !address && content.length > 15 && content.length < 200) {
-        if (content.match(/[ა-ჰ].*(ქუჩა|გამზირი|ბინა|\d+)/)) {
-          address = content.trim();
+      // Check if entire user message looks like an address (Georgian text with numbers or known patterns)
+      if (msg.role === 'user' && !address && content.length > 5 && content.length < 200) {
+        // Match patterns like "აწყურის 19", "რუსთაველის 45", etc.
+        if (content.match(/[ა-ჰ]+\s*\d+/)) {
+          // Exclude if it's just a phone number
+          if (!content.match(/^\d{9}$/)) {
+            address = content.trim();
+          }
         }
       }
     }
 
-    // Extract product names (look for bot messages mentioning products)
+    // Extract product names from bot messages
     if (!product && msg.role === 'assistant') {
-      // Look for patterns like "პროდუქტი:" or product listings
-      const productMatch = content.match(/პროდუქტი:\s*(.+?)(?:\n|$)/i);
-      if (productMatch) {
-        product = productMatch[1].trim();
+      // Look for BEBIAS hat products
+      const hatKeywords = [
+        'ფირუზისფერი.*ქუდ',
+        'სტაფილოსფერი.*ქუდ',
+        'თეთრი.*ქუდ',
+        'მატყლის.*ქუდ',
+        'ბამბის.*ქუდ',
+        'პომპონიანი.*ქუდ',
+        'ქუდი',
+        'შალი'
+      ];
+
+      for (const keyword of hatKeywords) {
+        const match = content.match(new RegExp(keyword, 'i'));
+        if (match) {
+          // Extract the full product description (look for the line containing the match)
+          const lines = content.split('\n');
+          for (const line of lines) {
+            if (line.match(new RegExp(keyword, 'i')) && line.length > 5) {
+              // Clean up the product name
+              product = line
+                .replace(/^\d+\.\s*/, '') // Remove numbering like "1. "
+                .replace(/\s*-\s*\d+\s*ლარ.*$/, '') // Remove price
+                .trim();
+              break;
+            }
+          }
+          if (product) break;
+        }
       }
-      // Also check for mentions of specific products (VENERA brand items)
+
+      // Also check for VENERA products (backwards compatibility)
       if (!product) {
-        const productNames = content.match(/(VENERA[^.\n]*|ვენერა[^.\n]*|კრემი[^.\n]*)/i);
-        if (productNames) {
-          product = productNames[0].trim();
+        const productMatch = content.match(/პროდუქტი:\s*(.+?)(?:\n|$)/i);
+        if (productMatch) {
+          product = productMatch[1].trim();
+        }
+        if (!product) {
+          const productNames = content.match(/(VENERA[^.\n]*|ვენერა[^.\n]*|კრემი[^.\n]*)/i);
+          if (productNames) {
+            product = productNames[0].trim();
+          }
         }
       }
     }
@@ -330,16 +507,16 @@ function extractOrderDetails(history: Message[]): { product: string; telephone: 
 
   // Return null if we're missing critical info
   if (!telephone || !address) {
-    console.log(`⚠️ Missing order details - product: ${!!product}, phone: ${!!telephone}, address: ${!!address}`);
+    console.log(`⚠️ Missing order details - product: ${!!product}, phone: ${!!telephone}, address: ${!!address}, name: ${!!name}`);
     return null;
   }
 
   // Use generic product name if not found
   if (!product) {
-    product = 'VENERA პროდუქტი';
+    product = 'BEBIAS პროდუქტი';
   }
 
-  return { product, telephone, address };
+  return { product, telephone, address, name };
 }
 
 /**
@@ -462,104 +639,8 @@ async function verifyPaymentAsync(expectedAmount: number, name: string, isKa: bo
 /**
  * Handle automatic payment verification when user provides payment details
  */
-async function handlePaymentVerification(userMessage: string, history: Message[], senderId: string): Promise<string | null> {
-  const isKa = detectGeorgian(userMessage);
-
-  // Check if bot just provided bank account in previous message
-  const lastBotMsg = [...history].reverse().find((m) => m.role === "assistant");
-  const lastBotText = typeof lastBotMsg?.content === 'string' ? lastBotMsg.content : '';
-  const botProvidedBankAccount = lastBotText.includes('GE09TB') || lastBotText.includes('GE31BG');
-
-  // Keywords indicating payment was made
-  const paymentKeywords = isKa
-    ? ['გადავიხადე', 'გადმოვრიცხე', 'გავაგზავნე', 'ჩავრიცხე', 'გადავრიცხე']
-    : ['paid', 'sent', 'transferred'];
-  const mentionsPayment = paymentKeywords.some(keyword => userMessage.toLowerCase().includes(keyword));
-
-  // If user just sent name + phone + address after bank account was provided, treat as payment confirmation
-  const hasPhoneNumber = /\d{9}/.test(userMessage); // Georgian phone numbers
-  const hasName = /[ა-ჰ]{2,}/.test(userMessage) || /[a-z]{2,}/i.test(userMessage);
-
-  const likelyPaymentConfirmation = botProvidedBankAccount && hasPhoneNumber && hasName;
-
-  if (!mentionsPayment && !likelyPaymentConfirmation) {
-    return null;
-  }
-
-  // Extract expected amount - first try user's message, then conversation history
-  let expectedAmount: number | null = null;
-
-  // Priority 1: Check if user included amount in their message (e.g., "ჩავრიცხე 55 ლარი")
-  const userAmountMatch = userMessage.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
-  if (userAmountMatch) {
-    expectedAmount = parseFloat(userAmountMatch[1]);
-  }
-
-  // Priority 2: Look in conversation history
-  if (!expectedAmount) {
-    for (let i = history.length - 1; i >= 0 && i >= history.length - 5; i--) {
-      const msg = history[i];
-      if (msg.role === 'assistant') {
-        const msgText = typeof msg.content === 'string' ? msg.content : '';
-        // Look for "ჯამში X ლარი" (total)
-        let amountMatch = msgText.match(/ჯამში\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
-
-        // Look for "ჩარიცხოთ X ლარი" (transfer X GEL)
-        if (!amountMatch) {
-          amountMatch = msgText.match(/ჩარიცხოთ\s+(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
-        }
-
-        // Amount right before bank account number
-        if (!amountMatch) {
-          amountMatch = msgText.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ[ი\s]*\s*(?:საქართველოს ბანკის|თიბისის|ანგარიშზე|GE\d)/);
-        }
-
-        if (amountMatch) {
-          expectedAmount = parseFloat(amountMatch[1]);
-          break;
-        }
-      }
-    }
-  }
-
-  // Extract name from user message (Georgian or Latin)
-  let name: string | null = null;
-  const georgianNameMatch = userMessage.match(/([ა-ჰ]+\s+[ა-ჰ]+)/);
-  const latinNameMatch = userMessage.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/);
-  name = georgianNameMatch?.[1] || latinNameMatch?.[1] || null;
-
-  if (!expectedAmount || !name) {
-    console.log(`⚠️ Payment verification skipped - missing amount (${expectedAmount}) or name (${name})`);
-    return null;
-  }
-
-  console.log(`🏦 Starting async payment verification: ${expectedAmount} GEL from "${name}"`);
-
-  // ASYNC: Call Cloud Function for verification (doesn't block)
-  // This allows us to respond immediately to the user
-  const cloudFunctionUrl = process.env.CLOUD_FUNCTION_URL || 'https://us-central1-bebias-wp-db-handler.cloudfunctions.net/verifyPayment';
-
-  fetch(cloudFunctionUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      expectedAmount,
-      name,
-      isKa,
-      senderId,
-      delayMs: 10000
-    })
-  }).catch(err => {
-    console.error('❌ Cloud Function call failed:', err);
-  });
-
-  // Return immediate acknowledgment - user gets instant feedback
-  const immediateReply = isKa
-    ? `მადლობა! ❤️\n\nთქვენი გადახდა ${expectedAmount} ლარი "${name}"-ის სახელზე მიიღება.\n\n⏳ ვამოწმებთ გადახდას ბანკში... (10-20 წამი)\n\nგადახდის დადასტურების შემდეგ მიიღებთ შეტყობინებას შეკვეთის დეტალებით.`
-    : `Thank you! ❤️\n\nYour payment of ${expectedAmount} GEL from "${name}" is being processed.\n\n⏳ Verifying with bank... (10-20 seconds)\n\nYou'll receive confirmation once payment is verified.`;
-
-  return immediateReply;
-}
+// REMOVED: handlePaymentVerification function
+// This function has been archived to docs/ARCHIVED_BANK_VERIFICATION.md for future use
 
 /**
  * Handle customer issue escalation
@@ -1397,20 +1478,143 @@ async function processMessagingEvent(event: any) {
       }
 
       // ═══════════════════════════════════════════════════════
-      // BANK PAYMENT VERIFICATION
+      // SCREENSHOT-BASED PAYMENT CONFIRMATION (ASYNC via QStash)
+      // If user sends image after bank account was provided, confirm immediately
       // ═══════════════════════════════════════════════════════
-      const paymentVerificationResult = await handlePaymentVerification(userTextForProcessing, conversationData.history, senderId);
-      if (paymentVerificationResult) {
-        console.log(`💳 Payment verification triggered`);
+      if (messageAttachments && messageAttachments.some(a => a.type === 'image')) {
+        // Check if bot just provided bank account in previous message
+        const lastBotMsg = [...conversationData.history].reverse().find((m) => m.role === "assistant");
+        const lastBotText = typeof lastBotMsg?.content === 'string' ? lastBotMsg.content : '';
+        const botProvidedBankAccount = lastBotText.includes('GE09TB') || lastBotText.includes('GE31BG');
 
-        // Add assistant response to history (user message already added above)
-        conversationData.history.push({ role: "assistant", content: paymentVerificationResult });
+        if (botProvidedBankAccount) {
+          console.log(`📸 Payment screenshot received - queueing payment processing to QStash`);
+          const isKa = detectGeorgian(lastBotText);
 
-        // Save and send response
-        await saveConversation(conversationData);
-        await sendMessage(senderId, paymentVerificationResult);
-        return; // Exit after payment handling
+          // Extract expected amount from conversation
+          let expectedAmount: number | null = null;
+          for (let i = conversationData.history.length - 1; i >= 0 && i >= conversationData.history.length - 5; i--) {
+            const msg = conversationData.history[i];
+            if (msg.role === 'assistant') {
+              const msgText = typeof msg.content === 'string' ? msg.content : '';
+              const amountMatch = msgText.match(/(\d{1,5}(\.\d{1,2})?)\s*ლარ/);
+              if (amountMatch) {
+                expectedAmount = parseFloat(amountMatch[1]);
+                break;
+              }
+            }
+          }
+
+          // Extract order details from conversation history
+          const orderDetails = extractOrderDetails(conversationData.history);
+
+          // Use extracted name if available, otherwise fall back to Facebook username
+          const customerName = orderDetails?.name || conversationData.userName || 'Unknown';
+
+          // Prepare payment data and confirmation message
+          let orderData;
+          let confirmationMessage;
+          let hasCompleteOrderDetails = false;
+
+          if (orderDetails && orderDetails.product && orderDetails.telephone && orderDetails.address && expectedAmount) {
+            // Complete order with all details
+            hasCompleteOrderDetails = true;
+            orderData = {
+              product: orderDetails.product,
+              clientName: customerName,
+              telephone: orderDetails.telephone,
+              address: orderDetails.address,
+              total: `${expectedAmount} ლარი`
+            };
+
+            confirmationMessage = isKa
+              ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount} ლარი მიღებულია "${customerName}"-ისგან.\n\n📦 შეკვეთა დადასტურებულია!\n\nპროდუქტი: ${orderDetails.product}\nმისამართი: ${orderDetails.address}\nტელეფონი: ${orderDetails.telephone}\n\n📧 ელექტრონული ზედნადები გამოგზავნილია ელ-ფოსტაზე.\n🚚 შეკვეთა მალე იქნება გაგზავნილი თქვენს მისამართზე.\n\nმადლობა შეძენისთვის! 🎉`
+              : `✅ Payment confirmed! ❤️\n\n${expectedAmount} GEL received from "${customerName}".\n\n📦 Your order is confirmed!\n\nProduct: ${orderDetails.product}\nAddress: ${orderDetails.address}\nPhone: ${orderDetails.telephone}\n\n📧 Invoice sent to your email.\n🚚 Your order will be shipped soon.\n\nThank you for your purchase! 🎉`;
+          } else {
+            // Missing some details - generic confirmation (no order logging)
+            hasCompleteOrderDetails = false;
+            orderData = {
+              product: '',
+              clientName: customerName,
+              telephone: '',
+              address: '',
+              total: expectedAmount ? `${expectedAmount} ლარი` : ''
+            };
+
+            confirmationMessage = isKa
+              ? `✅ გადახდა დადასტურდა! ❤️\n\n${expectedAmount ? expectedAmount + ' ლარი მიღებულია' : 'გადახდა მიღებულია'}.\n\n📦 თქვენი შეკვეთა დადასტურებულია!\n\n🚚 შეკვეთა მალე იქნება გაგზავნილი.\n\nმადლობა შეძენისთვის! 🎉`
+              : `✅ Payment confirmed! ❤️\n\n${expectedAmount ? expectedAmount + ' GEL received' : 'Payment received'}.\n\n📦 Your order is confirmed!\n\n🚚 Your order will be shipped soon.\n\nThank you for your purchase! 🎉`;
+          }
+
+          // Queue payment processing to QStash (async)
+          if (!process.env.QSTASH_TOKEN) {
+            console.warn(`⚠️ QSTASH_TOKEN not configured - processing synchronously as fallback`);
+            // Fallback to synchronous processing if QStash not available
+            if (hasCompleteOrderDetails) {
+              const orderNumber = await logOrder(orderData, 'messenger');
+              conversationData.orders = conversationData.orders || [];
+              conversationData.orders.push({
+                orderNumber,
+                timestamp: new Date().toISOString(),
+                items: orderData.product
+              });
+              await sendOrderEmail(orderData, orderNumber);
+              confirmationMessage = confirmationMessage.replace('Your order is confirmed', `Order #${orderNumber} confirmed`);
+              confirmationMessage = confirmationMessage.replace('თქვენი შეკვეთა დადასტურებულია', `შეკვეთა #${orderNumber} დადასტურებულია`);
+            }
+            conversationData.history.push({ role: "assistant", content: confirmationMessage });
+            await saveConversation(conversationData);
+            await sendMessage(senderId, confirmationMessage);
+            return;
+          }
+
+          try {
+            const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN });
+            const callbackUrl = process.env.VERCEL_URL
+              ? `https://${process.env.VERCEL_URL}/api/process-payment`
+              : 'https://bebias-venera-chatbot.vercel.app/api/process-payment';
+
+            await qstash.publishJSON({
+              url: callbackUrl,
+              body: {
+                senderId,
+                orderData,
+                confirmationMessage,
+                hasCompleteOrderDetails
+              }
+            });
+
+            console.log(`✅ Payment queued to QStash for ${senderId}`);
+            // Return immediately - QStash will process in background
+            return;
+
+          } catch (qstashError) {
+            console.error(`❌ QStash queue error:`, qstashError);
+            console.warn(`⚠️ Falling back to synchronous payment processing`);
+
+            // Fallback to synchronous processing
+            if (hasCompleteOrderDetails) {
+              const orderNumber = await logOrder(orderData, 'messenger');
+              conversationData.orders = conversationData.orders || [];
+              conversationData.orders.push({
+                orderNumber,
+                timestamp: new Date().toISOString(),
+                items: orderData.product
+              });
+              await sendOrderEmail(orderData, orderNumber);
+              confirmationMessage = confirmationMessage.replace('Your order is confirmed', `Order #${orderNumber} confirmed`);
+              confirmationMessage = confirmationMessage.replace('თქვენი შეკვეთა დადასტურებულია', `შეკვეთა #${orderNumber} დადასტურებულია`);
+            }
+            conversationData.history.push({ role: "assistant", content: confirmationMessage });
+            await saveConversation(conversationData);
+            await sendMessage(senderId, confirmationMessage);
+            return;
+          }
+        }
       }
+
+      // REMOVED: Bank API payment verification
+      // See docs/ARCHIVED_BANK_VERIFICATION.md for code and restoration instructions
 
       // ═══════════════════════════════════════════════════════
       // ISSUE ESCALATION SYSTEM
@@ -1580,50 +1784,60 @@ export async function POST(req: Request) {
           const senderId = event.sender?.id;
           const messageId = event.message?.mid;
 
-          if (!senderId || (!event.message?.text && !event.message?.attachments && !event.__trigger_only)) {
+          if (!senderId || (!event.message?.text && !event.message?.attachments)) {
             console.log("⚠️ Event does not contain required data, skipping.");
             continue;
           }
 
           // ═══════════════════════════════════════════════════════
-          // SYNCHRONOUS MESSAGE DEDUPLICATION
-          // Check deduplication BEFORE doing anything else
+          // SYNCHRONOUS MESSAGE DEDUPLICATION (ATOMIC)
+          // Use transaction to prevent race conditions
           // ═══════════════════════════════════════════════════════
           if (messageId) {
             try {
-              const msgDoc = await db.collection('processedMessages').doc(messageId).get();
+              const msgDocRef = db.collection('processedMessages').doc(messageId);
 
-              if (msgDoc.exists) {
-                const processedAt = msgDoc.data()?.processedAt;
-                const oneHourAgo = Date.now() - (60 * 60 * 1000);
+              // Use transaction for atomic check-and-set
+              const isDuplicate = await db.runTransaction(async (transaction) => {
+                const msgDoc = await transaction.get(msgDocRef);
 
-                if (new Date(processedAt).getTime() > oneHourAgo) {
-                  console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
-                  continue; // Skip to next event
+                if (msgDoc.exists) {
+                  const processedAt = msgDoc.data()?.processedAt;
+                  const oneHourAgo = Date.now() - (60 * 60 * 1000);
+
+                  if (new Date(processedAt).getTime() > oneHourAgo) {
+                    return true; // Is duplicate
+                  }
                 }
+
+                // Mark as processed atomically
+                transaction.set(msgDocRef, {
+                  processedAt: new Date().toISOString(),
+                  senderId: senderId
+                });
+
+                return false; // Not a duplicate
+              });
+
+              if (isDuplicate) {
+                console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
+                continue; // Skip to next event
               }
 
-              // Mark this message as processed
-              await db.collection('processedMessages').doc(messageId).set({
-                processedAt: new Date().toISOString(),
-                senderId: senderId
-              });
-              console.log(`✅ Message ${messageId} marked as processed`);
+              console.log(`✅ Message ${messageId} marked as processed (atomic)`);
             } catch (fsError) {
               console.warn(`⚠️ Firestore unavailable for deduplication - continuing anyway`);
             }
           }
 
           // ═══════════════════════════════════════════════════════
-          // PROCESS MESSAGE SYNCHRONOUSLY
-          // Vercel serverless functions terminate after returning response
-          // so we must await processing to ensure messages are sent
+          // SAVE MESSAGE & QUEUE TO QSTASH (ASYNC PROCESSING)
           // ═══════════════════════════════════════════════════════
-          console.log(`🚀 Processing message synchronously for ${senderId}`);
+          console.log(`🚀 Queueing message for ${senderId}`);
           try {
-            await processMessagingEvent(event);
+            await saveMessageAndQueue(event);
           } catch (err) {
-            console.error(`❌ Error processing message for ${senderId}:`, err);
+            console.error(`❌ Error queueing message for ${senderId}:`, err);
           }
         }
       }
