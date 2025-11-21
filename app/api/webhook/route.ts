@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import fs from "fs/promises";
 import path from "path";
-import { db } from "@/lib/firestore";
 
 type Message = { role: "system" | "user" | "assistant"; content: string };
 type Product = {
@@ -144,49 +143,7 @@ export async function POST(req: Request) {
 
           const senderId = event.sender?.id;
           const messageText = event.message?.text;
-          const messageId = event.message?.mid;
           const hasAttachments = event.message?.attachments && event.message.attachments.length > 0;
-
-          // ═══════════════════════════════════════════════════════
-          // MESSAGE DEDUPLICATION (ATOMIC)
-          // Facebook sends each message 3 times - use transaction to deduplicate
-          // ═══════════════════════════════════════════════════════
-          if (messageId) {
-            try {
-              const msgDocRef = db.collection('processedMessages').doc(messageId);
-
-              // Use transaction for atomic check-and-set
-              const isDuplicate = await db.runTransaction(async (transaction) => {
-                const msgDoc = await transaction.get(msgDocRef);
-
-                if (msgDoc.exists) {
-                  const processedAt = msgDoc.data()?.processedAt;
-                  const oneHourAgo = Date.now() - (60 * 60 * 1000);
-
-                  if (new Date(processedAt).getTime() > oneHourAgo) {
-                    return true; // Is duplicate
-                  }
-                }
-
-                // Mark as processed atomically
-                transaction.set(msgDocRef, {
-                  processedAt: new Date().toISOString(),
-                  senderId: senderId
-                });
-
-                return false; // Not a duplicate
-              });
-
-              if (isDuplicate) {
-                console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
-                continue; // Skip to next event
-              }
-
-              console.log(`✅ Message ${messageId} marked as processed (atomic)`);
-            } catch (fsError) {
-              console.warn(`⚠️ Firestore unavailable for deduplication - continuing anyway`);
-            }
-          }
 
           if (senderId) {
             // Handle attachments - we don't have permission to view them yet
