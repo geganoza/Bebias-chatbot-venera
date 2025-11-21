@@ -406,12 +406,24 @@ async function handler(req: Request) {
 
     console.log(`📝 Processing message: "${typeof lastMessage.content === 'string' ? lastMessage.content.substring(0, 50) : 'image'}"...`);
 
-    // Load bot instructions from file
-    const botInstructions = loadContentFile('bot-instructions.md') || 'You are VENERA, a helpful assistant.';
+    // Load ALL content files (instructions, FAQs, delivery info, etc.)
+    const instructions = loadContentFile('bot-instructions.md') || 'You are VENERA, a helpful assistant.';
+    const services = loadContentFile('services.md');
+    const faqs = loadContentFile('faqs.md');
+    const delivery = loadContentFile('delivery-info.md');
+    const payment = loadContentFile('payment-info.md');
+
+    // Build comprehensive system prompt with all context
+    const systemPrompt = `${instructions}
+
+${services ? `\n## SERVICES\n${services}` : ''}
+${faqs ? `\n## FREQUENTLY ASKED QUESTIONS\n${faqs}` : ''}
+${delivery ? `\n## DELIVERY INFORMATION\n${delivery}` : ''}
+${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}`.trim();
 
     // Prepare messages for OpenAI
     const messages = [
-      { role: 'system' as const, content: botInstructions },
+      { role: 'system' as const, content: systemPrompt },
       ...conversationData.history
     ];
 
