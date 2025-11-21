@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import OpenAI from "openai";
 import { db } from "@/lib/firestore";
+import fs from "fs";
+import path from "path";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -9,6 +11,17 @@ export const maxDuration = 60;
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
+
+// Load content files
+function loadContentFile(filename: string): string {
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'content', filename);
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    console.error(`Error loading ${filename}:`, error);
+    return '';
+  }
+}
 
 // ==================== SAFETY CONFIGURATION ====================
 const SAFETY_LIMITS = {
@@ -312,11 +325,8 @@ async function handler(req: Request) {
 
     console.log(`📝 Processing message: "${typeof lastMessage.content === 'string' ? lastMessage.content.substring(0, 50) : 'image'}"...`);
 
-    // Check bot instructions
-    const botInstructionsDoc = await db.collection('botSettings').doc('instructions').get();
-    const botInstructions = botInstructionsDoc.exists
-      ? botInstructionsDoc.data()?.content
-      : 'You are VENERA, a helpful assistant.';
+    // Load bot instructions from file
+    const botInstructions = loadContentFile('bot-instructions.md') || 'You are VENERA, a helpful assistant.';
 
     // Prepare messages for OpenAI
     const messages = [
