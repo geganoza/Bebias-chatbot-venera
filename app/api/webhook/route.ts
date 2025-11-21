@@ -83,7 +83,7 @@ async function getAIResponse(userMessage: string): Promise<string> {
       : `You are a friendly assistant for Martivi Consulting. Help users find products.\n\nProducts:\n${productContext}\n\nRespond briefly (1-2 sentences max) using plain, casual but polite language.\n\nImportant:\n- Be concise and warm\n- Avoid overly formal/official language\n- Keep it simple and natural`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4-turbo",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
