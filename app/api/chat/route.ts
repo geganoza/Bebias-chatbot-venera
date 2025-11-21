@@ -340,11 +340,11 @@ Georgia Time (GMT+4): ${georgiaTime}
 
 Respond in English, concisely and clearly (max 200 words).`;
 
-    console.log("🤖 Calling OpenAI GPT-4-Turbo...");
+    console.log("🤖 Calling OpenAI GPT-4o...");
 
     // Call OpenAI with conversation history
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages.filter(m => m.role !== "system") as any, // Include conversation history
