@@ -12,6 +12,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+// ==================== TYPES ====================
+
+interface Product {
+  id: string;
+  name: string;
+  image?: string;
+  [key: string]: any;
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
 // Load content files
 function loadContentFile(filename: string): string {
   try {
@@ -20,6 +31,76 @@ function loadContentFile(filename: string): string {
   } catch (error) {
     console.error(`Error loading ${filename}:`, error);
     return '';
+  }
+}
+
+// Load products from JSON file
+async function loadProducts(): Promise<Product[]> {
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'products.json');
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(fileContent) as Product[];
+  } catch (error) {
+    console.error('❌ Error loading products:', error);
+    return [];
+  }
+}
+
+// Parse SEND_IMAGE commands from AI response
+function parseImageCommands(response: string): { productIds: string[]; cleanResponse: string } {
+  console.log(`🔍 parseImageCommands called with response length: ${response.length}`);
+  console.log(`🔍 Response preview (first 300 chars):`, response.substring(0, 300));
+
+  const imageRegex = /SEND_IMAGE:\s*([A-Z0-9\-_]+)/gi;
+  const matches = [...response.matchAll(imageRegex)];
+  console.log(`🔍 Found ${matches.length} SEND_IMAGE matches`);
+
+  const productIds = matches.map(match => {
+    console.log(`🔍 Matched product ID: "${match[1]}"`);
+    return match[1].trim();
+  });
+
+  // Remove SEND_IMAGE commands from response
+  const cleanResponse = response.replace(imageRegex, '').trim();
+
+  return { productIds, cleanResponse };
+}
+
+// Send image to Facebook Messenger
+async function sendImage(recipientId: string, imageUrl: string) {
+  const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
+
+  console.log(`📸 Sending image to ${recipientId}:`, imageUrl);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: 'image',
+            payload: {
+              url: imageUrl,
+              is_reusable: true
+            }
+          }
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Facebook API error: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Image sent successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error sending image:', error);
+    throw error;
   }
 }
 
@@ -353,18 +434,47 @@ async function handler(req: Request) {
 
     console.log(`✅ OpenAI response: "${botResponse.substring(0, 50)}..."`);
 
-    // Add bot response to history
+    // ==================== EXTRACT AND SEND IMAGES ====================
+
+    // Parse response for SEND_IMAGE commands
+    const { productIds, cleanResponse } = parseImageCommands(botResponse);
+
+    // Send product images if requested
+    if (productIds.length > 0) {
+      console.log(`🖼️ Found ${productIds.length} image(s) to send:`, productIds);
+
+      // Load products to get image URLs
+      const allProducts = await loadProducts();
+      const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+      for (const productId of productIds) {
+        const product = productMap.get(productId);
+        if (product && product.image &&
+            product.image !== "IMAGE_URL_HERE" &&
+            !product.image.includes('facebook.com') &&
+            product.image.startsWith('http')) {
+          await sendImage(senderId, product.image);
+          console.log(`✅ Sent image for ${productId}`);
+        } else {
+          console.warn(`⚠️ No valid image found for product ${productId}`);
+        }
+      }
+    }
+
+    // ==================== SEND TEXT RESPONSE ====================
+
+    // Send clean response (without SEND_IMAGE commands) to Facebook
+    await sendMessage(senderId, cleanResponse);
+
+    // Add CLEAN response to history (without SEND_IMAGE commands)
     conversationData.history.push({
       role: 'assistant',
-      content: botResponse,
+      content: cleanResponse,
       timestamp: new Date().toISOString()
     });
 
     // Save conversation
     await saveConversation(senderId, conversationData);
-
-    // Send to Facebook
-    await sendMessage(senderId, botResponse);
 
     const processingTime = Date.now() - startTime;
     console.log(`✅ [QStash] Message processed in ${processingTime}ms`);
