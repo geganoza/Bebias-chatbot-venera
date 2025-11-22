@@ -1903,8 +1903,12 @@ export async function POST(req: Request) {
           const senderId = event.sender?.id;
           const messageId = event.message?.mid;
 
+          // Unique webhook ID for tracing duplicates
+          const webhookId = Math.random().toString(36).substring(2, 8);
+          console.log(`📨 [WH:${webhookId}] Received message ${messageId} from ${senderId}`);
+
           if (!senderId || (!event.message?.text && !event.message?.attachments)) {
-            console.log("⚠️ Event does not contain required data, skipping.");
+            console.log(`⚠️ [WH:${webhookId}] Event does not contain required data, skipping.`);
             continue;
           }
 
@@ -1952,11 +1956,12 @@ export async function POST(req: Request) {
           // ═══════════════════════════════════════════════════════
           // SAVE MESSAGE & QUEUE TO QSTASH (ASYNC PROCESSING)
           // ═══════════════════════════════════════════════════════
-          console.log(`🚀 Queueing message for ${senderId}`);
+          console.log(`🚀 [WH:${webhookId}] Queueing message ${messageId} for ${senderId}`);
           try {
             await saveMessageAndQueue(event);
+            console.log(`✅ [WH:${webhookId}] Queued message ${messageId} to QStash`);
           } catch (err) {
-            console.error(`❌ Error queueing message for ${senderId}:`, err);
+            console.error(`❌ [WH:${webhookId}] Error queueing message for ${senderId}:`, err);
           }
         }
       }

@@ -659,11 +659,14 @@ REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentio
     ];
 
     // Determine model based on content
+    // Using gpt-4o-mini for text (cheap) and gpt-4o for images (needs vision)
     const hasImages = Array.isArray(lastMessage.content) &&
                      lastMessage.content.some(c => c.type === 'image_url');
-    const selectedModel = hasImages ? "gpt-4o" : "gpt-4-turbo";
+    const selectedModel = hasImages ? "gpt-4o" : "gpt-4o-mini";
 
-    console.log(`🤖 Using model: ${selectedModel}`);
+    // Generate unique request ID for tracing duplicates
+    const requestId = Math.random().toString(36).substring(2, 8);
+    console.log(`🤖 [REQ:${requestId}] Using model: ${selectedModel} for message ${messageId}`);
 
     // Call OpenAI
     const completion = await openai.chat.completions.create({
