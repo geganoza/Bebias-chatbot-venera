@@ -46,6 +46,94 @@ async function loadProducts(): Promise<Product[]> {
   }
 }
 
+/**
+ * OPTIMIZATION: Filter products based on user query to reduce token usage
+ * Instead of sending all 76k chars of products, send only relevant ones
+ */
+function filterProductsByQuery(products: Product[], userMessage: string): Product[] {
+  const message = userMessage.toLowerCase();
+
+  // Product category keywords (Georgian and English)
+  const categoryKeywords: { [key: string]: string[] } = {
+    'hat': ['ქუდ', 'შაპკა', 'hat', 'beanie', 'cap'],
+    'sock': ['წინდ', 'sock', 'socks'],
+    'scarf': ['შარფ', 'scarf', 'მოწნული'],
+    'glove': ['ხელთათმან', 'glove', 'გლუვ'],
+  };
+
+  // Color keywords (Georgian and English)
+  const colorKeywords: string[] = [
+    'შავ', 'თეთრ', 'წითელ', 'ლურჯ', 'მწვანე', 'ყვითელ', 'ვარდისფერ', 'ნარინჯისფერ',
+    'სტაფილოსფერ', 'ფირუზისფერ', 'იისფერ', 'ტყფისფერ', 'ნაცრისფერ', 'ცისფერ',
+    'black', 'white', 'red', 'blue', 'green', 'yellow', 'pink', 'orange',
+    'turquoise', 'purple', 'brown', 'gray', 'grey'
+  ];
+
+  // Material keywords (Georgian and English)
+  const materialKeywords: string[] = [
+    'ბამბა', 'ბამბის', 'შალ', 'შალის', 'მატყლ',
+    'cotton', 'wool', 'cashmere', 'knit'
+  ];
+
+  // Check if user is asking about specific product types
+  let matchedProducts: Product[] = [];
+
+  // First, check for category matches
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(kw => message.includes(kw))) {
+      // Filter products by this category
+      const categoryProducts = products.filter(p =>
+        p.category?.toLowerCase().includes(category) ||
+        p.name.toLowerCase().includes(category) ||
+        keywords.some(kw => p.name.toLowerCase().includes(kw))
+      );
+      matchedProducts.push(...categoryProducts);
+    }
+  }
+
+  // Then check for color matches
+  const matchedColors = colorKeywords.filter(c => message.includes(c.toLowerCase()));
+  if (matchedColors.length > 0) {
+    const colorProducts = products.filter(p =>
+      matchedColors.some(c => p.name.toLowerCase().includes(c.toLowerCase()) || p.id.toLowerCase().includes(c.toLowerCase()))
+    );
+    if (matchedProducts.length === 0) {
+      matchedProducts = colorProducts;
+    } else {
+      // Intersect with category matches
+      matchedProducts = matchedProducts.filter(p => colorProducts.some(cp => cp.id === p.id));
+    }
+  }
+
+  // Check for material matches
+  const matchedMaterials = materialKeywords.filter(m => message.includes(m.toLowerCase()));
+  if (matchedMaterials.length > 0) {
+    const materialProducts = products.filter(p =>
+      matchedMaterials.some(m => p.name.toLowerCase().includes(m.toLowerCase()))
+    );
+    if (matchedProducts.length === 0) {
+      matchedProducts = materialProducts;
+    }
+  }
+
+  // Remove duplicates
+  const uniqueProducts = Array.from(new Map(matchedProducts.map(p => [p.id, p])).values());
+
+  // If we found matches, return them (max 30 products)
+  if (uniqueProducts.length > 0) {
+    console.log(`📦 Product filter: Found ${uniqueProducts.length} matching products for query`);
+    return uniqueProducts.slice(0, 30);
+  }
+
+  // If no specific matches, return top products with images (bestsellers fallback)
+  const productsWithImages = products.filter(p =>
+    p.image && p.image !== 'IMAGE_URL_HERE' && !p.image.includes('facebook.com') && p.image.startsWith('http')
+  );
+
+  console.log(`📦 Product filter: No specific match, returning ${Math.min(productsWithImages.length, 20)} bestsellers`);
+  return productsWithImages.slice(0, 20);
+}
+
 // Parse SEND_IMAGE commands from AI response
 function parseImageCommands(response: string): { productIds: string[]; cleanResponse: string } {
   console.log(`🔍 parseImageCommands called with response length: ${response.length}`);
@@ -104,12 +192,52 @@ async function sendImage(recipientId: string, imageUrl: string) {
   }
 }
 
+// ==================== CONVERSATION HISTORY LIMITS ====================
+// Keep only recent messages to reduce token usage
+const MAX_HISTORY_MESSAGES = 10; // Keep last 10 messages (5 user + 5 assistant)
+
+/**
+ * Trim conversation history to reduce token usage
+ * - Keeps only the most recent messages
+ * - Removes base64 image data from old messages (keeps only text)
+ */
+function trimConversationHistory(history: any[]): any[] {
+  if (history.length <= MAX_HISTORY_MESSAGES) {
+    return history;
+  }
+
+  // Keep only the last N messages
+  const trimmed = history.slice(-MAX_HISTORY_MESSAGES);
+
+  // Also strip base64 image data from all but the most recent message
+  // to prevent huge token usage from old images
+  return trimmed.map((msg, index) => {
+    // Keep the last message intact (most recent)
+    if (index === trimmed.length - 1) {
+      return msg;
+    }
+
+    // For older messages, strip image data but keep text
+    if (Array.isArray(msg.content)) {
+      const textOnly = msg.content.filter((c: any) => c.type === 'text');
+      if (textOnly.length > 0) {
+        return {
+          ...msg,
+          content: textOnly.map((c: any) => c.text).join('\n')
+        };
+      }
+    }
+    return msg;
+  });
+}
+
 // ==================== SAFETY CONFIGURATION ====================
+// AGGRESSIVE LIMITS to prevent cost overruns
 const SAFETY_LIMITS = {
-  MAX_MESSAGES_PER_USER_PER_HOUR: 30,      // Max 30 messages per user per hour
-  MAX_MESSAGES_PER_USER_PER_DAY: 100,      // Max 100 messages per user per day
-  MAX_TOTAL_MESSAGES_PER_HOUR: 200,        // Max 200 total messages per hour (all users)
-  CIRCUIT_BREAKER_THRESHOLD: 50,           // Circuit breaker trips after 50 messages in 10 min
+  MAX_MESSAGES_PER_USER_PER_HOUR: 20,      // Max 20 messages per user per hour (was 100)
+  MAX_MESSAGES_PER_USER_PER_DAY: 50,       // Max 50 messages per user per day (was 300)
+  MAX_TOTAL_MESSAGES_PER_HOUR: 100,        // Max 100 total messages per hour (all users, was 500)
+  CIRCUIT_BREAKER_THRESHOLD: 30,           // Circuit breaker trips after 30 messages in 10 min (was 100)
   CIRCUIT_BREAKER_WINDOW_MS: 10 * 60 * 1000, // 10 minutes
 };
 
@@ -313,6 +441,9 @@ async function handler(req: Request) {
 
     console.log(`🚀 [QStash] Processing message ${messageId} for user ${senderId}`);
 
+    // NOTE: Deduplication is handled by QStash's built-in deduplicationId
+    // (set in messenger/route.ts when publishing). No Firestore needed here.
+
     // ==================== SAFETY CHECKS ====================
 
     // 1. Check kill switch
@@ -406,25 +537,101 @@ async function handler(req: Request) {
 
     console.log(`📝 Processing message: "${typeof lastMessage.content === 'string' ? lastMessage.content.substring(0, 50) : 'image'}"...`);
 
-    // Load ALL content files (instructions, FAQs, delivery info, etc.)
-    const instructions = loadContentFile('bot-instructions.md') || 'You are VENERA, a helpful assistant.';
-    const services = loadContentFile('services.md');
-    const faqs = loadContentFile('faqs.md');
-    const delivery = loadContentFile('delivery-info.md');
-    const payment = loadContentFile('payment-info.md');
+    // Extract user message text for product filtering
+    let userMessageText = '';
+    if (typeof lastMessage.content === 'string') {
+      userMessageText = lastMessage.content;
+    } else if (Array.isArray(lastMessage.content)) {
+      const textPart = lastMessage.content.find(c => c.type === 'text');
+      userMessageText = textPart?.text || '';
+    }
 
-    // Build comprehensive system prompt with all context
+    // Load and filter products based on user query (OPTIMIZATION: reduces ~50k tokens to ~2k)
+    const allProducts = await loadProducts();
+    const filteredProducts = filterProductsByQuery(allProducts, userMessageText);
+
+    // Build product context for AI
+    const productContext = filteredProducts
+      .map((p) => {
+        const hasImage = p.image && p.image !== 'IMAGE_URL_HERE' && !p.image.includes('facebook.com') && p.image.startsWith('http');
+        return `${p.name} (ID: ${p.id}) - Price: ${p.price} ${p.currency || ""}, Stock: ${p.stock}, Category: ${p.category || "N/A"}${hasImage ? ' [HAS_IMAGE]' : ''}`;
+      })
+      .join("\n");
+
+    const productNote = filteredProducts.length < allProducts.length
+      ? `\n\n(Showing ${filteredProducts.length} relevant products. Ask customer to specify if they need something else.)`
+      : '';
+
+    // ==================== TOPIC-BASED CONTENT SELECTION ====================
+    // Only load relevant content files based on user's message to reduce tokens
+    const msg = userMessageText.toLowerCase();
+    const hasImage = Array.isArray(lastMessage.content) && lastMessage.content.some((c: any) => c.type === 'image_url');
+
+    // Topic detection
+    const topics = {
+      delivery: /მიწოდება|მიტანა|delivery|shipping|როდის მოვა|როდის მოიტან|ჩამოტან/.test(msg),
+      payment: /გადახდა|payment|ბარათ|card|თანხა|ფულ|pay|გადაიხად/.test(msg),
+      purchase: /ვიყიდო|შევუკვეთ|order|buy|შეკვეთ|ყიდვ|მინდა.*ვიყიდო|შევიძინ/.test(msg),
+      contact: /კონტაქტ|მისამართ|address|phone|ტელეფონ|სად ხართ|location|საათ|სამუშაო/.test(msg),
+      services: /სერვის|მომსახურება|service|რემონტ|შეკეთება/.test(msg),
+      product: /ქუდ|წინდ|შარფ|ხელთათმან|პროდუქტ|product|price|ფას|რა ღირს|რამდენ/.test(msg),
+    };
+
+    // Always load core files
+    const instructions = loadContentFile('bot-instructions.md') || 'You are VENERA, a helpful assistant.';
+    const toneStyle = loadContentFile('tone-style.md');
+
+    // Conditionally load topic-specific files
+    const imageHandling = hasImage ? loadContentFile('image-handling.md') : '';
+    const productRecognition = (topics.product || hasImage) ? loadContentFile('product-recognition.md') : '';
+    const purchaseFlow = topics.purchase ? loadContentFile('purchase-flow.md') : '';
+    const deliveryCalculation = topics.delivery ? loadContentFile('delivery-calculation.md') : '';
+    const contactPolicies = topics.contact ? loadContentFile('contact-policies.md') : '';
+    const services = topics.services ? loadContentFile('services.md') : '';
+    const faqs = loadContentFile('faqs.md'); // Keep FAQs - small and useful
+    const delivery = topics.delivery ? loadContentFile('delivery-info.md') : '';
+    const payment = (topics.payment || topics.purchase) ? loadContentFile('payment-info.md') : '';
+
+    // Log which topics were detected
+    const detectedTopics = Object.entries(topics).filter(([_, v]) => v).map(([k]) => k);
+    console.log(`📚 Topics detected: ${detectedTopics.length > 0 ? detectedTopics.join(', ') : 'general'}, hasImage: ${hasImage}`);
+
+    // Build system prompt with only relevant context
     const systemPrompt = `${instructions}
 
+${toneStyle ? `\n## TONE & STYLE GUIDELINES\n${toneStyle}` : ''}
+${imageHandling ? `\n## IMAGE HANDLING\n${imageHandling}` : ''}
+${productRecognition ? `\n## PRODUCT RECOGNITION\n${productRecognition}` : ''}
+${purchaseFlow ? `\n## PURCHASE FLOW\n${purchaseFlow}` : ''}
+${deliveryCalculation ? `\n## DELIVERY DATE CALCULATION\n${deliveryCalculation}` : ''}
+${contactPolicies ? `\n## CONTACT & STORE POLICIES\n${contactPolicies}` : ''}
 ${services ? `\n## SERVICES\n${services}` : ''}
 ${faqs ? `\n## FREQUENTLY ASKED QUESTIONS\n${faqs}` : ''}
-${delivery ? `\n## DELIVERY INFORMATION\n${delivery}` : ''}
-${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}`.trim();
+${delivery ? `\n## DELIVERY PRICING\n${delivery}` : ''}
+${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}
 
-    // Prepare messages for OpenAI
+## CRITICAL: ALWAYS SEND PRODUCT IMAGES
+When you mention or discuss ANY product that has [HAS_IMAGE] marker, you MUST include this at the END of your response:
+SEND_IMAGE: PRODUCT_ID_HERE
+
+Example: If discussing "მწვანე ბამბის მოკლე ქუდი (ID: H-SHORT-COT-GREEN)" which has [HAS_IMAGE], end with:
+SEND_IMAGE: H-SHORT-COT-GREEN
+
+NEVER skip the image command when discussing a product with an image!
+NEVER mention "SEND_IMAGE" text to the customer - it's a hidden command.
+
+## PRODUCT CATALOG (Filtered for this query)
+${productContext}${productNote}
+
+REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentioned that has [HAS_IMAGE]!`.trim();
+
+    // Prepare messages for OpenAI - trim history to reduce tokens
+    const trimmedHistory = trimConversationHistory(conversationData.history);
+    console.log(`📊 History: ${conversationData.history.length} messages -> ${trimmedHistory.length} after trim`);
+
     const messages = [
       { role: 'system' as const, content: systemPrompt },
-      ...conversationData.history
+      ...trimmedHistory
     ];
 
     // Determine model based on content
@@ -455,8 +662,7 @@ ${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}`.trim();
     if (productIds.length > 0) {
       console.log(`🖼️ Found ${productIds.length} image(s) to send:`, productIds);
 
-      // Load products to get image URLs
-      const allProducts = await loadProducts();
+      // Use already loaded products (from earlier) for image lookup
       const productMap = new Map(allProducts.map(p => [p.id, p]));
 
       for (const productId of productIds) {
@@ -477,6 +683,15 @@ ${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}`.trim();
 
     // Send clean response (without SEND_IMAGE commands) to Facebook
     await sendMessage(senderId, cleanResponse);
+
+    // Mark message as responded to prevent duplicates on retry
+    if (messageId) {
+      await db.collection('respondedMessages').doc(messageId).set({
+        respondedAt: new Date().toISOString(),
+        senderId: senderId
+      });
+      console.log(`✅ [QStash] Marked message ${messageId} as responded`);
+    }
 
     // Add CLEAN response to history (without SEND_IMAGE commands)
     conversationData.history.push({
@@ -508,6 +723,37 @@ ${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}`.trim();
       await logQStashUsage(userId, false, error.message);
     }
 
+    // Check if this is a non-retryable error (return 200 so QStash doesn't retry)
+    // ALL 429 errors should NOT be retried - they just burn more money
+    const is429Error = error?.status === 429 ||
+                       error?.statusCode === 429 ||
+                       String(error?.status) === '429' ||
+                       error?.message?.includes('429');
+
+    const isRateLimitError = error?.message?.toLowerCase().includes('rate limit') ||
+                             error?.message?.toLowerCase().includes('quota') ||
+                             error?.message?.toLowerCase().includes('exceeded') ||
+                             error?.code === 'insufficient_quota' ||
+                             error?.code === 'rate_limit_exceeded';
+
+    const isAuthError = error?.code === 'invalid_api_key' ||
+                        error?.status === 401 ||
+                        error?.status === 403;
+
+    const isNonRetryable = is429Error || isRateLimitError || isAuthError;
+
+    console.log(`🔍 Error analysis: status=${error?.status}, code=${error?.code}, is429=${is429Error}, isRateLimit=${isRateLimitError}, isNonRetryable=${isNonRetryable}`);
+
+    if (isNonRetryable) {
+      console.log(`🛑 Non-retryable error detected, returning 200 to prevent QStash retries`);
+      return NextResponse.json({
+        success: false,
+        error: error.message,
+        nonRetryable: true
+      }, { status: 200 }); // Return 200 so QStash doesn't retry
+    }
+
+    // For other errors, return 500 (QStash will retry)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

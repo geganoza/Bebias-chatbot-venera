@@ -64,6 +64,94 @@ type Product = {
   url?: string;
 };
 
+/**
+ * OPTIMIZATION: Filter products based on user query to reduce token usage
+ * Instead of sending all 76k chars of products, send only relevant ones
+ */
+function filterProductsByQuery(products: Product[], userMessage: string): Product[] {
+  const message = userMessage.toLowerCase();
+
+  // Product category keywords (Georgian and English)
+  const categoryKeywords: { [key: string]: string[] } = {
+    'hat': ['ქუდ', 'შაპკა', 'hat', 'beanie', 'cap'],
+    'sock': ['წინდ', 'sock', 'socks'],
+    'scarf': ['შარფ', 'scarf', 'მოწნული'],
+    'glove': ['ხელთათმან', 'glove', 'გლუვ'],
+  };
+
+  // Color keywords (Georgian and English)
+  const colorKeywords: string[] = [
+    'შავ', 'თეთრ', 'წითელ', 'ლურჯ', 'მწვანე', 'ყვითელ', 'ვარდისფერ', 'ნარინჯისფერ',
+    'სტაფილოსფერ', 'ფირუზისფერ', 'იისფერ', 'ტყფისფერ', 'ნაცრისფერ', 'ცისფერ',
+    'black', 'white', 'red', 'blue', 'green', 'yellow', 'pink', 'orange',
+    'turquoise', 'purple', 'brown', 'gray', 'grey'
+  ];
+
+  // Material keywords (Georgian and English)
+  const materialKeywords: string[] = [
+    'ბამბა', 'ბამბის', 'შალ', 'შალის', 'მატყლ',
+    'cotton', 'wool', 'cashmere', 'knit'
+  ];
+
+  // Check if user is asking about specific product types
+  let matchedProducts: Product[] = [];
+
+  // First, check for category matches
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(kw => message.includes(kw))) {
+      // Filter products by this category
+      const categoryProducts = products.filter(p =>
+        p.category?.toLowerCase().includes(category) ||
+        p.name.toLowerCase().includes(category) ||
+        keywords.some(kw => p.name.toLowerCase().includes(kw))
+      );
+      matchedProducts.push(...categoryProducts);
+    }
+  }
+
+  // Then check for color matches
+  const matchedColors = colorKeywords.filter(c => message.includes(c.toLowerCase()));
+  if (matchedColors.length > 0) {
+    const colorProducts = products.filter(p =>
+      matchedColors.some(c => p.name.toLowerCase().includes(c.toLowerCase()) || p.id.toLowerCase().includes(c.toLowerCase()))
+    );
+    if (matchedProducts.length === 0) {
+      matchedProducts = colorProducts;
+    } else {
+      // Intersect with category matches
+      matchedProducts = matchedProducts.filter(p => colorProducts.some(cp => cp.id === p.id));
+    }
+  }
+
+  // Check for material matches
+  const matchedMaterials = materialKeywords.filter(m => message.includes(m.toLowerCase()));
+  if (matchedMaterials.length > 0) {
+    const materialProducts = products.filter(p =>
+      matchedMaterials.some(m => p.name.toLowerCase().includes(m.toLowerCase()))
+    );
+    if (matchedProducts.length === 0) {
+      matchedProducts = materialProducts;
+    }
+  }
+
+  // Remove duplicates
+  const uniqueProducts = Array.from(new Map(matchedProducts.map(p => [p.id, p])).values());
+
+  // If we found matches, return them (max 30 products)
+  if (uniqueProducts.length > 0) {
+    console.log(`📦 Product filter: Found ${uniqueProducts.length} matching products for query`);
+    return uniqueProducts.slice(0, 30);
+  }
+
+  // If no specific matches, return top products with images (bestsellers fallback)
+  const productsWithImages = products.filter(p =>
+    p.image && p.image !== 'IMAGE_URL_HERE' && !p.image.includes('facebook.com') && p.image.startsWith('http')
+  );
+
+  console.log(`📦 Product filter: No specific match, returning ${Math.min(productsWithImages.length, 20)} bestsellers`);
+  return productsWithImages.slice(0, 20);
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
@@ -71,7 +159,7 @@ const openai = new OpenAI({
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN || "";
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "your_verify_token_123";
 
-const MAX_HISTORY_LENGTH = 10; // Keep last 10 messages per user
+const MAX_HISTORY_LENGTH = 20; // Keep last 20 exchanges (40 messages) per user
 
 type ConversationData = {
   senderId: string;
@@ -136,8 +224,10 @@ async function saveMessageAndQueue(event: any): Promise<void> {
         const base64Image = await facebookImageToBase64(attachment.payload.url);
 
         if (base64Image) {
+          // OPTIMIZATION: Store placeholder for history, but keep base64 for current message processing
+          // This reduces token cost by ~50% since images won't be re-sent with history
           contentParts.push({ type: "image_url", image_url: { url: base64Image } });
-          console.log(`✅ Image converted to base64`);
+          console.log(`✅ Image converted to base64 (will store placeholder in history)`);
         } else {
           console.warn(`⚠️ Failed to convert image`);
           if (!messageText) {
@@ -165,10 +255,30 @@ async function saveMessageAndQueue(event: any): Promise<void> {
   // Load conversation
   const conversationData = await loadConversation(senderId);
 
-  // Add user message to history
+  // OPTIMIZATION: Store text placeholder instead of base64 images in history
+  // This reduces token cost by ~50% since old images won't be re-sent to OpenAI
+  let contentForHistory: MessageContent;
+  if (Array.isArray(userContent)) {
+    // Replace base64 images with text placeholder
+    contentForHistory = userContent.map(part => {
+      if (part.type === 'image_url' && part.image_url?.url?.startsWith('data:')) {
+        return { type: 'text' as const, text: '[Image analyzed by AI]' };
+      }
+      return part;
+    });
+    // Simplify if only text parts remain
+    const textParts = contentForHistory.filter(p => p.type === 'text');
+    if (textParts.length === 1 && contentForHistory.length === 1) {
+      contentForHistory = (textParts[0] as { type: 'text'; text: string }).text;
+    }
+  } else {
+    contentForHistory = userContent;
+  }
+
+  // Add user message to history (with placeholder for images)
   conversationData.history.push({
     role: "user",
-    content: userContent
+    content: contentForHistory
   });
 
   // Trim history if too long
@@ -187,33 +297,33 @@ async function saveMessageAndQueue(event: any): Promise<void> {
 
   // ==================== QUEUE TO QSTASH ====================
   if (!process.env.QSTASH_TOKEN) {
-    console.warn(`⚠️ QSTASH_TOKEN not configured - falling back to synchronous processing`);
-    // Fallback: process synchronously if QStash not configured
-    await processMessagingEvent(event);
+    console.error(`❌ QSTASH_TOKEN not configured - message will not be processed`);
     return;
   }
 
   try {
     const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN });
 
-    const callbackUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/process-message`
-      : 'https://bebias-venera-chatbot.vercel.app/api/process-message';
+    // Always use production URL - VERCEL_URL contains deployment-specific URL which breaks after redeploy
+    const callbackUrl = 'https://bebias-venera-chatbot.vercel.app/api/process-message';
 
     await qstash.publishJSON({
       url: callbackUrl,
       body: {
         senderId,
         messageId
-      }
+      },
+      // Disable retries - prevents duplicate OpenAI API calls if request takes too long
+      retries: 0,
+      // QStash built-in deduplication - if Facebook sends same webhook twice,
+      // QStash will ignore the duplicate within the deduplication window
+      deduplicationId: messageId
     });
 
     console.log(`✅ Message queued to QStash for ${senderId}`);
   } catch (error: any) {
     console.error(`❌ Failed to queue message to QStash:`, error.message);
-    // Fallback: process synchronously if QStash fails
-    console.warn(`⚠️ Falling back to synchronous processing`);
-    await processMessagingEvent(event);
+    // No fallback - message saved to Firestore, can be reprocessed manually if needed
   }
 }
 
@@ -1035,13 +1145,22 @@ async function getAIResponse(userMessage: MessageContent, history: Message[] = [
 
     const contactInfo = contactInfoStr ? JSON.parse(contactInfoStr) : null;
 
-    // Build product catalog for AI context - show all products
-    const productContext = products
+    // OPTIMIZATION: Filter products based on user query to reduce token usage
+    // Instead of sending all 76k chars (~50k tokens), send only relevant products
+    const filteredProducts = filterProductsByQuery(products, userText);
+
+    // Build product catalog for AI context - filtered products only
+    const productContext = filteredProducts
       .map((p) => {
         const hasImage = p.image && p.image !== 'IMAGE_URL_HERE' && !p.image.includes('facebook.com') && p.image.startsWith('http');
         return `${p.name} (ID: ${p.id}) - Price: ${p.price} ${p.currency || ""}, Stock: ${p.stock}, Category: ${p.category || "N/A"}${hasImage ? ' [HAS_IMAGE]' : ''}`;
       })
       .join("\n");
+
+    // Add note if showing filtered results
+    const productNote = filteredProducts.length < products.length
+      ? `\n\n(Showing ${filteredProducts.length} relevant products. Ask customer to specify if they need something else.)`
+      : '';
 
     // Get current date/time in Georgia timezone (GMT+4)
     const now = new Date();
@@ -1079,8 +1198,8 @@ ${content.delivery}
 # Payment Information
 ${content.payment}
 
-# Product Catalog
-${productContext}
+# Product Catalog (Filtered for this query)
+${productContext}${productNote}
 
 # Current Date and Time
 Georgia Time (GMT+4): ${georgiaTime}
@@ -1186,8 +1305,8 @@ ${content.delivery}
 # Payment Information
 ${content.payment}
 
-# Product Catalog
-${productContext}
+# Product Catalog (Filtered for this query)
+${productContext}${productNote}
 
 # Current Date and Time
 Georgia Time (GMT+4): ${georgiaTime}
