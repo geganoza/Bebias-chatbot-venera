@@ -441,22 +441,30 @@ async function handler(req: Request) {
 
     console.log(`🚀 [QStash] Processing message ${messageId} for user ${senderId}`);
 
-    // ==================== DEDUPLICATION CHECK ====================
-    // Check if message was already responded to (prevents duplicate OpenAI calls)
-    // This is a safety net in case QStash's deduplication fails
+    // ==================== ATOMIC DEDUPLICATION LOCK ====================
+    // Use Firestore create() to atomically acquire a processing lock.
+    // If another request already created the doc, create() throws an error.
+    // This prevents race conditions where two requests check simultaneously.
     if (messageId) {
       try {
-        const respondedDoc = await db.collection('respondedMessages').doc(messageId).get();
-        if (respondedDoc.exists) {
-          const respondedAt = respondedDoc.data()?.respondedAt;
-          console.log(`⏭️ [QStash] Message ${messageId} already responded at ${respondedAt} - skipping`);
+        const lockRef = db.collection('processingLocks').doc(messageId);
+        await lockRef.create({
+          lockedAt: new Date().toISOString(),
+          senderId,
+        });
+        console.log(`🔒 [QStash] Acquired lock for message ${messageId}`);
+      } catch (error: unknown) {
+        // If create() fails, another request already has the lock
+        const firestoreError = error as { code?: number };
+        if (firestoreError.code === 6) { // ALREADY_EXISTS
+          console.log(`⏭️ [QStash] Message ${messageId} already being processed - skipping`);
           return NextResponse.json({
-            status: 'already_responded',
-            respondedAt
+            status: 'already_processing',
+            messageId
           }, { status: 200 });
         }
-      } catch (error) {
-        console.warn(`⚠️ Could not check respondedMessages - continuing anyway`);
+        // For other errors, log and continue (fail open)
+        console.warn(`⚠️ Lock acquisition failed with unexpected error - continuing anyway:`, error);
       }
     }
 
