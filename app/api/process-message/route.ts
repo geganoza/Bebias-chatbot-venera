@@ -441,8 +441,24 @@ async function handler(req: Request) {
 
     console.log(`🚀 [QStash] Processing message ${messageId} for user ${senderId}`);
 
-    // NOTE: Deduplication is handled by QStash's built-in deduplicationId
-    // (set in messenger/route.ts when publishing). No Firestore needed here.
+    // ==================== DEDUPLICATION CHECK ====================
+    // Check if message was already responded to (prevents duplicate OpenAI calls)
+    // This is a safety net in case QStash's deduplication fails
+    if (messageId) {
+      try {
+        const respondedDoc = await db.collection('respondedMessages').doc(messageId).get();
+        if (respondedDoc.exists) {
+          const respondedAt = respondedDoc.data()?.respondedAt;
+          console.log(`⏭️ [QStash] Message ${messageId} already responded at ${respondedAt} - skipping`);
+          return NextResponse.json({
+            status: 'already_responded',
+            respondedAt
+          }, { status: 200 });
+        }
+      } catch (error) {
+        console.warn(`⚠️ Could not check respondedMessages - continuing anyway`);
+      }
+    }
 
     // ==================== SAFETY CHECKS ====================
 
