@@ -2,6 +2,7 @@ import { createTransport } from 'nodemailer';
 
 export interface OrderData {
   product: string;
+  quantity: string;
   clientName: string;
   telephone: string;
   address: string;
@@ -45,6 +46,10 @@ export async function sendOrderEmail(orderData: OrderData, orderNumber?: string)
                 <td style="padding: 8px 0;">${orderData.product}</td>
               </tr>
               <tr>
+                <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">რაოდენობა:</td>
+                <td style="padding: 8px 0;">${orderData.quantity}</td>
+              </tr>
+              <tr>
                 <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">კლიენტის სახელი:</td>
                 <td style="padding: 8px 0;">${orderData.clientName}</td>
               </tr>
@@ -72,6 +77,7 @@ export async function sendOrderEmail(orderData: OrderData, orderNumber?: string)
 ${orderNumber ? `\nშეკვეთის ნომერი: #${orderNumber}` : ''}
 
 პროდუქტი: ${orderData.product}
+რაოდენობა: ${orderData.quantity}
 კლიენტის სახელი: ${orderData.clientName}
 ტელეფონი: ${orderData.telephone}
 მისამართი: ${orderData.address}
@@ -92,17 +98,73 @@ ${orderNumber ? `\nშეკვეთის ნომერი: #${orderNumber}`
 
 // Helper function to parse ORDER_NOTIFICATION format from bot response
 export function parseOrderNotification(text: string): OrderData | null {
-  const match = text.match(/ORDER_NOTIFICATION:[\s\S]*?Product:\s*(.+?)\s*Client Name:\s*(.+?)\s*Telephone:\s*(.+?)\s*Address:\s*(.+?)\s*Total:\s*(.+?)(?:\s|$)/);
+  console.log(`🔍 parseOrderNotification called, text length: ${text.length}`);
 
-  if (match) {
+  // Check if ORDER_NOTIFICATION marker exists
+  if (!text.includes('ORDER_NOTIFICATION')) {
+    console.log('❌ No ORDER_NOTIFICATION marker found');
+    return null;
+  }
+
+  // Extract the block after ORDER_NOTIFICATION
+  const notifIndex = text.indexOf('ORDER_NOTIFICATION');
+  const orderBlock = text.substring(notifIndex);
+  console.log(`🔍 ORDER_NOTIFICATION block (first 400 chars): ${orderBlock.substring(0, 400)}`);
+
+  // FLEXIBLE FIELD EXTRACTION - handles both English and Georgian field names
+  // Extract each field independently to handle mixed formats
+
+  // Product: English or Georgian
+  const productMatch = orderBlock.match(/(?:Product|პროდუქტი):\s*(.+?)(?:\n|$)/i);
+
+  // Client Name: various formats
+  const clientNameMatch = orderBlock.match(/(?:Client Name|კლიენტის სახელი|გაყიდვის სახელი|სახელი|Name):\s*(.+?)(?:\n|$)/i);
+
+  // Telephone: English or Georgian
+  const telephoneMatch = orderBlock.match(/(?:Telephone|Phone|ტელეფონი):\s*(.+?)(?:\n|$)/i);
+
+  // Address: English or Georgian
+  const addressMatch = orderBlock.match(/(?:Address|მისამართი):\s*(.+?)(?:\n|$)/i);
+
+  // Total: English or Georgian (capture up to newline or ლარი or end)
+  const totalMatch = orderBlock.match(/(?:Total|ჯამი|თანხა):\s*(.+?)(?:\n|$)/i);
+
+  console.log(`🔍 Field extraction results:`);
+  console.log(`   Product: ${productMatch ? 'FOUND' : 'MISSING'}`);
+  console.log(`   Client Name: ${clientNameMatch ? 'FOUND' : 'MISSING'}`);
+  console.log(`   Telephone: ${telephoneMatch ? 'FOUND' : 'MISSING'}`);
+  console.log(`   Address: ${addressMatch ? 'FOUND' : 'MISSING'}`);
+  console.log(`   Total: ${totalMatch ? 'FOUND' : 'MISSING'}`);
+
+  // All fields are required
+  if (productMatch && clientNameMatch && telephoneMatch && addressMatch && totalMatch) {
+    const result = {
+      product: productMatch[1].trim(),
+      quantity: '1',
+      clientName: clientNameMatch[1].trim(),
+      telephone: telephoneMatch[1].trim().replace(/\s/g, ''),
+      address: addressMatch[1].trim(),
+      total: totalMatch[1].trim(),
+    };
+    console.log('✅ Parsed ORDER_NOTIFICATION successfully (flexible extraction)');
+    console.log(`📦 Order: ${result.product}, ${result.clientName}, ${result.telephone}`);
+    return result;
+  }
+
+  // Fallback: try to parse comma-separated format that AI sometimes uses
+  const fallbackMatch = text.match(/ORDER_NOTIFICATION:\s*([^,]+),\s*(\d+)\s*ლარი?,\s*([^,]+),\s*([\d+\s]+),\s*(.+?)(?:\n|$)/);
+  if (fallbackMatch) {
+    console.log('⚠️ Parsed ORDER_NOTIFICATION in fallback comma format');
     return {
-      product: match[1].trim(),
-      clientName: match[2].trim(),
-      telephone: match[3].trim(),
-      address: match[4].trim(),
-      total: match[5].trim(),
+      product: fallbackMatch[1].trim(),
+      quantity: '1',
+      clientName: fallbackMatch[3].trim(),
+      telephone: fallbackMatch[4].trim().replace(/\s/g, ''),
+      address: fallbackMatch[5].trim(),
+      total: fallbackMatch[2].trim() + ' ლარი',
     };
   }
 
+  console.log('❌ Could not parse ORDER_NOTIFICATION - missing required fields');
   return null;
 }

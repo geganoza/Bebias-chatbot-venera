@@ -4,6 +4,8 @@ import OpenAI from "openai";
 import { db } from "@/lib/firestore";
 import fs from "fs";
 import path from "path";
+import { sendOrderEmail, parseOrderNotification } from "@/lib/sendOrderEmail";
+import { logOrder } from "@/lib/orderLoggerWithFirestore";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -44,6 +46,174 @@ async function loadProducts(): Promise<Product[]> {
     console.error('❌ Error loading products:', error);
     return [];
   }
+}
+
+/**
+ * Search orders by name, phone, or order number
+ * Returns matching orders for order inquiry context
+ */
+async function searchOrders(query: string): Promise<string> {
+  try {
+    const normalizedQuery = query.toLowerCase().trim();
+    console.log('🔍 searchOrders called with:', query, '(normalized:', normalizedQuery, ')');
+
+    // Get all orders (no orderBy to avoid issues with missing/mixed timestamp formats)
+    const snapshot = await db.collection('orders')
+      .limit(100)
+      .get();
+
+    if (snapshot.empty) {
+      return 'ბოლო შეკვეთები ვერ მოიძებნა.';
+    }
+
+    // Search for matches
+    const matches: any[] = [];
+    console.log(`📊 Checking ${snapshot.size} orders for matches...`);
+    snapshot.forEach(doc => {
+      const order = doc.data();
+      const clientName = (order.clientName || '').toLowerCase();
+      const telephone = order.telephone || '';
+      const orderNumber = doc.id;
+      const trackingNumber = order.trackingNumber || '';
+
+      // Debug: log orders with tracking numbers
+      if (trackingNumber) {
+        console.log(`  Order ${orderNumber} has tracking: ${trackingNumber}`);
+      }
+
+      // Match by name, phone, order number, or tracking number
+      if (clientName.includes(normalizedQuery) ||
+          telephone.includes(normalizedQuery) ||
+          orderNumber.includes(normalizedQuery) ||
+          trackingNumber.includes(normalizedQuery) ||
+          normalizedQuery.includes(clientName) ||
+          normalizedQuery.includes(telephone) ||
+          normalizedQuery.includes(trackingNumber)) {
+        matches.push({
+          orderNumber,
+          clientName: order.clientName,
+          telephone: order.telephone,
+          product: order.product,
+          total: order.total,
+          address: order.address,
+          timestamp: order.timestamp,
+          paymentStatus: order.paymentStatus,
+          paymentMethod: order.paymentMethod,
+          // Shipping fields from warehouse app
+          shippingStatus: order.shippingStatus,
+          trackingNumber: order.trackingNumber,
+          trackingsOrderId: order.trackingsOrderId,
+          shippingCompany: order.shippingCompany,
+          trackingsStatusCode: order.trackingsStatusCode,
+          trackingsStatusText: order.trackingsStatusText,
+          shippingUpdatedAt: order.shippingUpdatedAt
+        });
+      }
+    });
+
+    if (matches.length === 0) {
+      return `"${query}" სახელით ან ნომრით შეკვეთა ვერ მოიძებნა ბოლო 50 შეკვეთაში.`;
+    }
+
+    // Format matches for bot context - read status from DB only (synced from warehouse app)
+    const formattedOrders = matches.map((o) => {
+      const paymentStatus = o.paymentStatus === 'confirmed' ? '✅ დადასტურებული' :
+                            o.paymentStatus === 'pending' ? '⏳ მოლოდინში' : '❌ გაუქმებული';
+
+      // Trackings.ge status codes translated to Georgian
+      const trackingsStatusMap: Record<string, string> = {
+        'CREATE': '📋 შეკვეთა შექმნილია',
+        'ASSIGN_TO_PICKUP': '📦 მიენიჭა კურიერს',
+        'Pickup in Progress': '🚗 კურიერი მიდის ასაღებად',
+        'Shipment Picked Up': '✅ აიღო კურიერმა',
+        'Label Created': '🏷️ ლეიბლი შექმნილია',
+        'OFD': '🚚 კურიერი გამოსულია ჩასაბარებლად',
+        'DELIVERED': '✅ ჩაბარებულია',
+        'CANCELLED': '❌ გაუქმებულია',
+        'RETURNED': '↩️ დაბრუნებულია'
+      };
+
+      // Basic shipping status (before trackings.ge)
+      const basicStatusMap: Record<string, string> = {
+        'pending': '📋 მზადდება',
+        'processing': '🔄 მუშავდება',
+        'packed': '📦 შეფუთულია',
+        'shipped': '🚚 გაგზავნილია კურიერთან',
+        'delivered': '✅ ჩაბარებულია',
+        'cancelled': '❌ გაუქმებულია'
+      };
+
+      // Get shipping status - prefer trackings.ge status if available
+      let shippingStatus = '📋 მზადდება';
+      if (o.trackingsStatusCode) {
+        shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
+      } else if (o.shippingStatus) {
+        shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
+      }
+
+      // Tracking info
+      let trackingInfo = '';
+      if (o.trackingNumber) {
+        trackingInfo = `\n  ტრეკინგი: ${o.trackingNumber}`;
+        if (o.shippingCompany) {
+          trackingInfo += ` (${o.shippingCompany})`;
+        }
+      }
+
+      const date = new Date(o.timestamp).toLocaleDateString('ka-GE');
+
+      return `შეკვეთა #${o.orderNumber} (${date})
+  სახელი: ${o.clientName}
+  ტელეფონი: ${o.telephone}
+  პროდუქტი: ${o.product}
+  ჯამი: ${o.total}
+  მისამართი: ${o.address}
+  გადახდა: ${paymentStatus}
+  მიწოდება: ${shippingStatus}${trackingInfo}`;
+    });
+
+    return formattedOrders.join('\n\n');
+  } catch (error) {
+    console.error('Error searching orders:', error);
+    return 'შეკვეთების ძებნა ვერ მოხერხდა.';
+  }
+}
+
+/**
+ * Extract potential search terms from user message (names, phones, order numbers, tracking codes)
+ */
+function extractSearchTerms(message: string): string[] {
+  const terms: string[] = [];
+
+  // Extract Georgian names (capitalized words)
+  const nameMatches = message.match(/[ა-ჰ][ა-ჰ]+/g);
+  if (nameMatches) {
+    terms.push(...nameMatches.filter(n => n.length > 2));
+  }
+
+  // Extract tracking numbers (15 digits - trackings.ge format)
+  const trackingMatches = message.match(/\d{15}/g);
+  if (trackingMatches) {
+    terms.push(...trackingMatches);
+  }
+
+  // Extract phone numbers (9 digits)
+  const phoneMatches = message.match(/\d{9}/g);
+  if (phoneMatches) {
+    // Don't add if it's part of a tracking number
+    const filteredPhones = phoneMatches.filter(p => !trackingMatches?.some(t => t.includes(p)));
+    terms.push(...filteredPhones);
+  }
+
+  // Extract order numbers (900XXX pattern)
+  const orderMatches = message.match(/9\d{5}/g);
+  if (orderMatches) {
+    // Don't add if it's part of a tracking number
+    const filteredOrders = orderMatches.filter(o => !trackingMatches?.some(t => t.includes(o)));
+    terms.push(...filteredOrders);
+  }
+
+  return [...new Set(terms)]; // Remove duplicates
 }
 
 /**
@@ -232,12 +402,12 @@ function trimConversationHistory(history: any[]): any[] {
 }
 
 // ==================== SAFETY CONFIGURATION ====================
-// AGGRESSIVE LIMITS to prevent cost overruns
+// Relaxed limits for production use
 const SAFETY_LIMITS = {
-  MAX_MESSAGES_PER_USER_PER_HOUR: 20,      // Max 20 messages per user per hour (was 100)
-  MAX_MESSAGES_PER_USER_PER_DAY: 50,       // Max 50 messages per user per day (was 300)
-  MAX_TOTAL_MESSAGES_PER_HOUR: 100,        // Max 100 total messages per hour (all users, was 500)
-  CIRCUIT_BREAKER_THRESHOLD: 30,           // Circuit breaker trips after 30 messages in 10 min (was 100)
+  MAX_MESSAGES_PER_USER_PER_HOUR: 100,     // Max 100 messages per user per hour
+  MAX_MESSAGES_PER_USER_PER_DAY: 300,      // Max 300 messages per user per day
+  MAX_TOTAL_MESSAGES_PER_HOUR: 500,        // Max 500 total messages per hour (all users)
+  CIRCUIT_BREAKER_THRESHOLD: 100,          // Circuit breaker trips after 100 messages in 10 min
   CIRCUIT_BREAKER_WINDOW_MS: 10 * 60 * 1000, // 10 minutes
 };
 
@@ -408,7 +578,7 @@ async function saveConversation(userId: string, data: any) {
   }
 }
 
-async function sendMessage(recipientId: string, messageText: string) {
+async function sendSingleMessage(recipientId: string, messageText: string) {
   const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
 
   const response = await fetch(url, {
@@ -428,6 +598,85 @@ async function sendMessage(recipientId: string, messageText: string) {
   return response.json();
 }
 
+/**
+ * Split message into natural chunks for human-like conversation
+ * - Splits on double newlines (paragraphs)
+ * - Each paragraph becomes its own message (more human-like)
+ * - Adds small delay between chunks for natural feel
+ */
+function splitIntoChunks(text: string): string[] {
+  // Don't chunk very short messages
+  if (text.length < 80) {
+    return [text];
+  }
+
+  // Split by double newlines (paragraphs)
+  const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+
+  // If only 1 paragraph, no chunking
+  if (paragraphs.length <= 1) {
+    return [text];
+  }
+
+  // Each paragraph becomes its own chunk (more natural)
+  const chunks = paragraphs.map(p => p.trim()).filter(p => p.length > 0);
+
+  console.log(`📝 Split message into ${chunks.length} chunks`);
+  return chunks;
+}
+
+/**
+ * Send message with chunking - splits long messages into multiple parts
+ * for more natural conversation flow
+ */
+async function sendMessage(recipientId: string, messageText: string) {
+  const chunks = splitIntoChunks(messageText);
+
+  for (let i = 0; i < chunks.length; i++) {
+    await sendSingleMessage(recipientId, chunks[i]);
+
+    // Add small delay between chunks (except after last one)
+    if (i < chunks.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
+    }
+  }
+
+  return { chunked: chunks.length > 1, chunks: chunks.length };
+}
+
+// Log bot message to metaMessages collection for Control Panel display
+async function logMetaMessage(userId: string, senderType: 'bot' | 'human', text: string): Promise<void> {
+  try {
+    const docRef = db.collection('metaMessages').doc(userId);
+    const doc = await docRef.get();
+
+    const message = {
+      id: `bot_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      senderId: 'VENERA_BOT',
+      senderType,
+      text,
+      timestamp: new Date().toISOString()
+    };
+
+    if (doc.exists) {
+      const data = doc.data();
+      const messages = data?.messages || [];
+      messages.push(message);
+      // Keep last 100 messages
+      const trimmedMessages = messages.slice(-100);
+      await docRef.update({ messages: trimmedMessages });
+    } else {
+      await docRef.set({
+        userId,
+        messages: [message]
+      });
+    }
+  } catch (error) {
+    console.error(`⚠️ Failed to log meta message for ${userId}:`, error);
+    // Don't throw - this is non-critical
+  }
+}
+
 // ==================== MAIN HANDLER ====================
 
 async function handler(req: Request) {
@@ -436,8 +685,11 @@ async function handler(req: Request) {
 
   try {
     const body = await req.json();
-    const { senderId, messageId } = body;
+    const { senderId, messageId, originalContent } = body;
     userId = senderId;
+
+    // originalContent contains the actual message with images (not placeholders)
+    // This is passed from messenger route because history stores image placeholders
 
     console.log(`🚀 [QStash] Processing message ${messageId} for user ${senderId}`);
 
@@ -470,7 +722,7 @@ async function handler(req: Request) {
 
     // ==================== SAFETY CHECKS ====================
 
-    // 1. Check kill switch
+    // 1. Check kill switch FIRST (no messages sent when active)
     const killSwitch = await checkKillSwitch();
     if (killSwitch.active) {
       console.log(`🛑 Kill switch active: ${killSwitch.reason}`);
@@ -481,17 +733,51 @@ async function handler(req: Request) {
       }, { status: 503 });
     }
 
-    // 2. Check rate limits
+    // 2. Check KILL SWITCH and GLOBAL BOT PAUSE (no messages sent when stopped)
+    let globalBotPaused = false;
+    let killSwitchActive = false;
+    try {
+      const settingsDoc = await db.collection('botSettings').doc('global').get();
+      if (settingsDoc.exists) {
+        const data = settingsDoc.data();
+        globalBotPaused = data?.paused === true;
+        killSwitchActive = data?.killSwitch === true;
+      }
+    } catch (error) {
+      console.warn(`Could not check bot status - continuing anyway`);
+    }
+
+    // Kill switch takes priority - emergency stop
+    if (killSwitchActive) {
+      console.log(`KILL SWITCH ACTIVE - All processing halted`);
+      await logQStashUsage(senderId, true, 'Kill switch active - emergency stop');
+      return NextResponse.json({
+        status: 'kill_switch',
+        message: 'Kill switch is active - emergency stop'
+      });
+    }
+
+    if (globalBotPaused) {
+      console.log(`GLOBAL BOT PAUSE ACTIVE`);
+      console.log(`   Message stored but bot is globally paused - NO response sent`);
+      await logQStashUsage(senderId, true, 'Bot globally paused - skipped processing');
+      return NextResponse.json({
+        status: 'bot_paused',
+        message: 'Bot is globally paused'
+      });
+    }
+
+    // 3. Check rate limits (only checked if bot is NOT paused)
     const rateLimit = await checkRateLimits(senderId);
     if (!rateLimit.allowed) {
       console.log(`⚠️ Rate limit exceeded: ${rateLimit.reason}`);
       await logQStashUsage(senderId, false, `Rate limit: ${rateLimit.reason}`);
 
       // Send user-friendly message
-      await sendMessage(senderId,
-        "თქვენ მიაღწიეთ შეტყობინებების ლიმიტს. გთხოვთ, სცადოთ მოგვიანებით. 🙏\n\n" +
-        "You've reached the message limit. Please try again later. 🙏"
-      );
+      const rateLimitMsg = "თქვენ მიაღწიეთ შეტყობინებების ლიმიტს. გთხოვთ, სცადოთ მოგვიანებით. 🙏\n\n" +
+        "You've reached the message limit. Please try again later. 🙏";
+      await sendMessage(senderId, rateLimitMsg);
+      await logMetaMessage(senderId, 'bot', rateLimitMsg);
 
       return NextResponse.json({
         status: 'rate_limited',
@@ -499,7 +785,7 @@ async function handler(req: Request) {
       }, { status: 429 });
     }
 
-    // 3. Check circuit breaker
+    // 4. Check circuit breaker
     const circuitBreaker = await checkCircuitBreaker();
     if (circuitBreaker.tripped) {
       console.log(`🔥 Circuit breaker tripped: ${circuitBreaker.reason}`);
@@ -517,28 +803,6 @@ async function handler(req: Request) {
     // Load conversation
     const conversationData = await loadConversation(senderId);
 
-    // ==================== GLOBAL BOT PAUSE CHECK ====================
-    // Check if bot is globally paused (affects all conversations)
-    let globalBotPaused = false;
-    try {
-      const settingsDoc = await db.collection('botSettings').doc('global').get();
-      if (settingsDoc.exists) {
-        globalBotPaused = settingsDoc.data()?.paused === true;
-      }
-    } catch (error) {
-      console.warn(`⚠️ Could not check bot pause status - continuing anyway`);
-    }
-
-    if (globalBotPaused) {
-      console.log(`⏸️ GLOBAL BOT PAUSE ACTIVE`);
-      console.log(`   Message stored but bot is globally paused`);
-      await logQStashUsage(senderId, true, 'Bot globally paused - skipped processing');
-      return NextResponse.json({
-        status: 'bot_paused',
-        message: 'Bot is globally paused'
-      });
-    }
-
     // ==================== MANUAL MODE CHECK ====================
     // If conversation is in manual mode, operator is handling responses
     // Do not send automated bot response
@@ -553,20 +817,25 @@ async function handler(req: Request) {
     }
 
     // Get last message from history (the one that triggered this processing)
-    const lastMessage = conversationData.history[conversationData.history.length - 1];
+    const lastMessageFromHistory = conversationData.history[conversationData.history.length - 1];
 
-    if (!lastMessage || lastMessage.role !== 'user') {
+    if (!lastMessageFromHistory || lastMessageFromHistory.role !== 'user') {
       throw new Error('No user message found to process');
     }
 
-    console.log(`📝 Processing message: "${typeof lastMessage.content === 'string' ? lastMessage.content.substring(0, 50) : 'image'}"...`);
+    // Use originalContent if provided (has actual images), otherwise fall back to history
+    // History has images replaced with placeholders to save tokens on future calls
+    const lastMessageContent = originalContent || lastMessageFromHistory.content;
+    const lastMessage = { ...lastMessageFromHistory, content: lastMessageContent };
+
+    console.log(`📝 Processing message: "${typeof lastMessage.content === 'string' ? lastMessage.content.substring(0, 50) : 'image/multipart'}"...`);
 
     // Extract user message text for product filtering
     let userMessageText = '';
     if (typeof lastMessage.content === 'string') {
       userMessageText = lastMessage.content;
     } else if (Array.isArray(lastMessage.content)) {
-      const textPart = lastMessage.content.find(c => c.type === 'text');
+      const textPart = lastMessage.content.find((c: any) => c.type === 'text');
       userMessageText = textPart?.text || '';
     }
 
@@ -599,6 +868,7 @@ async function handler(req: Request) {
       contact: /კონტაქტ|მისამართ|address|phone|ტელეფონ|სად ხართ|location|საათ|სამუშაო/.test(msg),
       services: /სერვის|მომსახურება|service|რემონტ|შეკეთება/.test(msg),
       product: /ქუდ|წინდ|შარფ|ხელთათმან|პროდუქტ|product|price|ფას|რა ღირს|რამდენ/.test(msg),
+      orderInquiry: /შეკვეთა.*გაკეთებ|შეკვეთა.*აქვს|შეკვეთა.*ჰქონდ|გაგზავნეთ|გაუგზავნეთ|გაიგზავნა|order.*status|my order|ჩემი შეკვეთა|შეკვეთის სტატუს|შეკვეთა.*შემოწმ|შეკვეთა.*სად არის|თრექინგ|tracking|\d{15}/.test(msg),
     };
 
     // Always load core files
@@ -608,7 +878,8 @@ async function handler(req: Request) {
     // Conditionally load topic-specific files
     const imageHandling = hasImage ? loadContentFile('image-handling.md') : '';
     const productRecognition = (topics.product || hasImage) ? loadContentFile('product-recognition.md') : '';
-    const purchaseFlow = topics.purchase ? loadContentFile('purchase-flow.md') : '';
+    // ALWAYS load purchase-flow.md - needed throughout purchase conversation (has bank accounts, steps)
+    const purchaseFlow = loadContentFile('purchase-flow.md');
     const deliveryCalculation = topics.delivery ? loadContentFile('delivery-calculation.md') : '';
     const contactPolicies = topics.contact ? loadContentFile('contact-policies.md') : '';
     const services = topics.services ? loadContentFile('services.md') : '';
@@ -619,6 +890,36 @@ async function handler(req: Request) {
     // Log which topics were detected
     const detectedTopics = Object.entries(topics).filter(([_, v]) => v).map(([k]) => k);
     console.log(`📚 Topics detected: ${detectedTopics.length > 0 ? detectedTopics.join(', ') : 'general'}, hasImage: ${hasImage}`);
+
+    // Order lookup when customer asks about existing orders
+    let orderContext = '';
+    if (topics.orderInquiry) {
+      console.log('🔍 Order inquiry detected, searching orders...');
+      console.log('📝 User message:', userMessageText);
+      const searchTerms = extractSearchTerms(userMessageText);
+      console.log('🔎 Extracted search terms:', searchTerms);
+
+      if (searchTerms.length > 0) {
+        // Search for each extracted term
+        const searchResults: string[] = [];
+        for (const term of searchTerms.slice(0, 3)) { // Limit to 3 terms
+          const result = await searchOrders(term);
+          if (!result.includes('ვერ მოიძებნა')) {
+            searchResults.push(result);
+          }
+        }
+        if (searchResults.length > 0) {
+          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer is asking about existing order(s). Here's what I found:\n\n${searchResults.join('\n\n---\n\n')}\n\nUse this information to help the customer. You can confirm order status, what was ordered, if it was shipped, etc.`;
+          console.log(`✅ Found ${searchResults.length} order matches`);
+        } else {
+          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer asked about orders but no matches found for: ${searchTerms.join(', ')}\nAsk customer for more details: order number, name, or phone number to look up their order.`;
+          console.log('❌ No orders found for search terms:', searchTerms);
+        }
+      } else {
+        orderContext = `\n## 📦 ORDER INQUIRY DETECTED\nCustomer seems to be asking about an existing order but didn't provide specific details.\nAsk them for: order number (like #900032), name (სახელი), or phone number (ტელეფონი) to look up their order.`;
+        console.log('⚠️ Order inquiry but no search terms extracted');
+      }
+    }
 
     // Build system prompt with only relevant context
     const systemPrompt = `${instructions}
@@ -633,13 +934,16 @@ ${services ? `\n## SERVICES\n${services}` : ''}
 ${faqs ? `\n## FREQUENTLY ASKED QUESTIONS\n${faqs}` : ''}
 ${delivery ? `\n## DELIVERY PRICING\n${delivery}` : ''}
 ${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}
+${orderContext}
 
 ## CRITICAL: ALWAYS SEND PRODUCT IMAGES
 When you mention or discuss ANY product that has [HAS_IMAGE] marker, you MUST include this at the END of your response:
-SEND_IMAGE: PRODUCT_ID_HERE
+SEND_IMAGE: PRODUCT_ID
 
-Example: If discussing "მწვანე ბამბის მოკლე ქუდი (ID: H-SHORT-COT-GREEN)" which has [HAS_IMAGE], end with:
-SEND_IMAGE: H-SHORT-COT-GREEN
+Example: If the catalog shows "შავი ბამბის მოკლე ქუდი (ID: 9016) [HAS_IMAGE]", end with:
+SEND_IMAGE: 9016
+
+IMPORTANT: Use the EXACT numeric ID shown in parentheses (ID: XXXX) from the product catalog!
 
 NEVER skip the image command when discussing a product with an image!
 NEVER mention "SEND_IMAGE" text to the customer - it's a hidden command.
@@ -647,11 +951,49 @@ NEVER mention "SEND_IMAGE" text to the customer - it's a hidden command.
 ## PRODUCT CATALOG (Filtered for this query)
 ${productContext}${productNote}
 
-REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentioned that has [HAS_IMAGE]!`.trim();
+REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentioned that has [HAS_IMAGE]!
+
+## ⚠️ CRITICAL: ORDER CONFIRMATION RULES ⚠️
+When confirming an order after payment is received:
+1. NEVER make up order numbers like "900001", "900004" etc.
+2. ALWAYS use the placeholder [ORDER_NUMBER] - the system will replace it automatically
+3. ALWAYS include the ORDER_NOTIFICATION: block at the END of your response
+
+**REQUIRED FORMAT for order confirmation:**
+\`\`\`
+მადლობა! შეკვეთა მიღებულია.
+
+🎫 შეკვეთის ნომერი: [ORDER_NUMBER]
+
+პროდუქტი: [product name]
+ჯამი: [amount] ლარი
+მისამართი: [address]
+
+მალე დაგიკავშირდებით!
+
+ORDER_NOTIFICATION:
+Product: [Georgian product name]
+Client Name: [customer name]
+Telephone: [phone]
+Address: [address]
+Total: [amount] ლარი
+\`\`\`
+
+WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be sent!`.trim();
 
     // Prepare messages for OpenAI - trim history to reduce tokens
     const trimmedHistory = trimConversationHistory(conversationData.history);
     console.log(`📊 History: ${conversationData.history.length} messages -> ${trimmedHistory.length} after trim`);
+
+    // Replace the last message in history with originalContent (has actual images, not placeholders)
+    // This is critical for image recognition to work
+    if (trimmedHistory.length > 0 && originalContent) {
+      trimmedHistory[trimmedHistory.length - 1] = {
+        ...trimmedHistory[trimmedHistory.length - 1],
+        content: originalContent
+      };
+      console.log(`🖼️ Replaced last message with originalContent (has actual image data)`);
+    }
 
     const messages = [
       { role: 'system' as const, content: systemPrompt },
@@ -706,10 +1048,167 @@ REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentio
       }
     }
 
+    // ==================== STEP 7: ORDER NOTIFICATION HANDLING ====================
+    // When AI sends ORDER_NOTIFICATION, system automatically:
+    // - Generates order number
+    // - Updates Firestore database
+    // - Sends email to orders.bebias@gmail.com
+    // - Sends confirmation message to customer
+
+    let finalResponse = cleanResponse;
+
+    // DEBUG: Log ORDER_NOTIFICATION detection
+    const hasOrderNotification = cleanResponse.includes('ORDER_NOTIFICATION');
+    console.log(`🔍 [Step 7] ORDER_NOTIFICATION present in response: ${hasOrderNotification}`);
+    if (hasOrderNotification) {
+      const orderNotifIndex = cleanResponse.indexOf('ORDER_NOTIFICATION');
+      const orderNotifBlock = cleanResponse.substring(orderNotifIndex, orderNotifIndex + 500);
+      console.log(`🔍 [Step 7] ORDER_NOTIFICATION block (first 500 chars):`);
+      console.log(orderNotifBlock);
+      // Log field presence
+      console.log(`🔍 [Step 7] Has "Product:": ${cleanResponse.includes('Product:')}`);
+      console.log(`🔍 [Step 7] Has "Client Name:": ${cleanResponse.includes('Client Name:')}`);
+      console.log(`🔍 [Step 7] Has "Telephone:": ${cleanResponse.includes('Telephone:')}`);
+      console.log(`🔍 [Step 7] Has "Address:": ${cleanResponse.includes('Address:')}`);
+      console.log(`🔍 [Step 7] Has "Total:": ${cleanResponse.includes('Total:')}`);
+      console.log(`🔍 [Step 7] Has "ლარი": ${cleanResponse.includes('ლარი')}`);
+    }
+
+    const orderData = parseOrderNotification(cleanResponse);
+    console.log(`🔍 [Step 7] parseOrderNotification returned: ${orderData ? 'ORDER DATA' : 'NULL'}`);
+
+    // Check for duplicate order (same product + phone within 2 minutes)
+    let isDuplicateOrder = false;
+    let duplicateOrderNumber: string | null = null;
+    if (orderData && conversationData.orders && conversationData.orders.length > 0) {
+      const lastOrder = conversationData.orders[conversationData.orders.length - 1];
+      const lastOrderTime = new Date(lastOrder.timestamp).getTime();
+      const now = Date.now();
+      const twoMinutes = 2 * 60 * 1000;
+
+      // Check if same product was ordered within last 2 minutes
+      if (lastOrder.items === orderData.product && (now - lastOrderTime) < twoMinutes) {
+        isDuplicateOrder = true;
+        duplicateOrderNumber = lastOrder.orderNumber;
+        console.log(`⚠️ [Step 7] Duplicate order detected (same product within 2 min): ${duplicateOrderNumber}`);
+      }
+    }
+
+    if (orderData && !isDuplicateOrder) {
+      console.log("📦 [Step 7] ORDER_NOTIFICATION detected, processing NEW order...");
+      console.log("📦 [Step 7] Order data:", JSON.stringify(orderData));
+
+      try {
+        // ATOMIC RACE CONDITION FIX: Use Firestore create() to claim order creation slot
+        // Lock by PHONE NUMBER (not sender ID) to catch duplicates across different FB sender IDs
+        const minuteBucket = Math.floor(Date.now() / 60000);
+        const phoneKey = orderData.telephone?.replace(/\D/g, '') || senderId; // Use phone, fallback to sender
+        const orderLockRef = db.collection('orderCreationLocks').doc(`order_phone_${phoneKey}_${minuteBucket}`);
+        let gotOrderLock = false;
+        let existingOrderNumber: string | null = null;
+
+        try {
+          await orderLockRef.create({
+            createdAt: new Date().toISOString(),
+            senderId,
+            product: orderData.product
+          });
+          gotOrderLock = true;
+          console.log(`🔒 [Step 7] Acquired order creation lock for phone_${phoneKey}_${minuteBucket}`);
+        } catch (lockError: any) {
+          // Another request already has the lock - check for existing order from this minute
+          if (lockError.code === 6 || lockError.message?.includes('ALREADY_EXISTS')) {
+            console.log(`⏭️ [Step 7] Order creation lock exists - checking for order`);
+            const freshConversation = await loadConversation(senderId);
+            if (freshConversation.orders && freshConversation.orders.length > 0) {
+              existingOrderNumber = freshConversation.orders[freshConversation.orders.length - 1].orderNumber;
+              console.log(`✅ [Step 7] Found existing order: ${existingOrderNumber}`);
+            }
+          } else {
+            throw lockError;
+          }
+        }
+
+        if (existingOrderNumber) {
+          // Use existing order number (race condition - another request created it)
+          finalResponse = cleanResponse
+            .replace(/ORDER_NOTIFICATION:[\s\S]*?Total:.*ლარი/gi, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+          finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, existingOrderNumber);
+          const freshConversation = await loadConversation(senderId);
+          conversationData.orders = freshConversation.orders;
+        } else if (gotOrderLock) {
+          // We got the lock - create the order
+          const orderNumber = await logOrder(orderData, 'messenger');
+          console.log(`✅ [Step 7] Order logged: ${orderNumber}`);
+
+          // CRITICAL: Update finalResponse FIRST before any other async operations
+          // This ensures the message is correct even if email sending fails
+          finalResponse = cleanResponse
+            .replace(/ORDER_NOTIFICATION:[\s\S]*?Total:.*ლარი/gi, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+          finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, orderNumber);
+          console.log(`✅ [Step 7] Replaced [ORDER_NUMBER] with ${orderNumber}`);
+
+          // Add order to conversation
+          if (!conversationData.orders) conversationData.orders = [];
+          conversationData.orders.push({
+            orderNumber,
+            timestamp: new Date().toISOString(),
+            items: orderData.product
+          });
+
+          // Send email (non-blocking - don't let failure affect message)
+          try {
+            await sendOrderEmail(orderData, orderNumber);
+            console.log(`📧 [Step 7] Email sent`);
+          } catch (emailErr: any) {
+            console.error(`⚠️ [Step 7] Email failed (order still valid): ${emailErr.message}`);
+          }
+        }
+      } catch (err: any) {
+        console.error("❌ [Step 7] Error:", err.message);
+        console.error("❌ [Step 7] Full error:", err.stack || err);
+      }
+    } else if (orderData && isDuplicateOrder && duplicateOrderNumber) {
+      console.log("⚠️ [Step 7] Duplicate order, using existing order number");
+      // Use existing order number for the duplicate
+      finalResponse = cleanResponse
+        .replace(/ORDER_NOTIFICATION:[\s\S]*?Total:.*ლარი/gi, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, duplicateOrderNumber);
+      console.log(`✅ [Step 7] Using existing order number: ${duplicateOrderNumber}`);
+    }
+
     // ==================== SEND TEXT RESPONSE ====================
 
-    // Send clean response (without SEND_IMAGE commands) to Facebook
-    await sendMessage(senderId, cleanResponse);
+    // SAFETY: Always strip ORDER_NOTIFICATION and [ORDER_NUMBER] before sending
+    // This is a fallback in case parsing failed but AI still included these
+    if (finalResponse.includes('ORDER_NOTIFICATION') || finalResponse.includes('[ORDER_NUMBER]')) {
+      console.log('⚠️ [Safety] Stripping unprocessed ORDER_NOTIFICATION/[ORDER_NUMBER] from response');
+      finalResponse = finalResponse
+        .replace(/ORDER_NOTIFICATION:[\s\S]*$/gi, '') // Remove ORDER_NOTIFICATION and everything after
+        .replace(/\[ORDER_NUMBER\]/g, '[შეკვეთის ნომერი მალე]') // Replace with placeholder text
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    // Send response to Facebook
+    await sendMessage(senderId, finalResponse);
+    // Log bot response for Control Panel display
+    await logMetaMessage(senderId, 'bot', finalResponse);
+
+    // Send order confirmation as SECOND message if pending
+    if (conversationData.pendingOrderConfirmation) {
+      await sendMessage(senderId, conversationData.pendingOrderConfirmation);
+      // Log order confirmation for Control Panel display
+      await logMetaMessage(senderId, 'bot', conversationData.pendingOrderConfirmation);
+      delete conversationData.pendingOrderConfirmation;
+      console.log("✅ [Step 7] Order confirmation sent");
+    }
 
     // Mark message as responded to prevent duplicates on retry
     if (messageId) {
@@ -720,10 +1219,10 @@ REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentio
       console.log(`✅ [QStash] Marked message ${messageId} as responded`);
     }
 
-    // Add CLEAN response to history (without SEND_IMAGE commands)
+    // Add response to history (without SEND_IMAGE and ORDER_NOTIFICATION)
     conversationData.history.push({
       role: 'assistant',
-      content: cleanResponse,
+      content: finalResponse,
       timestamp: new Date().toISOString()
     });
 
