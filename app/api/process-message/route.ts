@@ -1000,11 +1000,10 @@ WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be s
       ...trimmedHistory
     ];
 
-    // Determine model based on content
-    // Using gpt-4o-mini for text (cheap) and gpt-4o for images (needs vision)
+    // Using gpt-4o for ALL messages (better instruction following for ORDER_NOTIFICATION)
     const hasImages = Array.isArray(lastMessage.content) &&
                      lastMessage.content.some(c => c.type === 'image_url');
-    const selectedModel = hasImages ? "gpt-4o" : "gpt-4o-mini";
+    const selectedModel = "gpt-4o"; // Always use gpt-4o for reliable ORDER_NOTIFICATION handling
 
     // Generate unique request ID for tracing duplicates
     const requestId = Math.random().toString(36).substring(2, 8);
