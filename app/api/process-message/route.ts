@@ -4,7 +4,108 @@ import OpenAI from "openai";
 import { db } from "@/lib/firestore";
 import fs from "fs";
 import path from "path";
-import { sendOrderEmail, parseOrderNotification } from "@/lib/sendOrderEmail";
+import { sendOrderEmail } from "@/lib/sendOrderEmail";
+
+// VERSION MARKER - proves which code is deployed
+const CODE_VERSION = "GEORGIAN_EMOJI_PARSER_V1_NOV23_2130";
+
+/**
+ * Parse order confirmation from Georgian format (no ORDER_NOTIFICATION needed!)
+ * Detects order confirmations by looking for:
+ * - "შეკვეთა მიღებულია" + order number placeholder (various formats)
+ * - Emoji-prefixed fields: 👤, 📞, 📍, 📦, 💰
+ */
+function parseGeorgianOrderConfirmation(text: string): {
+  product: string;
+  quantity: string;
+  clientName: string;
+  telephone: string;
+  address: string;
+  total: string;
+  needsOrderNumber: boolean; // Flag if we need to generate order number
+} | null {
+  console.log(`🔍 parseGeorgianOrderConfirmation called, text length: ${text.length}`);
+  console.log(`🔍 Text preview: ${text.substring(0, 200)}`);
+
+  // Check for order confirmation indicator
+  const hasOrderConfirmation = text.includes('შეკვეთა მიღებულია');
+  if (!hasOrderConfirmation) {
+    console.log('❌ No "შეკვეთა მიღებულია" found');
+    return null;
+  }
+
+  // Check for order number placeholder - accept multiple formats
+  // AI might use [ORDER_NUMBER] or Georgian equivalent
+  const hasOrderNumberPlaceholder =
+    text.includes('[ORDER_NUMBER]') ||
+    text.includes('[შეკვეთის ნომერი მალე]') ||
+    text.includes('შეკვეთის ნომერი:'); // Has order number field at all
+
+  if (!hasOrderNumberPlaceholder) {
+    console.log('❌ No order number placeholder found');
+    return null;
+  }
+
+  console.log('✅ Order confirmation pattern detected');
+
+  console.log('✅ Georgian order confirmation detected, extracting fields...');
+
+  // Extract fields using emoji prefixes (more reliable than labels)
+  // 👤 მიმღები: [name]
+  const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?:\n|$)/);
+  // 📞 ტელეფონი: [phone]
+  const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?:\n|$)/);
+  // 📍 მისამართი: [address]
+  const addressMatch = text.match(/📍[^:]*:\s*(.+?)(?:\n|$)/);
+  // 📦 პროდუქტი: [product]
+  const productMatch = text.match(/📦[^:]*:\s*(.+?)(?:\n|$)/);
+  // 💰 ჯამი: [total]
+  const totalMatch = text.match(/💰[^:]*:\s*(.+?)(?:\n|$)/);
+
+  console.log(`🔍 Field extraction results:`);
+  console.log(`   👤 Name: ${nameMatch ? 'FOUND - ' + nameMatch[1] : 'MISSING'}`);
+  console.log(`   📞 Phone: ${phoneMatch ? 'FOUND - ' + phoneMatch[1] : 'MISSING'}`);
+  console.log(`   📍 Address: ${addressMatch ? 'FOUND - ' + addressMatch[1].substring(0, 50) : 'MISSING'}`);
+  console.log(`   📦 Product: ${productMatch ? 'FOUND - ' + productMatch[1].substring(0, 50) : 'MISSING'}`);
+  console.log(`   💰 Total: ${totalMatch ? 'FOUND - ' + totalMatch[1] : 'MISSING'}`);
+
+  // All fields required
+  if (nameMatch && phoneMatch && addressMatch && productMatch && totalMatch) {
+    const result = {
+      product: productMatch[1].trim(),
+      quantity: '1', // Default to 1, quantity is embedded in product string (e.g., "ქუდი x 2")
+      clientName: nameMatch[1].trim(),
+      telephone: phoneMatch[1].trim().replace(/\s/g, ''),
+      address: addressMatch[1].trim(),
+      total: totalMatch[1].trim(),
+      needsOrderNumber: true, // Always needs order number generation
+    };
+    console.log('✅ Parsed Georgian order confirmation successfully');
+    console.log(`📦 Order: ${result.product}, ${result.clientName}, ${result.telephone}`);
+    return result;
+  }
+
+  console.log('❌ Could not parse Georgian order - missing required fields');
+  return null;
+}
+
+/**
+ * Replace all order number placeholder variants with actual order number
+ * Handles both [ORDER_NUMBER] and [შეკვეთის ნომერი მალე]
+ */
+function replaceOrderNumberPlaceholders(text: string, orderNumber: string): string {
+  return text
+    .replace(/\[ORDER_NUMBER\]/g, orderNumber)
+    .replace(/\[შეკვეთის ნომერი მალე\]/g, orderNumber);
+}
+
+/**
+ * Check if text contains any order number placeholder
+ */
+function hasOrderNumberPlaceholder(text: string): boolean {
+  return text.includes('[ORDER_NUMBER]') || text.includes('[შეკვეთის ნომერი მალე]');
+}
+
 import { logOrder } from "@/lib/orderLoggerWithFirestore";
 
 export const dynamic = 'force-dynamic';
@@ -691,7 +792,7 @@ async function handler(req: Request) {
     // originalContent contains the actual message with images (not placeholders)
     // This is passed from messenger route because history stores image placeholders
 
-    console.log(`🚀 [QStash] Processing message ${messageId} for user ${senderId}`);
+    console.log(`🚀 [QStash] Processing message ${messageId} for user ${senderId} [VERSION: ${CODE_VERSION}]`);
 
     // ==================== ATOMIC DEDUPLICATION LOCK ====================
     // Use Firestore create() to atomically acquire a processing lock.
@@ -953,33 +1054,24 @@ ${productContext}${productNote}
 
 REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentioned that has [HAS_IMAGE]!
 
-## ⚠️ CRITICAL: ORDER CONFIRMATION RULES ⚠️
-When confirming an order after payment is received:
-1. NEVER make up order numbers like "900001", "900004" etc.
-2. ALWAYS use the placeholder [ORDER_NUMBER] - the system will replace it automatically
-3. ALWAYS include the ORDER_NOTIFICATION: block at the END of your response
+## ⚠️ ORDER CONFIRMATION FORMAT ⚠️
+When confirming an order after payment is received, use EXACTLY this format:
+- NEVER make up order numbers - use [ORDER_NUMBER] placeholder
+- The system will automatically replace [ORDER_NUMBER] with the real order number
 
-**REQUIRED FORMAT for order confirmation:**
+**REQUIRED FORMAT:**
 \`\`\`
-მადლობა! შეკვეთა მიღებულია.
-
+მადლობა [name] ❤️ შენი შეკვეთა მიღებულია ✅
 🎫 შეკვეთის ნომერი: [ORDER_NUMBER]
-
-პროდუქტი: [product name]
-ჯამი: [amount] ლარი
-მისამართი: [address]
-
-მალე დაგიკავშირდებით!
-
-ORDER_NOTIFICATION:
-Product: [Georgian product name]
-Client Name: [customer name]
-Telephone: [phone]
-Address: [address]
-Total: [amount] ლარი
+👤 მიმღები: [full name]
+📞 ტელეფონი: [phone]
+📍 მისამართი: [address]
+📦 პროდუქტი: [product] x [quantity]
+💰 ჯამი: [amount] ლარი
+თბილად ჩაიცვი, არ გაცივდე 🧡
 \`\`\`
 
-WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be sent!`.trim();
+IMPORTANT: Use these EXACT emoji prefixes (👤📞📍📦💰) - the system uses them to detect orders!`.trim();
 
     // Prepare messages for OpenAI - trim history to reduce tokens
     const trimmedHistory = trimConversationHistory(conversationData.history);
@@ -1047,34 +1139,25 @@ WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be s
       }
     }
 
-    // ==================== STEP 7: ORDER NOTIFICATION HANDLING ====================
-    // When AI sends ORDER_NOTIFICATION, system automatically:
-    // - Generates order number
+    // ==================== STEP 7: ORDER CONFIRMATION HANDLING ====================
+    // Parses Georgian order confirmation format directly (no ORDER_NOTIFICATION needed!)
+    // When AI sends order confirmation with emoji fields, system automatically:
+    // - Generates order number (replaces [ORDER_NUMBER] placeholder)
     // - Updates Firestore database
     // - Sends email to orders.bebias@gmail.com
-    // - Sends confirmation message to customer
 
     let finalResponse = cleanResponse;
 
-    // DEBUG: Log ORDER_NOTIFICATION detection
-    const hasOrderNotification = cleanResponse.includes('ORDER_NOTIFICATION');
-    console.log(`🔍 [Step 7] ORDER_NOTIFICATION present in response: ${hasOrderNotification}`);
-    if (hasOrderNotification) {
-      const orderNotifIndex = cleanResponse.indexOf('ORDER_NOTIFICATION');
-      const orderNotifBlock = cleanResponse.substring(orderNotifIndex, orderNotifIndex + 500);
-      console.log(`🔍 [Step 7] ORDER_NOTIFICATION block (first 500 chars):`);
-      console.log(orderNotifBlock);
-      // Log field presence
-      console.log(`🔍 [Step 7] Has "Product:": ${cleanResponse.includes('Product:')}`);
-      console.log(`🔍 [Step 7] Has "Client Name:": ${cleanResponse.includes('Client Name:')}`);
-      console.log(`🔍 [Step 7] Has "Telephone:": ${cleanResponse.includes('Telephone:')}`);
-      console.log(`🔍 [Step 7] Has "Address:": ${cleanResponse.includes('Address:')}`);
-      console.log(`🔍 [Step 7] Has "Total:": ${cleanResponse.includes('Total:')}`);
-      console.log(`🔍 [Step 7] Has "ლარი": ${cleanResponse.includes('ლარი')}`);
+    // Parse order from Georgian format (emoji fields: 👤📞📍📦💰)
+    console.log(`🔍 [Step 7] Attempting to parse order from cleanResponse...`);
+    console.log(`🔍 [Step 7] cleanResponse length: ${cleanResponse.length}`);
+    console.log(`🔍 [Step 7] cleanResponse contains 'შეკვეთა მიღებულია': ${cleanResponse.includes('შეკვეთა მიღებულია')}`);
+    console.log(`🔍 [Step 7] cleanResponse contains placeholder: ${hasOrderNumberPlaceholder(cleanResponse)}`);
+    const orderData = parseGeorgianOrderConfirmation(cleanResponse);
+    console.log(`🔍 [Step 7] parseGeorgianOrderConfirmation returned: ${orderData ? 'ORDER DATA' : 'NULL'}`);
+    if (orderData) {
+      console.log(`🔍 [Step 7] Parsed order: name=${orderData.clientName}, phone=${orderData.telephone}, product=${orderData.product?.substring(0, 30)}`);
     }
-
-    const orderData = parseOrderNotification(cleanResponse);
-    console.log(`🔍 [Step 7] parseOrderNotification returned: ${orderData ? 'ORDER DATA' : 'NULL'}`);
 
     // Check for duplicate order (same product + phone within 2 minutes)
     let isDuplicateOrder = false;
@@ -1094,8 +1177,9 @@ WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be s
     }
 
     if (orderData && !isDuplicateOrder) {
-      console.log("📦 [Step 7] ORDER_NOTIFICATION detected, processing NEW order...");
+      console.log("📦 [Step 7] ORDER DETECTED! Processing NEW order...");
       console.log("📦 [Step 7] Order data:", JSON.stringify(orderData));
+      console.log("📦 [Step 7] cleanResponse has placeholder:", hasOrderNumberPlaceholder(cleanResponse));
 
       try {
         // ATOMIC RACE CONDITION FIX: Use Firestore create() to claim order creation slot
@@ -1130,11 +1214,7 @@ WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be s
 
         if (existingOrderNumber) {
           // Use existing order number (race condition - another request created it)
-          finalResponse = cleanResponse
-            .replace(/ORDER_NOTIFICATION:[\s\S]*?Total:.*ლარი/gi, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-          finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, existingOrderNumber);
+          finalResponse = replaceOrderNumberPlaceholders(cleanResponse, existingOrderNumber);
           const freshConversation = await loadConversation(senderId);
           conversationData.orders = freshConversation.orders;
         } else if (gotOrderLock) {
@@ -1142,14 +1222,9 @@ WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be s
           const orderNumber = await logOrder(orderData, 'messenger');
           console.log(`✅ [Step 7] Order logged: ${orderNumber}`);
 
-          // CRITICAL: Update finalResponse FIRST before any other async operations
-          // This ensures the message is correct even if email sending fails
-          finalResponse = cleanResponse
-            .replace(/ORDER_NOTIFICATION:[\s\S]*?Total:.*ლარი/gi, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-          finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, orderNumber);
-          console.log(`✅ [Step 7] Replaced [ORDER_NUMBER] with ${orderNumber}`);
+          // Replace order number placeholder with actual order number
+          finalResponse = replaceOrderNumberPlaceholders(cleanResponse, orderNumber);
+          console.log(`✅ [Step 7] Replaced order placeholder with ${orderNumber}`);
 
           // Add order to conversation
           if (!conversationData.orders) conversationData.orders = [];
@@ -1170,29 +1245,41 @@ WITHOUT ORDER_NOTIFICATION: block, no order will be saved and no email will be s
       } catch (err: any) {
         console.error("❌ [Step 7] Error:", err.message);
         console.error("❌ [Step 7] Full error:", err.stack || err);
+
+        // FALLBACK: If lock mechanism failed, still try to create order
+        // This ensures orders aren't lost due to lock issues
+        if (hasOrderNumberPlaceholder(finalResponse)) {
+          console.log("🔄 [Step 7] Attempting fallback order creation...");
+          try {
+            const orderNumber = await logOrder(orderData, 'messenger');
+            finalResponse = replaceOrderNumberPlaceholders(cleanResponse, orderNumber);
+            console.log(`✅ [Step 7] Fallback order created: ${orderNumber}`);
+
+            if (!conversationData.orders) conversationData.orders = [];
+            conversationData.orders.push({
+              orderNumber,
+              timestamp: new Date().toISOString(),
+              items: orderData.product
+            });
+          } catch (fallbackErr: any) {
+            console.error("❌ [Step 7] Fallback also failed:", fallbackErr.message);
+          }
+        }
       }
     } else if (orderData && isDuplicateOrder && duplicateOrderNumber) {
       console.log("⚠️ [Step 7] Duplicate order, using existing order number");
       // Use existing order number for the duplicate
-      finalResponse = cleanResponse
-        .replace(/ORDER_NOTIFICATION:[\s\S]*?Total:.*ლარი/gi, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-      finalResponse = finalResponse.replace(/\[ORDER_NUMBER\]/g, duplicateOrderNumber);
+      finalResponse = replaceOrderNumberPlaceholders(cleanResponse, duplicateOrderNumber);
       console.log(`✅ [Step 7] Using existing order number: ${duplicateOrderNumber}`);
     }
 
     // ==================== SEND TEXT RESPONSE ====================
 
-    // SAFETY: Always strip ORDER_NOTIFICATION and [ORDER_NUMBER] before sending
-    // This is a fallback in case parsing failed but AI still included these
-    if (finalResponse.includes('ORDER_NOTIFICATION') || finalResponse.includes('[ORDER_NUMBER]')) {
-      console.log('⚠️ [Safety] Stripping unprocessed ORDER_NOTIFICATION/[ORDER_NUMBER] from response');
-      finalResponse = finalResponse
-        .replace(/ORDER_NOTIFICATION:[\s\S]*$/gi, '') // Remove ORDER_NOTIFICATION and everything after
-        .replace(/\[ORDER_NUMBER\]/g, '[შეკვეთის ნომერი მალე]') // Replace with placeholder text
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+    // SAFETY: If any order placeholder still exists, it means order creation failed
+    // This should rarely happen now, but keep as safety net
+    if (hasOrderNumberPlaceholder(finalResponse)) {
+      console.log('⚠️ [Safety] Order placeholder still exists - order creation may have failed');
+      // Don't replace - let user see the placeholder so they know to follow up
     }
 
     // Send response to Facebook
