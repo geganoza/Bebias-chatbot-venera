@@ -151,22 +151,18 @@ async function loadProducts(): Promise<Product[]> {
   }
 }
 
-async function searchOrders(query: string): Promise<string> {
+async function searchOrders(query: string): Promise<any | null> {
   try {
     const normalizedQuery = query.toLowerCase().trim();
     console.log('🔍 searchOrders called with:', query, '(normalized:', normalizedQuery, ')');
 
     const snapshot = await db.collection('orders').limit(100).get();
-
-    if (snapshot.empty) {
-      return 'ბოლო შეკვეთები ვერ მოიძებნა.';
-    }
+    if (snapshot.empty) return null;
 
     const matches: any[] = [];
     const normalizedQueryAsPhone = normalizedQuery.replace(/\D/g, '');
     const queryWords = normalizedQuery.split(' ').filter(w => w.length > 1);
 
-    console.log(`📊 Checking ${snapshot.size} orders for matches...`);
     snapshot.forEach(doc => {
       const order = doc.data();
       const clientName = (order.clientName || '').toLowerCase();
@@ -174,83 +170,81 @@ async function searchOrders(query: string): Promise<string> {
       const orderNumber = doc.id;
       const trackingNumber = order.trackingNumber || '';
 
-      // Previous working phone match logic
       const phoneMatch = telephone.length > 5 && normalizedQueryAsPhone.length > 5 &&
                          (telephone.endsWith(normalizedQueryAsPhone) || normalizedQueryAsPhone.endsWith(telephone));
+      const nameMatch = queryWords.length > 0 && queryWords.every(qw => clientName.includes(qw));
+      const orderNumberMatch = orderNumber.includes(normalizedQuery);
+      const trackingMatch = trackingNumber.includes(normalizedQuery);
 
-      // Previous working name match logic
-      const nameMatch = queryWords.every(qw => clientName.includes(qw));
-
-      if (nameMatch || phoneMatch || orderNumber.includes(normalizedQuery) || trackingNumber.includes(normalizedQuery)) {
-        if (!matches.some(m => m.orderNumber === orderNumber)) {
-          matches.push({
-            ...order, // Add all order fields
-            orderNumber: doc.id
-          });
-        }
+      if (phoneMatch || nameMatch || orderNumberMatch || trackingMatch) {
+          // Score matches: name match is most specific
+          const score = (nameMatch ? 100 : 0) + (phoneMatch ? 10 : 0) + (orderNumberMatch ? 50 : 0) + (trackingMatch ? 50 : 0);
+          matches.push({ ...order, orderNumber: doc.id, _matchScore: score, _nameMatch: nameMatch, _phoneMatch: phoneMatch });
       }
     });
 
-    if (matches.length === 0) {
-      return `"${query}" სახელით ან ნომრით შეკვეთა ვერ მოიძებნა ბოლო 100 შეკვეთაში.`;
+    if (matches.length === 0) return null;
+
+    // Sort by score (highest first) - name matches prioritized
+    matches.sort((a, b) => b._matchScore - a._matchScore);
+    console.log(`🔍 Found ${matches.length} matches, top: ${matches[0].clientName} (score: ${matches[0]._matchScore})`);
+
+    const trackingsStatusMap: Record<string, string> = {
+        'CREATE': '📋 Order Created', 'ASSIGN_TO_PICKUP': '📦 Assigned to Courier', 'Pickup in Progress': '🚗 Courier In-Transit',
+        'Shipment Picked Up': '✅ Picked Up by Courier', 'Label Created': '🏷️ Label Created', 'OFD': '🚚 Out for Delivery',
+        'DELIVERED': '✅ Delivered', 'CANCELLED': '❌ Cancelled', 'RETURNED': '↩️ Returned'
+    };
+    const basicStatusMap: Record<string, string> = {
+        'pending': '📋 Preparing', 'processing': '🔄 Processing', 'packed': '📦 Packed',
+        'shipped': '🚚 Shipped', 'delivered': '✅ Delivered', 'cancelled': '❌ Cancelled'
+    };
+
+    // Helper to format a single order
+    const formatOrder = (o: any) => {
+      const paymentStatus = o.paymentStatus === 'confirmed' ? '✅ Confirmed' :
+                            o.paymentStatus === 'pending' ? '⏳ Pending' : '❌ Cancelled';
+      let shippingStatus = '📋 Preparing';
+      // Priority: shippingStatus (warehouse app) > warehouseStatus > trackingsStatusCode
+      if (o.shippingStatus) {
+        shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
+      } else if (o.warehouseStatus) {
+        shippingStatus = basicStatusMap[o.warehouseStatus] || o.warehouseStatus;
+      } else if (o.trackingsStatusCode) {
+        shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
+      }
+      let trackingUrl = '';
+      if (o.trackingNumber && o.shippingCompany?.toLowerCase().includes('trackings.ge')) {
+        trackingUrl = `https://trackings.ge/track?track_num=${o.trackingNumber}`;
+      }
+      return {
+        orderNumber: o.orderNumber,
+        clientName: o.clientName,
+        telephone: o.telephone,
+        product: o.product,
+        address: o.address,
+        paymentStatus: paymentStatus,
+        shippingStatus: shippingStatus,
+        trackingNumber: o.trackingNumber,
+        shippingCompany: o.shippingCompany,
+        trackingUrl: trackingUrl || 'Not available'
+      };
+    };
+
+    // If multiple matches with same phone, return all so AI can pick by name
+    if (matches.length > 1 && matches[0]._phoneMatch && !matches[0]._nameMatch) {
+      console.log(`🔍 Multiple phone matches - returning all ${matches.length} orders for AI to choose`);
+      return {
+        multipleMatches: true,
+        orders: matches.slice(0, 5).map(formatOrder) // Max 5 orders
+      };
     }
 
-    const formattedOrders = matches.map((o) => {
-      const paymentStatus = o.paymentStatus === 'confirmed' ? '✅ დადასტურებული' :
-                            o.paymentStatus === 'pending' ? '⏳ მოლოდინში' : '❌ გაუქმებული';
-      
-      const trackingsStatusMap: Record<string, string> = {
-        'CREATE': '📋 შეკვეთა შექმნილია', 'ASSIGN_TO_PICKUP': '📦 მიენიჭა კურიერს', 'Pickup in Progress': '🚗 კურიერი მიდის ასაღებად',
-        'Shipment Picked Up': '✅ აიღო კურიერმა', 'Label Created': '🏷️ ლეიბლი შექმნილია', 'OFD': '🚚 კურიერი გამოსულია ჩასაბარებლად',
-        'DELIVERED': '✅ ჩაბარებულია', 'CANCELLED': '❌ გაუქმებულია', 'RETURNED': '↩️ დაბრუნებულია'
-      };
+    // Single best match
+    return formatOrder(matches[0]);
 
-      const basicStatusMap: Record<string, string> = {
-        'pending': '📋 მზადდება', 'processing': '🔄 მუშავდება', 'packed': '📦 შეფუთულია',
-        'shipped': '🚚 გაგზავნილია კურიერთან', 'delivered': '✅ ჩაბარებულია', 'cancelled': '❌ გაუქმებულია'
-      };
-
-      // *** THIS IS THE BUG FIX FOR STATUS ***
-      let shippingStatus = '📋 მზადდება';
-      const warehouseStatus = o.warehouseStatus; 
-      if (o.trackingsStatusCode) {
-        shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
-      } else if (warehouseStatus) {
-        shippingStatus = basicStatusMap[warehouseStatus] || warehouseStatus;
-      } else if (o.shippingStatus) {
-        shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
-      }
-
-      // *** THIS IS THE ENHANCEMENT FOR TRACKING URL ***
-      let trackingInfo = '';
-      if (o.trackingNumber) {
-        let trackingUrl = '';
-        if (o.shippingCompany?.toLowerCase().includes('trackings.ge')) {
-          trackingUrl = `https://trackings.ge/?id=${o.trackingNumber}`;
-        }
-        trackingInfo = `\n  ტრეკინგი: ${o.trackingNumber}`;
-        if (o.shippingCompany) trackingInfo += ` (${o.shippingCompany})`;
-        if (trackingUrl) trackingInfo += `\n  შესამოწმებლად: ${trackingUrl}`;
-      } else {
-          trackingInfo = '\n  ტრეკინგი: ჯერ არ არის მინიჭებული';
-      }
-
-      const date = new Date(o.timestamp).toLocaleDateString('ka-GE');
-
-      return `შეკვეთა #${o.orderNumber} (${date})
-  სახელი: ${o.clientName}
-  ტელეფონი: ${o.telephone}
-  პროდუქტი: ${o.product}
-  ჯამი: ${o.total}
-  მისამართი: ${o.address}
-  გადახდა: ${paymentStatus}
-  მიწოდება: ${shippingStatus}${trackingInfo}`;
-    });
-
-    return formattedOrders.join('\n\n');
   } catch (error) {
     console.error('Error searching orders:', error);
-    return 'შეკვეთების ძებნა ვერ მოხერხდა.';
+    return null;
   }
 }
 
@@ -385,7 +379,8 @@ function parseImageCommands(response: string): { productIds: string[]; cleanResp
   console.log(`🔍 parseImageCommands called with response length: ${response.length}`);
   console.log(`🔍 Response preview (first 300 chars):`, response.substring(0, 300));
 
-  const imageRegex = /SEND_IMAGE:\s*([A-Z0-9\-_]+)/gi;
+  // Updated regex to support Georgian characters, spaces, and any product ID format
+  const imageRegex = /SEND_IMAGE:\s*(.+?)(?:\n|$)/gi;
   const matches = [...response.matchAll(imageRegex)];
   console.log(`🔍 Found ${matches.length} SEND_IMAGE matches`);
 
@@ -944,7 +939,7 @@ async function handler(req: Request) {
       contact: /კონტაქტ|მისამართ|address|phone|ტელეფონ|სად ხართ|location|საათ|სამუშაო/.test(msg),
       services: /სერვის|მომსახურება|service|რემონტ|შეკეთება/.test(msg),
       product: /ქუდ|წინდ|შარფ|ხელთათმან|პროდუქტ|product|price|ფას|რა ღირს|რამდენ/.test(msg),
-      orderInquiry: /შეკვეთა.*გაკეთებ|შეკვეთა.*აქვს|შეკვეთა.*ჰქონდ|გაგზავნეთ|გაუგზავნეთ|გაიგზავნა|order.*status|my order|ჩემი შეკვეთა|შეკვეთის სტატუს|შეკვეთა.*შემოწმ|შეკვეთა.*სად არის|თრექინგ|tracking|\d{15}/.test(msg),
+      orderInquiry: /შეკვეთა.*გაკეთებ|შეკვეთა.*აქვს|შეკვეთა.*ჰქონდ|გაგზავნეთ|გაუგზავნეთ|გაიგზავნა|order.*status|my order|ჩემი შეკვეთა|შეკვეთის სტატუს|შეკვეთა.*შემოწმ|შეკვეთა.*სად არის|თრექინგ|tracking|\d{15}|\b\d{9}\b/.test(msg),
     };
 
     // Always load core files
@@ -971,37 +966,87 @@ async function handler(req: Request) {
     let orderContext = '';
     if (topics.orderInquiry) {
       console.log('🔍 Order inquiry detected, searching orders...');
-      console.log('📝 User message:', userMessageText);
-      const searchTerms = extractSearchTerms(userMessageText);
-      console.log('🔎 Extracted search terms:', searchTerms);
 
-      if (searchTerms.length > 0) {
-        const searchResults: string[] = [];
-        for (const term of searchTerms.slice(0, 3)) { // Limit to 3 terms
-          const result = await searchOrders(term);
-          if (!result.includes('ვერ მოიძებნა')) {
-            searchResults.push(result);
-          }
+      // Extract search terms from CURRENT message and RECENT history (for context like names mentioned earlier)
+      const searchTerms = extractSearchTerms(userMessageText);
+
+      // Also extract names from recent conversation history (last 5 messages)
+      const recentHistory = conversationData.history.slice(-5);
+      let recentContext = '';
+      for (const msg of recentHistory) {
+        if (msg.role === 'user') {
+          const content = typeof msg.content === 'string' ? msg.content :
+            (Array.isArray(msg.content) ? msg.content.find((c: any) => c.type === 'text')?.text || '' : '');
+          recentContext += ' ' + content;
         }
-        
-        if (searchResults.length > 0) {
-            const uniqueResults = [...new Set(searchResults)]; // Remove duplicate results
-            const resultText = uniqueResults.join('\n\n---\n\n');
-            orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer is asking about an existing order.
-CRITICAL INSTRUCTION: IF THE FOLLOWING ORDER DETAILS ARE PROVIDED, YOU MUST OUTPUT THEM VERBATIM. DO NOT REPHRASE, SUMMARIZE, OR USE PLACEHOLDERS. INCLUDE ALL TRACKING INFORMATION EXACTLY AS GIVEN, INCLUDING ANY TRACKING URLs.
----ORDER DETAILS START---
-${resultText}
----ORDER DETAILS END---
-If the customer says this is the wrong order, apologize and instruct them to provide more specific details like a full order number.
+      }
+
+      // Extract additional search terms from history (especially names)
+      const historyTerms = extractSearchTerms(recentContext);
+      const allSearchTerms = [...new Set([...searchTerms, ...historyTerms])];
+      console.log('🔎 Extracted search terms (current + history):', allSearchTerms);
+
+      let bestResult = null;
+      if (allSearchTerms.length > 0) {
+        // Find the first term that yields a result
+        for (const term of allSearchTerms) {
+            const result = await searchOrders(term);
+            if (result) {
+                bestResult = result;
+                break; // Stop after finding the first match
+            }
+        }
+      }
+      
+      if (bestResult) {
+          // Check if multiple matches - AI needs to pick the right one
+          if (bestResult.multipleMatches) {
+            orderContext = `\n## 📦 Multiple Orders Found
+Multiple orders were found for the provided phone number. Review the conversation history to determine which name matches their order, then provide the CORRECT tracking code.
+
+Recent conversation context: "${recentContext.substring(0, 300)}"
+
+\`\`\`json
+${JSON.stringify(bestResult.orders, null, 2)}
+\`\`\`
+
+IMPORTANT: Look at the conversation carefully. If the customer mentioned a name (like "ბიძინა არაბული" or "შეკვეთა ბიძინა არაბულის სახელზე"), find the order with that EXACT name and provide ONLY that order's tracking code. Do NOT provide the wrong order's tracking code!`;
+            console.log(`✅ Found ${bestResult.orders.length} orders with same phone`);
+          } else {
+            orderContext = `\n## 📦 Order Information
+You have looked up the customer's order. Here is the raw data in JSON format. Use this data to answer the user's question about their order status and tracking code.
+
+\`\`\`json
+${JSON.stringify(bestResult, null, 2)}
+\`\`\`
+
+🚨 OVERRIDE ALL TONE RULES - Use EXACT technical format below (bullets are REQUIRED for order tracking):
+
+Start with: "ბებია, შენი შეკვეთა გადაგზავნილია! 💛"
+
+Then add these 4 bullet lines EXACTLY:
+• 🎫 შეკვეთის ნომერი: [orderNumber]
+• 👤 სახელი: [clientName]
+• 📦 სტატუსი: [shippingStatus]
+• 🚚 ტრექინგ კოდი: [trackingNumber as clickable link]
+
+COPY THIS EXACT FORMAT (replace values in brackets):
+ბებია, შენი შეკვეთა გადაგზავნილია! 💛
+
+• 🎫 შეკვეთის ნომერი: 900095
+• 👤 სახელი: ბიძინა არაბული
+• 📦 სტატუსი: 🚚 Shipped
+• 🚚 ტრექინგ კოდი: [232510750912897](https://trackings.ge/track?track_num=232510750912897)
+
+DO NOT write paragraphs. DO NOT be conversational. Just use the bullet format above.
 `;
-            console.log(`✅ Found ${uniqueResults.length} unique order match(es)`);
-        } else {
-          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer asked about an order, but no matches were found for the details provided: ${searchTerms.join(', ')}\nInstruct the customer to double-check the details: order number, full name, or the phone number used for the order.`;
-          console.log('❌ No orders found for search terms:', searchTerms);
-        }
+            console.log(`✅ Found an order: ${bestResult.orderNumber}`);
+          }
       } else {
-        orderContext = `\n## 📦 ORDER INQUIRY DETECTED\nCustomer seems to be asking about an existing order but didn't provide specific details.\nInstruct them to provide their order number (like #900032), the full name used for the order, or their phone number.`;
-        console.log('⚠️ Order inquiry but no search terms extracted');
+        orderContext = `\n## 📦 ORDER LOOKUP FAILED
+No order was found for the provided details: ${searchTerms.join(', ')}.
+Instruct the customer to double-check their information (full name, phone number, or order number) and try again.`;
+        console.log('❌ No orders found for search terms:', searchTerms);
       }
     }
 
@@ -1020,22 +1065,36 @@ ${delivery ? `\n## DELIVERY PRICING\n${delivery}` : ''}
 ${payment ? `\n## PAYMENT INFORMATION\n${payment}` : ''}
 ${orderContext}
 
-## CRITICAL: ALWAYS SEND PRODUCT IMAGES
-When you mention or discuss ANY product that has [HAS_IMAGE] marker, you MUST include this at the END of your response:
-SEND_IMAGE: PRODUCT_ID
+## ⚠️ CRITICAL RULES - PRODUCT CATALOG
 
-Example: If the catalog shows "შავი ბამბის მოკლე ქუდი (ID: 9016) [HAS_IMAGE]", end with:
-SEND_IMAGE: 9016
+**RULE #1: NEVER HALLUCINATE PRODUCTS**
+- ONLY suggest products from the catalog below
+- If customer asks for product not in catalog, say "ამჟამად არ გვაქვს, მაგრამ გვაქვს ..." and show similar alternatives
+- NEVER make up product names, colors, or features not listed below
 
-IMPORTANT: Use the EXACT numeric ID shown in parentheses (ID: XXXX) from the product catalog!
+**RULE #2: ALWAYS SEND IMAGES**
+When you show or discuss ANY product with [HAS_IMAGE]:
+1. Show the product details (name, price)
+2. Add this command at the END: SEND_IMAGE: PRODUCT_ID
+3. Use EXACT ID from catalog (numbers only)
 
-NEVER skip the image command when discussing a product with an image!
-NEVER mention "SEND_IMAGE" text to the customer - it's a hidden command.
+Example response:
+"აგურისფერი სადა ქუდი - 59 ლარი 💛
+SEND_IMAGE: 4714
+
+გინდა შევკვეთო?"
+
+**NEVER:**
+- Skip SEND_IMAGE for products with [HAS_IMAGE]
+- Mention "SEND_IMAGE" text to customer
+- Show products not in catalog below
 
 ## PRODUCT CATALOG (Filtered for this query)
 ${productContext}${productNote}
 
-REMINDER: End your response with SEND_IMAGE: [product_id] for any product mentioned that has [HAS_IMAGE]!
+⚠️ If product customer wants is NOT listed above:
+- Say: "ბოდიში ბებია, ამჟამად [requested product] არ გვაქვს 😔 მაგრამ გვაქვს მსგავსი..."
+- Then show 2-3 similar products from catalog WITH images
 
 ## ⚠️ ORDER CONFIRMATION FORMAT ⚠️
 When confirming an order after payment is received, use EXACTLY this format:
