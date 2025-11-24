@@ -60,6 +60,8 @@ Depending on the customer's needs, refer to these specialized instruction files:
 | Asks about existing order | ORDER LOOKUP (see below) |
 | "გაგიგზავნიათ?", "სად არის?", "თრექინგი" | ORDER LOOKUP - NOT purchase! |
 | Sends receipt without prior order discussion | Ask "რომელი შეკვეთისთვის?" |
+| Bulk order (10+ items), custom event order | services.md → MANAGER HANDOFF |
+| Asks for custom color/size not in catalog | MANAGER HANDOFF |
 
 ## Order Lookup
 
