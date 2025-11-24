@@ -338,6 +338,7 @@ function filterProductsByQuery(products: Product[], userMessage: string): Produc
   const colorKeywords: string[] = [
     'შავ', 'თეთრ', 'წითელ', 'ლურჯ', 'მწვანე', 'ყვითელ', 'ვარდისფერ', 'ნარინჯისფერ',
     'სტაფილოსფერ', 'ფირუზისფერ', 'იისფერ', 'ტყფისფერ', 'ნაცრისფერ', 'ცისფერ',
+    'ყავისფერ', 'ყავის', 'მუქი', 'ღია',  // Added brown variants + dark/light
     'black', 'white', 'red', 'blue', 'green', 'yellow', 'pink', 'orange',
     'turquoise', 'purple', 'brown', 'gray', 'grey'
   ];
