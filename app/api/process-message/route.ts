@@ -152,15 +152,14 @@ async function loadProducts(): Promise<Product[]> {
 }
 
 /**
- * Search orders by name, phone, or order number
- * Returns matching orders for order inquiry context
+ * Search orders by name, phone, or order number with improved matching logic.
+ * Returns matching orders for order inquiry context.
  */
 async function searchOrders(query: string): Promise<string> {
   try {
     const normalizedQuery = query.toLowerCase().trim();
     console.log('🔍 searchOrders called with:', query, '(normalized:', normalizedQuery, ')');
 
-    // Get all orders (no orderBy to avoid issues with missing/mixed timestamp formats)
     const snapshot = await db.collection('orders')
       .limit(100)
       .get();
@@ -169,8 +168,10 @@ async function searchOrders(query: string): Promise<string> {
       return 'ბოლო შეკვეთები ვერ მოიძებნა.';
     }
 
-    // Search for matches
     const matches: any[] = [];
+    const normalizedQueryAsPhone = normalizedQuery.replace(/\D/g, '');
+    const queryWords = normalizedQuery.split(' ').filter(w => w.length > 1);
+
     console.log(`📊 Checking ${snapshot.size} orders for matches...`);
     snapshot.forEach(doc => {
       const order = doc.data();
@@ -179,74 +180,61 @@ async function searchOrders(query: string): Promise<string> {
       const orderNumber = doc.id;
       const trackingNumber = order.trackingNumber || '';
 
-      // Debug: log orders with tracking numbers
-      if (trackingNumber) {
-        console.log(`  Order ${orderNumber} has tracking: ${trackingNumber}`);
-      }
+      // Improved Phone Matching
+      const normalizedTelephone = telephone.replace(/\D/g, '');
+      const phoneMatch = normalizedTelephone.length > 5 && normalizedQueryAsPhone.length > 5 &&
+                         (normalizedTelephone.endsWith(normalizedQueryAsPhone) || normalizedQueryAsPhone.endsWith(normalizedTelephone));
 
-      // Match by name, phone, order number, or tracking number
-      if (clientName.includes(normalizedQuery) ||
-          telephone.includes(normalizedQuery) ||
+      // Improved Name Matching: ensure all parts of the query name are in the clientName
+      const nameMatch = queryWords.every(qw => clientName.includes(qw));
+
+      if (nameMatch ||
+          phoneMatch ||
           orderNumber.includes(normalizedQuery) ||
-          trackingNumber.includes(normalizedQuery) ||
-          normalizedQuery.includes(clientName) ||
-          normalizedQuery.includes(telephone) ||
-          normalizedQuery.includes(trackingNumber)) {
-        matches.push({
-          orderNumber,
-          clientName: order.clientName,
-          telephone: order.telephone,
-          product: order.product,
-          total: order.total,
-          address: order.address,
-          timestamp: order.timestamp,
-          paymentStatus: order.paymentStatus,
-          paymentMethod: order.paymentMethod,
-          // Shipping fields from warehouse app
-          shippingStatus: order.shippingStatus,
-          trackingNumber: order.trackingNumber,
-          trackingsOrderId: order.trackingsOrderId,
-          shippingCompany: order.shippingCompany,
-          trackingsStatusCode: order.trackingsStatusCode,
-          trackingsStatusText: order.trackingsStatusText,
-          shippingUpdatedAt: order.shippingUpdatedAt
-        });
+          trackingNumber.includes(normalizedQuery)) {
+        // Prevent duplicates
+        if (!matches.some(m => m.orderNumber === orderNumber)) {
+          matches.push({
+            orderNumber,
+            clientName: order.clientName,
+            telephone: order.telephone,
+            product: order.product,
+            total: order.total,
+            address: order.address,
+            timestamp: order.timestamp,
+            paymentStatus: order.paymentStatus,
+            paymentMethod: order.paymentMethod,
+            shippingStatus: order.shippingStatus,
+            trackingNumber: order.trackingNumber,
+            trackingsOrderId: order.trackingsOrderId,
+            shippingCompany: order.shippingCompany,
+            trackingsStatusCode: order.trackingsStatusCode,
+            trackingsStatusText: order.trackingsStatusText,
+            shippingUpdatedAt: order.shippingUpdatedAt
+          });
+        }
       }
     });
 
     if (matches.length === 0) {
-      return `"${query}" სახელით ან ნომრით შეკვეთა ვერ მოიძებნა ბოლო 50 შეკვეთაში.`;
+      return `"${query}" სახელით ან ნომრით შეკვეთა ვერ მოიძებნა ბოლო 100 შეკვეთაში.`;
     }
 
-    // Format matches for bot context - read status from DB only (synced from warehouse app)
     const formattedOrders = matches.map((o) => {
       const paymentStatus = o.paymentStatus === 'confirmed' ? '✅ დადასტურებული' :
                             o.paymentStatus === 'pending' ? '⏳ მოლოდინში' : '❌ გაუქმებული';
-
-      // Trackings.ge status codes translated to Georgian
+      
       const trackingsStatusMap: Record<string, string> = {
-        'CREATE': '📋 შეკვეთა შექმნილია',
-        'ASSIGN_TO_PICKUP': '📦 მიენიჭა კურიერს',
-        'Pickup in Progress': '🚗 კურიერი მიდის ასაღებად',
-        'Shipment Picked Up': '✅ აიღო კურიერმა',
-        'Label Created': '🏷️ ლეიბლი შექმნილია',
-        'OFD': '🚚 კურიერი გამოსულია ჩასაბარებლად',
-        'DELIVERED': '✅ ჩაბარებულია',
-        'CANCELLED': '❌ გაუქმებულია',
-        'RETURNED': '↩️ დაბრუნებულია'
+        'CREATE': '📋 შეკვეთა შექმნილია', 'ASSIGN_TO_PICKUP': '📦 მიენიჭა კურიერს', 'Pickup in Progress': '🚗 კურიერი მიდის ასაღებად',
+        'Shipment Picked Up': '✅ აიღო კურიერმა', 'Label Created': '🏷️ ლეიბლი შექმნილია', 'OFD': '🚚 კურიერი გამოსულია ჩასაბარებლად',
+        'DELIVERED': '✅ ჩაბარებულია', 'CANCELLED': '❌ გაუქმებულია', 'RETURNED': '↩️ დაბრუნებულია'
       };
 
-      // Basic shipping status (before trackings.ge)
       const basicStatusMap: Record<string, string> = {
-        'pending': '📋 მზადდება',
-        'processing': '🔄 მუშავდება',
-        'packed': '📦 შეფუთულია',
-        'shipped': '🚚 გაგზავნილია კურიერთან',
-        'delivered': '✅ ჩაბარებულია',
-        'cancelled': '❌ გაუქმებულია'
+        'pending': '📋 მზადდება', 'processing': '🔄 მუშავდება', 'packed': '📦 შეფუთულია',
+        'shipped': '🚚 გაგზავნილია კურიერთან', 'delivered': '✅ ჩაბარებულია', 'cancelled': '❌ გაუქმებულია'
       };
 
-      // Get shipping status - prefer trackings.ge status if available
       let shippingStatus = '📋 მზადდება';
       if (o.trackingsStatusCode) {
         shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
@@ -254,13 +242,9 @@ async function searchOrders(query: string): Promise<string> {
         shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
       }
 
-      // Tracking info
       let trackingInfo = '';
       if (o.trackingNumber) {
-        trackingInfo = `\n  ტრეკინგი: ${o.trackingNumber}`;
-        if (o.shippingCompany) {
-          trackingInfo += ` (${o.shippingCompany})`;
-        }
+        trackingInfo = `\n  ტრეკინგი: ${o.trackingNumber}${o.shippingCompany ? ` (${o.shippingCompany})` : ''}`;
       }
 
       const date = new Date(o.timestamp).toLocaleDateString('ka-GE');
@@ -288,8 +272,8 @@ async function searchOrders(query: string): Promise<string> {
 function extractSearchTerms(message: string): string[] {
   const terms: string[] = [];
 
-  // Extract Georgian names (capitalized words)
-  const nameMatches = message.match(/[ა-ჰ][ა-ჰ]+/g);
+  // Extract Georgian & Latin names (words with 3+ letters)
+  const nameMatches = message.match(/[a-zA-Zა-ჰ]+/g);
   if (nameMatches) {
     terms.push(...nameMatches.filter(n => n.length > 2));
   }
