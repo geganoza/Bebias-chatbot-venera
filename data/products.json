@@ -1450,6 +1450,16 @@
     "short_description": ""
   },
   {
+    "id": "სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "name": "სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%A1-%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%981.jpg",
+    "short_description": ""
+  },
+  {
     "id": "4678",
     "name": "სტაფილოსფერი სადა ქუდი - L",
     "price": 59,
@@ -1547,6 +1557,16 @@
     "category": "",
     "stock": 4,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%92%E1%83%9D%E1%83%92%E1%83%9D%E1%83%A1%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "ფირუზისფერი ბამბის მოკლე ქუდი M",
+    "name": "ფირუზისფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%94%E1%83%93%E1%83%98-1.jpg",
     "short_description": ""
   },
   {
@@ -1900,6 +1920,16 @@
     "short_description": ""
   },
   {
+    "id": "ყავისფერი ბამბის მოკლე ქუდი M",
+    "name": "ყავისფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 6,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-3.jpg",
+    "short_description": ""
+  },
+  {
     "id": "4660",
     "name": "ყავისფერი სადა ქუდი - L",
     "price": 59,
@@ -2127,6 +2157,36 @@
     "category": "",
     "stock": 0,
     "image": "https://bebias.ge/wp-content/uploads/MG_9818_yellow-scaled.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "შავი ბამბის მოკლე ქუდი M",
+    "name": "შავი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 11,
+    "image": "https://bebias.ge/wp-content/uploads/SON04852-Photoroom-e1734620854972.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "შერეული ლურჯი ბამბის მოკლე ქუდი M",
+    "name": "შერეული ლურჯი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A0%E1%83%94%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "შერეული სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "name": "შერეული სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A0%E1%83%94%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-1.jpg",
     "short_description": ""
   },
   {
@@ -2667,6 +2727,16 @@
     "category": "",
     "stock": 0,
     "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "ჯინსისფერი ბამბის მოკლე ქუდი M",
+    "name": "ჯინსისფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 5,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AF%E1%83%98%E1%83%9C%E1%83%A1%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-.jpg",
     "short_description": ""
   },
   {

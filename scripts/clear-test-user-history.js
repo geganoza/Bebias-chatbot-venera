@@ -1,14 +1,27 @@
 const admin = require('firebase-admin');
-require('dotenv').config({ path: '.env.local' });
+const path = require('path');
+const fs = require('fs');
 
+// Initialize Firebase Admin
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID?.trim(),
-      clientEmail: process.env.GOOGLE_CLOUD_CLIENT_EMAIL?.trim(),
-      privateKey: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    })
-  });
+  const serviceAccountPath = path.join(__dirname, '..', 'bebias-chatbot-key.json');
+
+  // Try JSON file first (local development), fallback to env vars
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = require(serviceAccountPath);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+  } else {
+    require('dotenv').config({ path: '.env.local' });
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID?.trim(),
+        clientEmail: process.env.GOOGLE_CLOUD_CLIENT_EMAIL?.trim(),
+        privateKey: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      })
+    });
+  }
 }
 
 const db = admin.firestore();

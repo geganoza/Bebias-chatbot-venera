@@ -2,7 +2,15 @@ const { Firestore } = require('@google-cloud/firestore');
 const fs = require('fs');
 const path = require('path');
 
-const orderId = process.argv[2] || '900034';
+const orderId = process.argv[2];
+const clientName = process.argv[3];
+const telephone = process.argv[4];
+
+if (!orderId) {
+  console.error('Error: Please provide an Order ID.');
+  console.log('Usage: node scripts/sync-shipping-update.js <ORDER_ID> [NAME] [PHONE]');
+  process.exit(1);
+}
 
 const envPath = path.join(__dirname, '..', '.env.prod');
 if (fs.existsSync(envPath)) {
@@ -52,21 +60,25 @@ async function syncOrder() {
     shippingCompany: update.shippingCompany,
     trackingsOrderId: update.trackingsOrderId,
     warehouseUpdatedAt: update.updatedAt,
-    warehouseUpdatedBy: update.updatedBy
+    warehouseUpdatedBy: update.updatedBy,
+    clientName: clientName, // Add name if provided
+    telephone: telephone,   // Add phone if provided
   };
 
   // Remove undefined values
   Object.keys(updateData).forEach(k => updateData[k] === undefined && delete updateData[k]);
 
-  console.log('\nApplying update to order:', updateData);
+  console.log('\nApplying update to order (using set with merge):', updateData);
 
-  await db.collection('orders').doc(orderId).update(updateData);
-  console.log('\n✅ Order updated successfully!');
+  await db.collection('orders').doc(orderId).set(updateData, { merge: true });
+  console.log('\n✅ Order created/updated successfully!');
 
   // Verify
   const orderDoc = await db.collection('orders').doc(orderId).get();
   const order = orderDoc.data();
   console.log('\n=== UPDATED ORDER ===');
+  console.log('Name:', order.clientName);
+  console.log('Phone:', order.telephone);
   console.log('Tracking:', order.trackingNumber);
   console.log('Status:', order.warehouseStatus);
   console.log('Company:', order.shippingCompany);
