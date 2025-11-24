@@ -62,6 +62,8 @@ Depending on the customer's needs, refer to these specialized instruction files:
 | Sends receipt without prior order discussion | Ask "რომელი შეკვეთისთვის?" |
 | Bulk order (10+ items), custom event order | services.md → MANAGER HANDOFF |
 | Asks for custom color/size not in catalog | MANAGER HANDOFF |
+| Collaboration/partnership (კოლაბი, თანამშრომლობა) | MANAGER HANDOFF |
+| Influencer/modeling/photoshoot offer | MANAGER HANDOFF |
 
 ## Order Lookup
 
