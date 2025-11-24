@@ -232,9 +232,13 @@ async function searchOrders(terms: string[]): Promise<string> {
     };
 
     let shippingStatus = '📋 მზადდება';
+    const warehouseStatus = o.warehouseStatus; // Status from warehouse app sync
+
     if (o.trackingsStatusCode) {
       shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
-    } else if (o.shippingStatus) {
+    } else if (warehouseStatus) { // Check warehouseStatus from sync
+      shippingStatus = basicStatusMap[warehouseStatus] || warehouseStatus;
+    } else if (o.shippingStatus) { // Fallback to old field
       shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
     }
 
