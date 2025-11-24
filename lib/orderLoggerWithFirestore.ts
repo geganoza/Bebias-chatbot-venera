@@ -25,8 +25,7 @@ async function pushToWarehouse(order: OrderLog): Promise<void> {
             customerAddress: order.address,
             city: extractCity(order.address),
             productName: order.product,
-            quantity: parseInt(order.quantity) || 1,
-            notes: `Messenger order. Payment: ${order.paymentMethod || 'cash_on_delivery'}`
+            quantity: parseInt(order.quantity) || 1
         };
 
         console.log(`📦 Pushing order ${order.orderNumber} to warehouse...`);
@@ -227,7 +226,7 @@ export async function logOrder(
     try {
         const orderNumber = await generateOrderNumber(source);
         const timestamp = new Date().toISOString();
-        const paymentMethod = options?.paymentMethod || 'cash_on_delivery';
+        const paymentMethod = options?.paymentMethod || 'bank_transfer'; // Messenger orders are paid upfront
 
         // Get product info (docId for stock, wcId for WooCommerce reference)
         let productSku = options?.productSku;
