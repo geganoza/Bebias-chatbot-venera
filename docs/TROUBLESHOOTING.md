@@ -257,6 +257,19 @@ vercel --prod --force
 
 ---
 
+## TEST USERS
+
+| User ID | Description |
+|---------|-------------|
+| 3282789748459241 | Main test account (Giorgi) |
+
+**Clear test user:**
+```bash
+node scripts/clear-test-user-history.js 3282789748459241
+```
+
+---
+
 ## QUICK REFERENCE COMMANDS
 
 ```bash
