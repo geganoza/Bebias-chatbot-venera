@@ -1065,8 +1065,18 @@
     "price": 49.0,
     "currency": "GEL",
     "category": "",
-    "stock": 0,
+    "stock": 6,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "99901",
+    "name": "ყავისფერი ბამბის მოკლე ქუდი - სტანდარტი (M)",
+    "price": 49.0,
+    "currency": "GEL",
+    "category": "",
+    "stock": 6,
+    "image": "",
     "short_description": ""
   },
   {
