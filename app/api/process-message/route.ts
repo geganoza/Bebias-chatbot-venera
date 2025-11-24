@@ -151,113 +151,93 @@ async function loadProducts(): Promise<Product[]> {
   }
 }
 
-/**
- * Search orders by name, phone, or order number using a scoring system.
- * Returns the best matching order for order inquiry context.
- */
-async function searchOrders(terms: string[]): Promise<string> {
+async function searchOrders(query: string): Promise<string> {
   try {
-    console.log('🔍 searchOrders called with terms:', terms);
+    const normalizedQuery = query.toLowerCase().trim();
+    console.log('🔍 searchOrders called with:', query, '(normalized:', normalizedQuery, ')');
 
-    const snapshot = await db.collection('orders').limit(200).get(); // Increased limit for better search
+    const snapshot = await db.collection('orders').limit(100).get();
 
     if (snapshot.empty) {
       return 'ბოლო შეკვეთები ვერ მოიძებნა.';
     }
 
     const matches: any[] = [];
-    const nameTerms = terms.filter(t => !/^\d+$/.test(t)).map(t => t.toLowerCase());
-    const numberTerms = terms.filter(t => /^\d+$/.test(t));
+    const normalizedQueryAsPhone = normalizedQuery.replace(/\D/g, '');
+    const queryWords = normalizedQuery.split(' ').filter(w => w.length > 1);
 
     console.log(`📊 Checking ${snapshot.size} orders for matches...`);
     snapshot.forEach(doc => {
       const order = doc.data();
-      let score = 0;
-
       const clientName = (order.clientName || '').toLowerCase();
       const telephone = (order.telephone || '').replace(/\D/g, '');
       const orderNumber = doc.id;
       const trackingNumber = order.trackingNumber || '';
 
-      // Score number matches (phone, order number, tracking)
-      numberTerms.forEach(term => {
-        if (telephone.endsWith(term)) score += 10; // Strong match for phone
-        if (orderNumber.includes(term)) score += 10; // Strong match for order number
-        if (trackingNumber.includes(term)) score += 10; // Strong match for tracking
-      });
+      // Previous working phone match logic
+      const phoneMatch = telephone.length > 5 && normalizedQueryAsPhone.length > 5 &&
+                         (telephone.endsWith(normalizedQueryAsPhone) || normalizedQueryAsPhone.endsWith(telephone));
 
-      // Score name matches
-      if (nameTerms.length > 0) {
-        const nameMatchCount = nameTerms.filter(term => clientName.includes(term)).length;
-        if (nameMatchCount === nameTerms.length) {
-            score += 5; // Good match if all name terms are found
-            if (clientName.split(' ').length === nameTerms.length) {
-                score += 5; // Bonus for exact full name match
-            }
-        } else {
-            score += nameMatchCount; // Partial match score
+      // Previous working name match logic
+      const nameMatch = queryWords.every(qw => clientName.includes(qw));
+
+      if (nameMatch || phoneMatch || orderNumber.includes(normalizedQuery) || trackingNumber.includes(normalizedQuery)) {
+        if (!matches.some(m => m.orderNumber === orderNumber)) {
+          matches.push({
+            ...order, // Add all order fields
+            orderNumber: doc.id
+          });
         }
-      }
-
-      if (score > 0) {
-        matches.push({
-          ...order,
-          orderNumber: doc.id,
-          score
-        });
       }
     });
 
     if (matches.length === 0) {
-      return `თქვენი მოთხოვნით (${terms.join(', ')}) შეკვეთა ვერ მოიძებნა ბოლო 200 შეკვეთაში.`;
+      return `"${query}" სახელით ან ნომრით შეკვეთა ვერ მოიძებნა ბოლო 100 შეკვეთაში.`;
     }
 
-    // Get the best match
-    matches.sort((a, b) => b.score - a.score);
-    const bestMatch = matches[0];
+    const formattedOrders = matches.map((o) => {
+      const paymentStatus = o.paymentStatus === 'confirmed' ? '✅ დადასტურებული' :
+                            o.paymentStatus === 'pending' ? '⏳ მოლოდინში' : '❌ გაუქმებული';
+      
+      const trackingsStatusMap: Record<string, string> = {
+        'CREATE': '📋 შეკვეთა შექმნილია', 'ASSIGN_TO_PICKUP': '📦 მიენიჭა კურიერს', 'Pickup in Progress': '🚗 კურიერი მიდის ასაღებად',
+        'Shipment Picked Up': '✅ აიღო კურიერმა', 'Label Created': '🏷️ ლეიბლი შექმნილია', 'OFD': '🚚 კურიერი გამოსულია ჩასაბარებლად',
+        'DELIVERED': '✅ ჩაბარებულია', 'CANCELLED': '❌ გაუქმებულია', 'RETURNED': '↩️ დაბრუნებულია'
+      };
 
-    // Format the best match for bot context
-    const o = bestMatch;
-    const paymentStatus = o.paymentStatus === 'confirmed' ? '✅ დადასტურებული' :
-                          o.paymentStatus === 'pending' ? '⏳ მოლოდინში' : '❌ გაუქმებული';
+      const basicStatusMap: Record<string, string> = {
+        'pending': '📋 მზადდება', 'processing': '🔄 მუშავდება', 'packed': '📦 შეფუთულია',
+        'shipped': '🚚 გაგზავნილია კურიერთან', 'delivered': '✅ ჩაბარებულია', 'cancelled': '❌ გაუქმებულია'
+      };
 
-    const trackingsStatusMap: Record<string, string> = {
-      'CREATE': '📋 შეკვეთა შექმნილია', 'ASSIGN_TO_PICKUP': '📦 მიენიჭა კურიერს', 'Pickup in Progress': '🚗 კურიერი მიდის ასაღებად',
-      'Shipment Picked Up': '✅ აიღო კურიერმა', 'Label Created': '🏷️ ლეიბლი შექმნილია', 'OFD': '🚚 კურიერი გამოსულია ჩასაბარებლად',
-      'DELIVERED': '✅ ჩაბარებულია', 'CANCELLED': '❌ გაუქმებულია', 'RETURNED': '↩️ დაბრუნებულია'
-    };
-    const basicStatusMap: Record<string, string> = {
-      'pending': '📋 მზადდება', 'processing': '🔄 მუშავდება', 'packed': '📦 შეფუთულია',
-      'shipped': '🚚 გაგზავნილია კურიერთან', 'delivered': '✅ ჩაბარებულია', 'cancelled': '❌ გაუქმებულია'
-    };
-
-    let shippingStatus = '📋 მზადდება';
-    const warehouseStatus = o.warehouseStatus; // Status from warehouse app sync
-
-    if (o.trackingsStatusCode) {
-      shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
-    } else if (warehouseStatus) { // Check warehouseStatus from sync
-      shippingStatus = basicStatusMap[warehouseStatus] || warehouseStatus;
-    } else if (o.shippingStatus) { // Fallback to old field
-      shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
-    }
-
-    let trackingInfo = '';
-    if (o.trackingNumber) {
-      let trackingUrl = '';
-      if (o.shippingCompany?.toLowerCase().includes('trackings.ge')) {
-        trackingUrl = `https://trackings.ge/?id=${o.trackingNumber}`;
+      // *** THIS IS THE BUG FIX FOR STATUS ***
+      let shippingStatus = '📋 მზადდება';
+      const warehouseStatus = o.warehouseStatus; 
+      if (o.trackingsStatusCode) {
+        shippingStatus = trackingsStatusMap[o.trackingsStatusCode] || o.trackingsStatusText || o.trackingsStatusCode;
+      } else if (warehouseStatus) {
+        shippingStatus = basicStatusMap[warehouseStatus] || warehouseStatus;
+      } else if (o.shippingStatus) {
+        shippingStatus = basicStatusMap[o.shippingStatus] || o.shippingStatus;
       }
-      trackingInfo = `\n  ტრეკინგი: ${o.trackingNumber}`;
-      if (o.shippingCompany) trackingInfo += ` (${o.shippingCompany})`;
-      if (trackingUrl) trackingInfo += `\n  შესამოწმებლად: ${trackingUrl}`;
-    } else {
-        trackingInfo = '\n  ტრეკინგი: ჯერ არ არის მინიჭებული'; // "Tracking: Not yet assigned"
-    }
 
-    const date = new Date(o.timestamp).toLocaleDateString('ka-GE');
+      // *** THIS IS THE ENHANCEMENT FOR TRACKING URL ***
+      let trackingInfo = '';
+      if (o.trackingNumber) {
+        let trackingUrl = '';
+        if (o.shippingCompany?.toLowerCase().includes('trackings.ge')) {
+          trackingUrl = `https://trackings.ge/?id=${o.trackingNumber}`;
+        }
+        trackingInfo = `\n  ტრეკინგი: ${o.trackingNumber}`;
+        if (o.shippingCompany) trackingInfo += ` (${o.shippingCompany})`;
+        if (trackingUrl) trackingInfo += `\n  შესამოწმებლად: ${trackingUrl}`;
+      } else {
+          trackingInfo = '\n  ტრეკინგი: ჯერ არ არის მინიჭებული';
+      }
 
-    const formattedOrder = `შეკვეთა #${o.orderNumber} (${date})
+      const date = new Date(o.timestamp).toLocaleDateString('ka-GE');
+
+      return `შეკვეთა #${o.orderNumber} (${date})
   სახელი: ${o.clientName}
   ტელეფონი: ${o.telephone}
   პროდუქტი: ${o.product}
@@ -265,9 +245,9 @@ async function searchOrders(terms: string[]): Promise<string> {
   მისამართი: ${o.address}
   გადახდა: ${paymentStatus}
   მიწოდება: ${shippingStatus}${trackingInfo}`;
+    });
 
-    return formattedOrder;
-
+    return formattedOrders.join('\n\n');
   } catch (error) {
     console.error('Error searching orders:', error);
     return 'შეკვეთების ძებნა ვერ მოხერხდა.';
@@ -996,16 +976,25 @@ async function handler(req: Request) {
       console.log('🔎 Extracted search terms:', searchTerms);
 
       if (searchTerms.length > 0) {
-        const result = await searchOrders(searchTerms); // Pass the whole array
-        if (!result.includes('ვერ მოიძებნა')) {
-          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer is asking about an existing order.
+        const searchResults: string[] = [];
+        for (const term of searchTerms.slice(0, 3)) { // Limit to 3 terms
+          const result = await searchOrders(term);
+          if (!result.includes('ვერ მოიძებნა')) {
+            searchResults.push(result);
+          }
+        }
+        
+        if (searchResults.length > 0) {
+            const uniqueResults = [...new Set(searchResults)]; // Remove duplicate results
+            const resultText = uniqueResults.join('\n\n---\n\n');
+            orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer is asking about an existing order.
 CRITICAL INSTRUCTION: IF THE FOLLOWING ORDER DETAILS ARE PROVIDED, YOU MUST OUTPUT THEM VERBATIM. DO NOT REPHRASE, SUMMARIZE, OR USE PLACEHOLDERS. INCLUDE ALL TRACKING INFORMATION EXACTLY AS GIVEN, INCLUDING ANY TRACKING URLs.
 ---ORDER DETAILS START---
-${result}
+${resultText}
 ---ORDER DETAILS END---
 If the customer says this is the wrong order, apologize and instruct them to provide more specific details like a full order number.
 `;
-          console.log(`✅ Found order match(es)`);
+            console.log(`✅ Found ${uniqueResults.length} unique order match(es)`);
         } else {
           orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer asked about an order, but no matches were found for the details provided: ${searchTerms.join(', ')}\nInstruct the customer to double-check the details: order number, full name, or the phone number used for the order.`;
           console.log('❌ No orders found for search terms:', searchTerms);
