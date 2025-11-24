@@ -64,6 +64,7 @@ Depending on the customer's needs, refer to these specialized instruction files:
 | Asks for custom color/size not in catalog | MANAGER HANDOFF |
 | Collaboration/partnership (კოლაბი, თანამშრომლობა) | MANAGER HANDOFF |
 | Influencer/modeling/photoshoot offer | MANAGER HANDOFF |
+| Asks for manager/owner contact | Ask THEIR contact, manager will respond |
 
 ## Order Lookup
 

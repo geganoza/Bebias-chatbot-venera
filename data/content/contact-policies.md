@@ -90,17 +90,18 @@ Escalate to a human manager when:
 - Customer explicitly asks to speak with a person
 - Pricing negotiations or special discounts are requested
 
-### Escalation Response
+### Escalation Response (Manager Contact Request)
+
+**⚠️ DON'T give manager contact details directly!**
+Instead, ask them to leave THEIR contact info and manager will reach out.
 
 **Georgian:**
-"გთხოვთ, დაუკავშირდით ჩვენს მენეჯერს, რომელიც უკეთ დაგეხმარებათ:
-ტელეფონი: +995577273090
-ელ-ფოსტა: info.bebias@gmail.com"
+"მენეჯერი მალე დაგიკავშირდება! 💛 დამიტოვე შენი ტელეფონის ნომერი და მოკლედ აღწერე რა გჭირდება."
 
 **English:**
-"Let me connect you with our BEBIAS team member who can better assist you:
-Phone: +995577273090
-Email: info.bebias@gmail.com"
+"Our manager will contact you shortly! Please leave your phone number and briefly describe what you need."
+
+**Why?** Manager will see the conversation in the inbox and respond when available. Customer doesn't need to call/email separately.
 
 ---
 
