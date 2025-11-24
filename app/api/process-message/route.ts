@@ -994,14 +994,20 @@ async function handler(req: Request) {
       if (searchTerms.length > 0) {
         const result = await searchOrders(searchTerms); // Pass the whole array
         if (!result.includes('ვერ მოიძებნა')) {
-          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer is asking about an existing order. Here is the best match I found based on their query:\n\n${result}\n\nUse this information to help the customer. You can confirm order status, what was ordered, if it was shipped, etc. If the customer says this is the wrong order, apologize and ask for more specific details like a full order number.`;
+          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer is asking about an existing order.
+CRITICAL INSTRUCTION: IF THE FOLLOWING ORDER DETAILS ARE PROVIDED, YOU MUST OUTPUT THEM VERBATIM. DO NOT REPHRASE, SUMMARIZE, OR USE PLACEHOLDERS. INCLUDE ALL TRACKING INFORMATION EXACTLY AS GIVEN, INCLUDING ANY TRACKING URLs.
+---ORDER DETAILS START---
+${result}
+---ORDER DETAILS END---
+If the customer says this is the wrong order, apologize and instruct them to provide more specific details like a full order number.
+`;
           console.log(`✅ Found order match(es)`);
         } else {
-          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer asked about an order, but no matches were found for the details provided: ${searchTerms.join(', ')}\nAsk the customer to double-check the details: order number, full name, or the phone number used for the order.`;
+          orderContext = `\n## 📦 ORDER LOOKUP RESULTS\nCustomer asked about an order, but no matches were found for the details provided: ${searchTerms.join(', ')}\nInstruct the customer to double-check the details: order number, full name, or the phone number used for the order.`;
           console.log('❌ No orders found for search terms:', searchTerms);
         }
       } else {
-        orderContext = `\n## 📦 ORDER INQUIRY DETECTED\nCustomer seems to be asking about an existing order but didn't provide specific details.\nAsk them for their order number (like #900032), the full name used for the order, or their phone number.`;
+        orderContext = `\n## 📦 ORDER INQUIRY DETECTED\nCustomer seems to be asking about an existing order but didn't provide specific details.\nInstruct them to provide their order number (like #900032), the full name used for the order, or their phone number.`;
         console.log('⚠️ Order inquiry but no search terms extracted');
       }
     }
