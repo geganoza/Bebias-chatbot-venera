@@ -52,16 +52,17 @@ function parseGeorgianOrderConfirmation(text: string): {
   console.log('✅ Georgian order confirmation detected, extracting fields...');
 
   // Extract fields using emoji prefixes (more reliable than labels)
+  // Use flexible line ending: \r\n, \n, or next emoji field
   // 👤 მიმღები: [name]
-  const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?:\n|$)/);
+  const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?=[\r\n]|📞|📍|📦|💰|🎫|$)/);
   // 📞 ტელეფონი: [phone]
-  const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?:\n|$)/);
+  const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?=[\r\n]|👤|📍|📦|💰|🎫|$)/);
   // 📍 მისამართი: [address]
-  const addressMatch = text.match(/📍[^:]*:\s*(.+?)(?:\n|$)/);
+  const addressMatch = text.match(/📍[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📦|💰|🎫|$)/);
   // 📦 პროდუქტი: [product]
-  const productMatch = text.match(/📦[^:]*:\s*(.+?)(?:\n|$)/);
+  const productMatch = text.match(/📦[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|💰|🎫|$)/);
   // 💰 ჯამი: [total]
-  const totalMatch = text.match(/💰[^:]*:\s*(.+?)(?:\n|$)/);
+  const totalMatch = text.match(/💰[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|📦|🎫|$)/);
 
   console.log(`🔍 Field extraction results:`);
   console.log(`   👤 Name: ${nameMatch ? 'FOUND - ' + nameMatch[1] : 'MISSING'}`);
