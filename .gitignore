@@ -47,3 +47,4 @@ data/conversations/
 # Firestore credentials
 firestore-key.json
 CREDENTIALS.md
+warehouse-app-credentials.json

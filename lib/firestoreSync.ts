@@ -1,8 +1,12 @@
 import { Firestore } from '@google-cloud/firestore';
 
-// Initialize Firestore client
+// Initialize Firestore client with credentials from environment
 const firestore = new Firestore({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'bebias-wp-db-handler',
+  projectId: (process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'bebias-wp-db-handler').trim(),
+  credentials: process.env.GOOGLE_CLOUD_PRIVATE_KEY ? {
+    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL!.trim(),
+    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY.trim().replace(/\\n/g, '\n'),
+  } : undefined,
 });
 
 export interface ProductStockUpdate {

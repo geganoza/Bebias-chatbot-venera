@@ -5,10 +5,10 @@ const { Firestore } = require('@google-cloud/firestore');
 const fs = require('fs');
 const path = require('path');
 
-// Try .env.local first, then .env.prod
+// Try .env.prod first (has correct credentials), then .env.local
 const envPaths = [
-  path.join(__dirname, '..', '.env.local'),
-  path.join(__dirname, '..', '.env.prod')
+  path.join(__dirname, '..', '.env.prod'),
+  path.join(__dirname, '..', '.env.local')
 ];
 
 for (const envPath of envPaths) {
@@ -28,14 +28,17 @@ for (const envPath of envPaths) {
   }
 }
 
-// Fix private key format
+// Fix private key format and client email
 let privateKey = process.env.GOOGLE_CLOUD_PRIVATE_KEY || '';
-privateKey = privateKey.replace(/\\n/g, '\n');
+privateKey = privateKey.replace(/\\n/g, '\n').trim();
+
+let clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL || '';
+clientEmail = clientEmail.replace(/\\n/g, '').trim();
 
 const db = new Firestore({
   projectId: 'bebias-wp-db-handler',
   credentials: {
-    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+    client_email: clientEmail,
     private_key: privateKey,
   },
 });

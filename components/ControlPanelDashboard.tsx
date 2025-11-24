@@ -53,6 +53,7 @@ export default function ControlPanelDashboard() {
 
   // Bot control states
   const [botPaused, setBotPaused] = useState<boolean | null>(null);
+  const [killSwitchActive, setKillSwitchActive] = useState<boolean | null>(null);
   const [botControlLoading, setBotControlLoading] = useState(false);
   const [botControlMessage, setBotControlMessage] = useState('');
 
@@ -75,8 +76,37 @@ export default function ControlPanelDashboard() {
       const response = await fetch('/api/bot-status');
       const data = await response.json();
       setBotPaused(data.paused || false);
+      setKillSwitchActive(data.killSwitch || false);
     } catch (error) {
       console.error('Error checking bot status:', error);
+    }
+  };
+
+  // Toggle kill switch
+  const toggleKillSwitch = async () => {
+    setBotControlLoading(true);
+    setBotControlMessage('');
+
+    try {
+      const response = await fetch('/api/bot-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ killSwitch: !killSwitchActive })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setKillSwitchActive(data.killSwitch);
+        setBotPaused(data.paused);
+        setBotControlMessage(data.killSwitch ? 'KILL SWITCH ACTIVATED' : 'Kill switch deactivated');
+        setTimeout(() => setBotControlMessage(''), 3000);
+      } else {
+        setBotControlMessage('Failed to toggle kill switch');
+      }
+    } catch (error) {
+      setBotControlMessage('Error: ' + error);
+    } finally {
+      setBotControlLoading(false);
     }
   };
 
@@ -107,44 +137,18 @@ export default function ControlPanelDashboard() {
     }
   };
 
-  // Fetch messages and manual mode status
+  // Fetch messages (now includes profiles and status in bulk - no N+1 queries!)
   const fetchMessages = async () => {
     try {
       const response = await fetch('/api/meta-messages');
       const data = await response.json();
       const convos = data.conversations || [];
 
-      // Fetch manual mode status and user profile for each conversation
+      // Check for confirmed orders (enriched data already included from API)
       for (const convo of convos) {
-        try {
-          // Check if conversation has confirmed order (ORDER_NOTIFICATION in messages)
-          convo.hasConfirmedOrder = convo.messages.some(msg =>
-            msg.senderType === 'bot' && msg.text.includes('ORDER_NOTIFICATION')
-          );
-
-          // Fetch manual mode status and escalation data
-          const statusResponse = await fetch(`/api/manual-control?userId=${convo.userId}`);
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            convo.manualMode = statusData.manualMode;
-            convo.botInstruction = statusData.botInstruction;
-            convo.needsAttention = statusData.needsAttention;
-            convo.escalationReason = statusData.escalationReason;
-            convo.escalationDetails = statusData.escalationDetails;
-          }
-
-          // Fetch user profile
-          const profileResponse = await fetch(`/api/user-profile?userId=${convo.userId}`);
-          if (profileResponse.ok) {
-            const profileData = await profileResponse.json();
-            if (profileData.profile) {
-              convo.userName = profileData.profile.name;
-              convo.profilePic = profileData.profile.profile_pic;
-            }
-          }
-        } catch (err) {
-          // Ignore errors for individual conversations
-        }
+        convo.hasConfirmedOrder = convo.messages?.some(msg =>
+          msg.senderType === 'bot' && msg.text?.includes('ORDER_NOTIFICATION')
+        );
       }
 
       setConversations(convos);
@@ -924,10 +928,11 @@ export default function ControlPanelDashboard() {
 
           {/* Bot Status */}
           <div style={{
-            backgroundColor: '#f8f9fa',
+            backgroundColor: killSwitchActive ? '#fff0f0' : '#f8f9fa',
             borderRadius: '10px',
             padding: '16px',
-            marginBottom: '20px'
+            marginBottom: '20px',
+            border: killSwitchActive ? '2px solid #dc3545' : 'none'
           }}>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px', fontWeight: '600' }}>
               STATUS
@@ -936,34 +941,60 @@ export default function ControlPanelDashboard() {
               display: 'inline-block',
               padding: '8px 16px',
               borderRadius: '16px',
-              backgroundColor: botPaused ? '#dc3545' : '#28a745',
+              backgroundColor: killSwitchActive ? '#000' : (botPaused ? '#dc3545' : '#28a745'),
               color: 'white',
               fontSize: '13px',
               fontWeight: 'bold',
               marginBottom: '12px'
             }}>
-              {botPaused ? '⏸ PAUSED' : '▶ ACTIVE'}
+              {killSwitchActive ? '🛑 KILLED' : (botPaused ? '⏸ PAUSED' : '▶ ACTIVE')}
             </div>
-            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 12px 0', lineHeight: '1.5' }}>
-              {botPaused
-                ? 'Bot paused globally. No auto responses.'
-                : 'Bot is active and responding automatically.'}
+            <p style={{ fontSize: '12px', color: killSwitchActive ? '#dc3545' : '#666', margin: '0 0 12px 0', lineHeight: '1.5', fontWeight: killSwitchActive ? 'bold' : 'normal' }}>
+              {killSwitchActive
+                ? 'EMERGENCY STOP - All processing halted!'
+                : (botPaused
+                  ? 'Bot paused globally. No auto responses.'
+                  : 'Bot is active and responding automatically.')}
             </p>
             {botControlMessage && (
               <div style={{
                 padding: '10px',
                 borderRadius: '6px',
-                backgroundColor: botControlMessage.includes('✅') ? '#d4edda' : '#f8d7da',
-                color: botControlMessage.includes('✅') ? '#155724' : '#721c24',
+                backgroundColor: botControlMessage.includes('KILL') ? '#000' : (botControlMessage.includes('deactivated') || botControlMessage.includes('resumed') ? '#d4edda' : '#f8d7da'),
+                color: botControlMessage.includes('KILL') ? '#fff' : (botControlMessage.includes('deactivated') || botControlMessage.includes('resumed') ? '#155724' : '#721c24'),
                 fontSize: '12px',
-                marginBottom: '12px'
+                marginBottom: '12px',
+                fontWeight: botControlMessage.includes('KILL') ? 'bold' : 'normal'
               }}>
                 {botControlMessage}
               </div>
             )}
+
+            {/* Kill Switch Button */}
+            <button
+              onClick={toggleKillSwitch}
+              disabled={botControlLoading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: 'white',
+                backgroundColor: killSwitchActive ? '#28a745' : '#000',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: botControlLoading ? 'not-allowed' : 'pointer',
+                opacity: botControlLoading ? 0.6 : 1,
+                marginBottom: '10px'
+              }}
+            >
+              {botControlLoading ? 'Processing...' : (killSwitchActive ? '✅ Reactivate Bot' : '🛑 KILL SWITCH')}
+            </button>
+
+            {/* Pause/Resume Button (disabled when kill switch active) */}
             <button
               onClick={toggleBot}
-              disabled={botControlLoading}
+              disabled={botControlLoading || killSwitchActive}
               style={{
                 width: '100%',
                 padding: '10px',
@@ -973,12 +1004,17 @@ export default function ControlPanelDashboard() {
                 backgroundColor: botPaused ? '#28a745' : '#dc3545',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: botControlLoading ? 'not-allowed' : 'pointer',
-                opacity: botControlLoading ? 0.6 : 1
+                cursor: (botControlLoading || killSwitchActive) ? 'not-allowed' : 'pointer',
+                opacity: (botControlLoading || killSwitchActive) ? 0.4 : 1
               }}
             >
               {botControlLoading ? 'Processing...' : (botPaused ? '▶ Resume Bot' : '⏸ Pause Bot')}
             </button>
+            {killSwitchActive && (
+              <p style={{ fontSize: '10px', color: '#999', margin: '8px 0 0 0', textAlign: 'center' }}>
+                Use Reactivate to restore normal operation
+              </p>
+            )}
           </div>
 
           {/* Quick Actions */}

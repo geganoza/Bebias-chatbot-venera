@@ -217,6 +217,9 @@ async function saveMessageAndQueue(event: any): Promise<void> {
 
   if (messageAttachments) {
     for (const attachment of messageAttachments) {
+      console.log(`📎 Attachment type: ${attachment.type}`, JSON.stringify(attachment).substring(0, 200));
+
+      // Handle direct image attachments
       if (attachment.type === "image") {
         console.log(`🖼️ Converting image attachment: ${attachment.payload.url.substring(0, 60)}...`);
 
@@ -233,6 +236,33 @@ async function saveMessageAndQueue(event: any): Promise<void> {
           if (!messageText) {
             contentParts.push({ type: "text", text: "[User sent an image]" });
           }
+        }
+      }
+      // Handle Instagram/Facebook share attachments (shared posts)
+      else if (attachment.type === "share" || attachment.type === "fallback") {
+        const shareUrl = attachment.payload?.url;
+        const shareTitle = attachment.payload?.title;
+        const shareImageUrl = attachment.payload?.image_url;
+
+        console.log(`🔗 Share attachment: title="${shareTitle}", hasImage=${!!shareImageUrl}`);
+
+        // If the share has an image_url, try to convert it
+        if (shareImageUrl) {
+          console.log(`🖼️ Converting share image: ${shareImageUrl.substring(0, 60)}...`);
+          const base64Image = await facebookImageToBase64(shareImageUrl);
+
+          if (base64Image) {
+            contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+            console.log(`✅ Share image converted to base64`);
+          } else {
+            console.warn(`⚠️ Failed to convert share image`);
+          }
+        }
+
+        // Also add context about the shared post
+        if (shareTitle || shareUrl) {
+          const shareContext = `[User shared a post${shareTitle ? `: "${shareTitle}"` : ''}]`;
+          contentParts.push({ type: "text", text: shareContext });
         }
       }
     }
@@ -311,7 +341,10 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       url: callbackUrl,
       body: {
         senderId,
-        messageId
+        messageId,
+        // Pass original content WITH images so process-message can use it
+        // (history has images replaced with placeholders)
+        originalContent: userContent
       },
       // Disable retries - prevents duplicate OpenAI API calls if request takes too long
       retries: 0,
@@ -446,8 +479,9 @@ async function saveConversation(data: ConversationData): Promise<void> {
     data.lastActive = new Date().toISOString();
 
     // Use Firestore for all conversation storage
+    // IMPORTANT: Use merge to preserve fields like manualMode that might be set by operator
     const docRef = db.collection('conversations').doc(data.senderId);
-    await docRef.set(data);
+    await docRef.set(data, { merge: true });
     console.log(`💾 Saved conversation to Firestore for user ${data.senderId}`);
   } catch (err) {
     console.error(`❌ Error saving conversation for user ${data.senderId}:`, err);
@@ -668,6 +702,7 @@ async function verifyPaymentAsync(expectedAmount: number, name: string, isKa: bo
       if (orderDetails && orderDetails.product && orderDetails.telephone && orderDetails.address) {
         const orderData = {
           product: orderDetails.product,
+          quantity: "1",
           clientName: name,
           telephone: orderDetails.telephone,
           address: orderDetails.address,
@@ -1252,24 +1287,21 @@ SEND_IMAGE: PRODUCT_ID
 
 Example 1:
 User: "შავი ქუდი გაქვთ?"
-Your response MUST be:
-"დიახ, გვაქვს შავი ბამბის მოკლე ქუდი. ფასი: 49 ლარი.
+Your response (use NUMERIC ID from catalog):
+"შავი ბამბის მოკლე ქუდი - 49 ლარი 💛
 
-SEND_IMAGE: H-SHORT-COT-BLACK"
+აირჩიე მიწოდების მეთოდი: თბილისი 6₾ (1-3 დღე), რეგიონი 10₾ (3-5 დღე), Wolt იმავე დღეს
+
+SEND_IMAGE: 9016"
 
 Example 2:
 User: "წითელი?"
-Your response MUST be:
-"დიახ, გვაქვს წითელი ბამბის მოკლე ქუდი. ფასი: 49 ლარი.
+Your response (use NUMERIC ID from catalog):
+"წითელი ბამბის მოკლე ქუდი - 49 ლარი 💛
 
-SEND_IMAGE: H-SHORT-COT-RED"
+აირჩიე მიწოდების მეთოდი: თბილისი 6₾ (1-3 დღე), რეგიონი 10₾ (3-5 დღე), Wolt იმავე დღეს
 
-Example 3:
-User: "სტაფილოსფერი?"
-Your response MUST be:
-"დიახ, გვაქვს სტაფილოსფერი ბამბის მოკლე ქუდი. ფასი: 49 ლარი.
-
-SEND_IMAGE: H-SHORT-COT-ORANGE"
+SEND_IMAGE: [NUMERIC_ID_FROM_CATALOG]"
 
 **CONTEXT RULE:**
 If customer asks "ფოტო გაქვთ?" without product name, find the last product with [HAS_IMAGE] from conversation and send its image.
@@ -1503,7 +1535,10 @@ async function processMessagingEvent(event: any) {
 
       if (messageAttachments) {
         for (const attachment of messageAttachments) {
-          if (attachment.type === "image") { // Focus on image attachments for now
+          console.log(`📎 Attachment type: ${attachment.type}`, JSON.stringify(attachment).substring(0, 200));
+
+          // Handle direct image attachments
+          if (attachment.type === "image") {
             console.log(`🖼️ Identified image attachment: ${attachment.payload.url}`);
 
             // Convert Facebook image URL to base64 for OpenAI compatibility
@@ -1518,6 +1553,33 @@ async function processMessagingEvent(event: any) {
               if (!messageText) {
                 contentParts.push({ type: "text", text: "[User sent an image]" });
               }
+            }
+          }
+          // Handle Instagram/Facebook share attachments (shared posts)
+          else if (attachment.type === "share" || attachment.type === "fallback") {
+            const shareUrl = attachment.payload?.url;
+            const shareTitle = attachment.payload?.title;
+            const shareImageUrl = attachment.payload?.image_url;
+
+            console.log(`🔗 Share attachment: title="${shareTitle}", hasImage=${!!shareImageUrl}`);
+
+            // If the share has an image_url, try to convert it
+            if (shareImageUrl) {
+              console.log(`🖼️ Converting share image: ${shareImageUrl.substring(0, 60)}...`);
+              const base64Image = await facebookImageToBase64(shareImageUrl);
+
+              if (base64Image) {
+                contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+                console.log(`✅ Share image converted to base64`);
+              } else {
+                console.warn(`⚠️ Failed to convert share image`);
+              }
+            }
+
+            // Also add context about the shared post
+            if (shareTitle || shareUrl) {
+              const shareContext = `[User shared a post${shareTitle ? `: "${shareTitle}"` : ''}]`;
+              contentParts.push({ type: "text", text: shareContext });
             }
           }
           // Other attachment types (video, file, audio) are ignored for now.
@@ -1640,6 +1702,7 @@ async function processMessagingEvent(event: any) {
             hasCompleteOrderDetails = true;
             orderData = {
               product: orderDetails.product,
+              quantity: "1",
               clientName: customerName,
               telephone: orderDetails.telephone,
               address: orderDetails.address,
@@ -1654,6 +1717,7 @@ async function processMessagingEvent(event: any) {
             hasCompleteOrderDetails = false;
             orderData = {
               product: '',
+              quantity: '',
               clientName: customerName,
               telephone: '',
               address: '',
@@ -1889,97 +1953,86 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  console.log("📩 Incoming Messenger webhook:");
-  console.log(JSON.stringify(body, null, 2));
+  console.log("📩 Incoming Messenger webhook");
 
-  try {
-    // Check if this is a page event
-    if (body.object === "page") {
-      // Iterate over entries and messaging events
-      for (const entry of body.entry || []) {
-        console.log(`📦 Processing entry ID: ${entry.id}`);
+  if (body.object !== "page") {
+    console.log("⚠️ Unknown webhook event");
+    return NextResponse.json({ status: "ignored" }, { status: 200 });
+  }
 
-        for (const event of entry.messaging || []) {
-          const senderId = event.sender?.id;
-          const messageId = event.message?.mid;
+  // Process events synchronously (serverless terminates after response)
+  for (const entry of body.entry || []) {
+    for (const event of entry.messaging || []) {
+      const senderId = event.sender?.id;
+      const messageId = event.message?.mid;
+      const webhookId = Math.random().toString(36).substring(2, 8);
 
-          // Unique webhook ID for tracing duplicates
-          const webhookId = Math.random().toString(36).substring(2, 8);
-          console.log(`📨 [WH:${webhookId}] Received message ${messageId} from ${senderId}`);
+      console.log(`📨 [WH:${webhookId}] Received message ${messageId} from ${senderId}`);
 
-          if (!senderId || (!event.message?.text && !event.message?.attachments)) {
-            console.log(`⚠️ [WH:${webhookId}] Event does not contain required data, skipping.`);
-            continue;
-          }
+      // ═══════════════════════════════════════════════════════
+      // SKIP ECHO MESSAGES - These are our own bot responses sent back by Facebook
+      // ═══════════════════════════════════════════════════════
+      if (event.message?.is_echo) {
+        console.log(`⏭️ [WH:${webhookId}] ECHO message (our own response) - skipping`);
+        continue;
+      }
 
-          // ═══════════════════════════════════════════════════════
-          // SYNCHRONOUS MESSAGE DEDUPLICATION (ATOMIC)
-          // Use transaction to prevent race conditions
-          // ═══════════════════════════════════════════════════════
-          if (messageId) {
-            try {
-              const msgDocRef = db.collection('processedMessages').doc(messageId);
-
-              // Use transaction for atomic check-and-set
-              const isDuplicate = await db.runTransaction(async (transaction) => {
-                const msgDoc = await transaction.get(msgDocRef);
-
-                if (msgDoc.exists) {
-                  const processedAt = msgDoc.data()?.processedAt;
-                  const oneHourAgo = Date.now() - (60 * 60 * 1000);
-
-                  if (new Date(processedAt).getTime() > oneHourAgo) {
-                    return true; // Is duplicate
-                  }
-                }
-
-                // Mark as processed atomically
-                transaction.set(msgDocRef, {
-                  processedAt: new Date().toISOString(),
-                  senderId: senderId
-                });
-
-                return false; // Not a duplicate
-              });
-
-              if (isDuplicate) {
-                console.log(`⏭️ Skipping duplicate message ${messageId} from user ${senderId}`);
-                continue; // Skip to next event
-              }
-
-              console.log(`✅ Message ${messageId} marked as processed (atomic)`);
-            } catch (fsError) {
-              console.warn(`⚠️ Firestore unavailable for deduplication - continuing anyway`);
-            }
-          }
-
-          // ═══════════════════════════════════════════════════════
-          // SAVE MESSAGE & QUEUE TO QSTASH (ASYNC PROCESSING)
-          // ═══════════════════════════════════════════════════════
-          console.log(`🚀 [WH:${webhookId}] Queueing message ${messageId} for ${senderId}`);
-          try {
-            await saveMessageAndQueue(event);
-            console.log(`✅ [WH:${webhookId}] Queued message ${messageId} to QStash`);
-          } catch (err) {
-            console.error(`❌ [WH:${webhookId}] Error queueing message for ${senderId}:`, err);
-          }
-        }
+      if (!senderId || (!event.message?.text && !event.message?.attachments)) {
+        console.log(`⚠️ [WH:${webhookId}] Event does not contain required data, skipping.`);
+        continue;
       }
 
       // ═══════════════════════════════════════════════════════
-      // RETURN 200 OK AFTER PROCESSING
+      // CONTENT-BASED DEDUPLICATION - Catches duplicates across sender IDs
+      // Facebook sends same message with different sender IDs for page admins
       // ═══════════════════════════════════════════════════════
-      console.log("✅ Returning 200 OK to Facebook");
-      return NextResponse.json({ status: "ok" }, { status: 200 });
-    }
+      const messageText = event.message?.text || '';
+      const hasImage = event.message?.attachments?.some((a: any) => a.type === 'image');
+      const contentKey = messageText || (hasImage ? 'IMAGE_ATTACHMENT' : 'EMPTY');
 
-    console.log("⚠️ Unknown webhook event");
-    return NextResponse.json({ status: "ignored" }, { status: 200 });
-  } catch (err: any) {
-    console.error("❌ POST /api/messenger error:", err);
-    return NextResponse.json(
-      { error: err?.message ?? "unknown error" },
-      { status: 500 }
-    );
+      // Create content hash: first 50 chars + length + 30-second bucket
+      const timeBucket = Math.floor(Date.now() / 30000); // 30-second windows
+      const contentHash = `content_${contentKey.substring(0, 50).replace(/[^a-zA-Z0-9\u10A0-\u10FF]/g, '')}_${contentKey.length}_${timeBucket}`;
+
+      try {
+        const contentDocRef = db.collection('processedMessages').doc(contentHash);
+        await contentDocRef.create({
+          processedAt: new Date().toISOString(),
+          senderId: senderId,
+          messageId: messageId,
+          webhookId: webhookId,
+          content: contentKey.substring(0, 100)
+        });
+        console.log(`✅ [WH:${webhookId}] Content lock acquired: ${contentHash.substring(0, 40)}...`);
+      } catch (error: unknown) {
+        const fsError = error as { code?: string | number; message?: string };
+        const errorCode = fsError.code;
+        const isAlreadyExists = errorCode === 6 || errorCode === 'already-exists' ||
+                               (typeof errorCode === 'number' && errorCode === 6) ||
+                               fsError.message?.includes('ALREADY_EXISTS');
+
+        if (isAlreadyExists) {
+          console.log(`⏭️ [WH:${webhookId}] DUPLICATE CONTENT - same message within 30s, skipping`);
+          console.log(`   Content hash: ${contentHash.substring(0, 50)}...`);
+          continue;
+        }
+        console.warn(`⚠️ [WH:${webhookId}] Firestore error:`, fsError.message || fsError);
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // QUEUE TO QSTASH (Quick - just HTTP POST)
+      // ═══════════════════════════════════════════════════════
+      console.log(`🚀 [WH:${webhookId}] Queueing ${messageId}`);
+      try {
+        await saveMessageAndQueue(event);
+        console.log(`✅ [WH:${webhookId}] Queued ${messageId}`);
+      } catch (err) {
+        console.error(`❌ [WH:${webhookId}] Queue error:`, err);
+      }
+    }
   }
+
+  console.log("✅ Returning 200 OK to Facebook");
+  return NextResponse.json({ status: "ok" }, { status: 200 });
 }
+

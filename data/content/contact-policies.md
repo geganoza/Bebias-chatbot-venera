@@ -101,3 +101,26 @@ Escalate to a human manager when:
 "Let me connect you with our BEBIAS team member who can better assist you:
 Phone: +995577273090
 Email: info.bebias@gmail.com"
+
+---
+
+## Escalation Handling Example: Product Styling Confusion
+
+**Scenario:** Customer bought a cotton beanie and thought it was wrong product because it looked different from the website photo.
+
+**What happened:**
+- Customer sent photo of their beanie with ONE fold
+- Website photos show beanie with TWO folds
+- Customer asked "Is this the same beanie as in the photo?"
+- Bot got confused and said colors were different (wrong!)
+- Manager took over
+
+**Manager's successful handling:**
+1. Confirmed it's the same product: "დიახ სავარაუდოდ ჩვენს ქუდს ჰგავს"
+2. Explained the styling: "2-ჯერ უნდა გადაკეცოთ და ისე მოირგოთ"
+3. Offered reassurance: "სცადეთ აბა"
+4. Explained why it's designed this way: "უფრო უნივერსალურია" - everyone can fold to their own preference
+
+**Result:** Customer was satisfied, even expressed interest in buying more products in the future.
+
+**Lesson:** Cotton beanies need TWO folds to look like website photos. This is a common styling question that may require manager intervention.

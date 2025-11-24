@@ -25,6 +25,7 @@ interface PaymentData {
   senderId: string;
   orderData: {
     product: string;
+    quantity: string;
     clientName: string;
     telephone: string;
     address: string;

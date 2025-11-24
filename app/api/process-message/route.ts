@@ -7,7 +7,7 @@ import path from "path";
 import { sendOrderEmail } from "@/lib/sendOrderEmail";
 
 // VERSION MARKER - proves which code is deployed
-const CODE_VERSION = "GEORGIAN_EMOJI_PARSER_V1_NOV23_2130";
+const CODE_VERSION = "BETA_3_NOV24";
 
 /**
  * Parse order confirmation from Georgian format (no ORDER_NOTIFICATION needed!)
@@ -39,7 +39,8 @@ function parseGeorgianOrderConfirmation(text: string): {
   const hasOrderNumberPlaceholder =
     text.includes('[ORDER_NUMBER]') ||
     text.includes('[შეკვეთის ნომერი მალე]') ||
-    text.includes('შეკვეთის ნომერი:'); // Has order number field at all
+    text.includes('შეკვეთის ნომერი:') || // Has order number field at all
+    text.includes('🎫'); // Ticket emoji = order number field present
 
   if (!hasOrderNumberPlaceholder) {
     console.log('❌ No order number placeholder found');
@@ -1248,7 +1249,8 @@ IMPORTANT: Use these EXACT emoji prefixes (👤📞📍📦💰) - the system us
 
         // FALLBACK: If lock mechanism failed, still try to create order
         // This ensures orders aren't lost due to lock issues
-        if (hasOrderNumberPlaceholder(finalResponse)) {
+        // BUG FIX: Must check orderData exists before calling logOrder!
+        if (orderData && hasOrderNumberPlaceholder(finalResponse)) {
           console.log("🔄 [Step 7] Attempting fallback order creation...");
           try {
             const orderNumber = await logOrder(orderData, 'messenger');
