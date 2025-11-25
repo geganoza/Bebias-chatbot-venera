@@ -331,8 +331,11 @@ async function getInstagramUserProfile(igsid: string) {
 /**
  * Set Instagram ice breakers (quick reply buttons)
  * Call this once to set up the ice breakers
+ *
+ * NOTE: This is a utility function, not exported from route.
+ * To use: Import this function from a separate utility file.
  */
-export async function setInstagramIceBreakers() {
+async function setInstagramIceBreakers() {
   try {
     // Get Instagram account ID first
     const meUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/me?fields=instagram_business_account&access_token=${INSTAGRAM_PAGE_ACCESS_TOKEN}`;
@@ -389,10 +392,6 @@ export async function setInstagramIceBreakers() {
   }
 }
 
-// Export helper functions for use in other parts of the app
-export {
-  sendInstagramMessage,
-  sendInstagramImage,
-  sendInstagramProductCard,
-  getInstagramUserProfile
-};
+// Helper functions available internally to this route
+// NOTE: Cannot export from Next.js route handlers
+// If you need these elsewhere, move to lib/instagram.ts
