@@ -1,10 +1,27 @@
 import { Redis } from '@upstash/redis';
 
-// Initialize Redis client
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+// Initialize Redis client with proper error handling
+let redis: Redis;
+
+try {
+  // Clean up environment variables in case they have extra whitespace
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+
+  if (!url || !token) {
+    console.warn('⚠️ Redis credentials not configured, Redis features disabled');
+    // Create a dummy redis client that does nothing
+    redis = {} as Redis;
+  } else {
+    redis = new Redis({
+      url: url,
+      token: token,
+    });
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize Redis client:', error);
+  redis = {} as Redis;
+}
 
 export default redis;
 
@@ -13,6 +30,11 @@ export async function addMessageToBatch(senderId: string, message: any): Promise
   const batchKey = `msgbatch:${senderId}`;
 
   try {
+    // Check if Redis is properly initialized
+    if (!redis.rpush) {
+      throw new Error('Redis client not initialized');
+    }
+
     // Add message to the batch
     await redis.rpush(batchKey, JSON.stringify(message));
 
@@ -55,6 +77,12 @@ export async function clearMessageBatch(senderId: string): Promise<void> {
 // Test Redis connection
 export async function testRedisConnection(): Promise<boolean> {
   try {
+    // Check if Redis is properly initialized
+    if (!redis.set || !redis.get) {
+      console.log('❌ Redis client not initialized');
+      return false;
+    }
+
     await redis.set('test:ping', 'pong', { ex: 10 });
     const result = await redis.get('test:ping');
     console.log(`🏓 Redis connection test: ${result === 'pong' ? 'SUCCESS' : 'FAILED'}`);
