@@ -1,0 +1,15 @@
+{
+  "comment": "Map Facebook ad IDs to product IDs",
+  "mappings": {
+    "120208123456789": {
+      "productId": "9016",
+      "productName": "შავი ბამბის ქუდი",
+      "note": "Winter hat ad campaign"
+    },
+    "120208987654321": {
+      "productId": "9017",
+      "productName": "თეთრი ბამბის ქუდი",
+      "note": "White hat ad"
+    }
+  }
+}

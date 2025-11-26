@@ -1,0 +1,11 @@
+I have deployed the reverted and fixed code. This version should be stable and correctly handle the order lookup. The test user's history has been cleared.
+
+Please perform the test one last time.
+
+1.  From the Facebook account corresponding to user ID `3282789748459241`, open the chat with the Bebias chatbot.
+2.  Send this exact message:
+    `599095220`
+
+The bot should now find the order, report the correct status ("Shipment Picked Up" or its Georgian equivalent), and provide the full order details, including the tracking number and the trackings.ge URL.
+
+Thank you for your patience. Please let me know the result.

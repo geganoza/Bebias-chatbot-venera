@@ -65,10 +65,10 @@ type Product = {
 };
 
 /**
- * OPTIMIZATION: Filter products based on user query to reduce token usage
+ * OPTIMIZATION: Filter products based on user query AND conversation history to reduce token usage
  * Instead of sending all 76k chars of products, send only relevant ones
  */
-function filterProductsByQuery(products: Product[], userMessage: string): Product[] {
+function filterProductsByQuery(products: Product[], userMessage: string, history: Message[] = []): Product[] {
   const message = userMessage.toLowerCase();
 
   // Product category keywords (Georgian and English)
@@ -83,8 +83,9 @@ function filterProductsByQuery(products: Product[], userMessage: string): Produc
   const colorKeywords: string[] = [
     'შავ', 'თეთრ', 'წითელ', 'ლურჯ', 'მწვანე', 'ყვითელ', 'ვარდისფერ', 'ნარინჯისფერ',
     'სტაფილოსფერ', 'ფირუზისფერ', 'იისფერ', 'ტყფისფერ', 'ნაცრისფერ', 'ცისფერ',
+    'აგურისფერ', 'გირჩისფერ', // Added missing Georgian colors
     'black', 'white', 'red', 'blue', 'green', 'yellow', 'pink', 'orange',
-    'turquoise', 'purple', 'brown', 'gray', 'grey'
+    'turquoise', 'purple', 'brown', 'gray', 'grey', 'brick', 'mustard'
   ];
 
   // Material keywords (Georgian and English)
@@ -93,24 +94,78 @@ function filterProductsByQuery(products: Product[], userMessage: string): Produc
     'cotton', 'wool', 'cashmere', 'knit'
   ];
 
-  // Check if user is asking about specific product types
-  let matchedProducts: Product[] = [];
+  // Extract context from recent conversation history
+  let contextCategory = '';
+  let contextColor = '';
+  let contextMaterial = '';
 
-  // First, check for category matches
-  for (const [category, keywords] of Object.entries(categoryKeywords)) {
-    if (keywords.some(kw => message.includes(kw))) {
-      // Filter products by this category
-      const categoryProducts = products.filter(p =>
-        p.category?.toLowerCase().includes(category) ||
-        p.name.toLowerCase().includes(category) ||
-        keywords.some(kw => p.name.toLowerCase().includes(kw))
-      );
-      matchedProducts.push(...categoryProducts);
+  // Look at last 5 messages for context
+  const recentHistory = history.slice(-5);
+  for (const msg of recentHistory) {
+    const msgContent = typeof msg.content === 'string' ? msg.content.toLowerCase() : '';
+
+    // Extract category context
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+      if (keywords.some(kw => msgContent.includes(kw))) {
+        contextCategory = category;
+      }
+    }
+
+    // Extract color context
+    for (const color of colorKeywords) {
+      if (msgContent.includes(color.toLowerCase())) {
+        contextColor = color;
+      }
+    }
+
+    // Extract material context
+    for (const material of materialKeywords) {
+      if (msgContent.includes(material.toLowerCase())) {
+        contextMaterial = material;
+      }
     }
   }
 
-  // Then check for color matches
-  const matchedColors = colorKeywords.filter(c => message.includes(c.toLowerCase()));
+  // Check if user is asking about specific product types
+  let matchedProducts: Product[] = [];
+
+  // First, check for category matches (from current message or context)
+  let categoryToMatch = '';
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(kw => message.includes(kw))) {
+      categoryToMatch = category;
+      break;
+    }
+  }
+
+  // Use context category if no category in current message
+  if (!categoryToMatch && contextCategory) {
+    categoryToMatch = contextCategory;
+  }
+
+  if (categoryToMatch) {
+    // Filter products by this category
+    const categoryProducts = products.filter(p =>
+      p.category?.toLowerCase().includes(categoryToMatch) ||
+      p.name.toLowerCase().includes(categoryToMatch) ||
+      categoryKeywords[categoryToMatch].some(kw => p.name.toLowerCase().includes(kw))
+    );
+    matchedProducts.push(...categoryProducts);
+  }
+
+  // Then check for color matches (from current message or context)
+  let matchedColors = colorKeywords.filter(c => message.includes(c.toLowerCase()));
+
+  // If user just says a color without category, use context category
+  if (matchedColors.length > 0 && matchedProducts.length === 0 && contextCategory) {
+    const categoryProducts = products.filter(p =>
+      p.category?.toLowerCase().includes(contextCategory) ||
+      p.name.toLowerCase().includes(contextCategory) ||
+      categoryKeywords[contextCategory].some(kw => p.name.toLowerCase().includes(kw))
+    );
+    matchedProducts.push(...categoryProducts);
+  }
+
   if (matchedColors.length > 0) {
     const colorProducts = products.filter(p =>
       matchedColors.some(c => p.name.toLowerCase().includes(c.toLowerCase()) || p.id.toLowerCase().includes(c.toLowerCase()))
@@ -121,6 +176,12 @@ function filterProductsByQuery(products: Product[], userMessage: string): Produc
       // Intersect with category matches
       matchedProducts = matchedProducts.filter(p => colorProducts.some(cp => cp.id === p.id));
     }
+  } else if (contextColor && matchedProducts.length > 0) {
+    // Use context color if no color in current message but there are category matches
+    const colorProducts = products.filter(p =>
+      p.name.toLowerCase().includes(contextColor.toLowerCase()) || p.id.toLowerCase().includes(contextColor.toLowerCase())
+    );
+    matchedProducts = matchedProducts.filter(p => colorProducts.some(cp => cp.id === p.id));
   }
 
   // Check for material matches
@@ -131,15 +192,43 @@ function filterProductsByQuery(products: Product[], userMessage: string): Produc
     );
     if (matchedProducts.length === 0) {
       matchedProducts = materialProducts;
+    } else {
+      // Intersect with existing matches
+      matchedProducts = matchedProducts.filter(p => materialProducts.some(mp => mp.id === p.id));
     }
   }
 
   // Remove duplicates
   const uniqueProducts = Array.from(new Map(matchedProducts.map(p => [p.id, p])).values());
 
+  // Always include products mentioned in recent conversation
+  const recentProductIds = new Set<string>();
+  for (const msg of recentHistory) {
+    const msgContent = typeof msg.content === 'string' ? msg.content : '';
+    // Look for product IDs in the conversation (e.g., in SEND_IMAGE commands)
+    const idMatch = msgContent.match(/SEND_IMAGE:\s*([^\s]+)/);
+    if (idMatch) {
+      recentProductIds.add(idMatch[1]);
+    }
+    // Also look for products mentioned by name
+    for (const product of products) {
+      if (msgContent.includes(product.name)) {
+        recentProductIds.add(product.id);
+      }
+    }
+  }
+
+  // Add recently discussed products if not already included
+  for (const productId of recentProductIds) {
+    const product = products.find(p => p.id === productId);
+    if (product && !uniqueProducts.some(p => p.id === productId)) {
+      uniqueProducts.push(product);
+    }
+  }
+
   // If we found matches, return them (max 30 products)
   if (uniqueProducts.length > 0) {
-    console.log(`📦 Product filter: Found ${uniqueProducts.length} matching products for query`);
+    console.log(`📦 Product filter: Found ${uniqueProducts.length} matching products for query with context`);
     return uniqueProducts.slice(0, 30);
   }
 
@@ -1180,9 +1269,9 @@ async function getAIResponse(userMessage: MessageContent, history: Message[] = [
 
     const contactInfo = contactInfoStr ? JSON.parse(contactInfoStr) : null;
 
-    // OPTIMIZATION: Filter products based on user query to reduce token usage
+    // OPTIMIZATION: Filter products based on user query AND conversation history to reduce token usage
     // Instead of sending all 76k chars (~50k tokens), send only relevant products
-    const filteredProducts = filterProductsByQuery(products, userText);
+    const filteredProducts = filterProductsByQuery(products, userText, history);
 
     // Build product catalog for AI context - filtered products only
     const productContext = filteredProducts
@@ -1265,6 +1354,12 @@ When a customer asks about a product, you MUST understand these Georgian keyword
    - Prefer "სადა" (plain) over "პომპონით" (with pompom)
 
 3. **Each Product is Unique**: Match based on ALL attributes, not just color
+
+**CONTEXT RETENTION - ABSOLUTELY CRITICAL:**
+- ALWAYS check conversation history to understand what product is being discussed
+- When user says just a color or "that one", refer to the most recent product discussed
+- NEVER contradict yourself - if you offered a product earlier, it's still available
+- The Product Catalog shows what's currently relevant to this conversation based on context
 ${orderHistory ? `\n# Customer Order History\nThis is a returning customer with previous orders:\n${orderHistory}\n\nWhen relevant, you may reference their previous orders (e.g., "Would you like to repeat your last order?")` : ''}
 
 **═══════════════════════════════════════════════════════**
@@ -1364,6 +1459,12 @@ When a customer asks about a product (in Georgian or English), you MUST understa
    - Prefer "სადა" (plain) over "პომპონით" (with pompom)
 
 3. **Each Product is Unique**: Match based on ALL attributes, not just color
+
+**CONTEXT RETENTION - ABSOLUTELY CRITICAL:**
+- ALWAYS check conversation history to understand what product is being discussed
+- When user says just a color or "that one", refer to the most recent product discussed
+- NEVER contradict yourself - if you offered a product earlier, it's still available
+- The Product Catalog shows what's currently relevant to this conversation based on context
 ${orderHistory ? `\n# Customer's Previous Orders\nThis is a returning customer with the following orders:\n${orderHistory}\n\nYou can reference their previous orders when appropriate (e.g., "Would you like to reorder from your last purchase?")` : ''}
 
 **EXTREMELY IMPORTANT - SENDING IMAGES:**
@@ -1977,9 +2078,115 @@ export async function POST(req: Request) {
         continue;
       }
 
+      // ═══════════════════════════════════════════════════════
+      // HANDLE POSTBACKS & REFERRALS FROM ADS
+      // When users click "Send Message" on a Facebook ad, we get:
+      // - event.postback with ad context, OR
+      // - event.referral with ad metadata, OR
+      // - event.message.referral attached to first message
+      // ═══════════════════════════════════════════════════════
+      let adContext = '';
+
+      // Check for postback from ad (user clicked "Send Message" button)
+      if (event.postback) {
+        console.log(`🎯 [WH:${webhookId}] POSTBACK from ad detected`);
+        const payload = event.postback.payload;
+        const title = event.postback.title;
+        const referral = event.postback.referral;
+
+        if (referral) {
+          const adId = referral.ad_id;
+          const refSource = referral.source;
+          const refType = referral.type;
+          console.log(`   Ad ID: ${adId}, Source: ${refSource}, Type: ${refType}`);
+          adContext = `[User came from Facebook ad: ${title || 'Unknown'}]`;
+        }
+
+        // Create a synthetic message from the postback
+        event.message = {
+          mid: `postback_${Date.now()}`,
+          text: title || payload || 'გამარჯობა',
+          referral: referral
+        };
+        console.log(`   Converted to message: "${event.message.text}"`);
+      }
+
+      // Check for referral event (ad context)
+      if (event.referral) {
+        console.log(`🎯 [WH:${webhookId}] REFERRAL from ad detected`);
+        const adId = event.referral.ad_id;
+        const refSource = event.referral.source;
+        const refType = event.referral.type;
+        console.log(`   Ad ID: ${adId}, Source: ${refSource}, Type: ${refType}`);
+
+        // Create a synthetic message from the referral
+        event.message = {
+          mid: `referral_${Date.now()}`,
+          text: 'გამარჯობა',
+          referral: event.referral
+        };
+        adContext = `[User came from Facebook ad: ${adId}]`;
+      }
+
+      // Check for referral attached to message (ad context in first message)
+      let productIdFromAd: string | null = null;
+      if (event.message?.referral) {
+        console.log(`🎯 [WH:${webhookId}] Message has AD REFERRAL attached`);
+        const adId = event.message.referral.ad_id;
+        const refSource = event.message.referral.source;
+        const refType = event.message.referral.type;
+        const refParam = event.message.referral.ref; // Custom ref parameter (e.g., "PRODUCT_9016")
+        const productFromCatalog = event.message.referral.product?.id; // Catalog product ID
+
+        console.log(`   Ad ID: ${adId}, Source: ${refSource}, Type: ${refType}`);
+        console.log(`   Ref param: ${refParam}, Catalog product: ${productFromCatalog}`);
+
+        // Extract product ID from various sources (priority order)
+        if (productFromCatalog) {
+          productIdFromAd = productFromCatalog;
+          console.log(`   ✅ Product ID from catalog: ${productIdFromAd}`);
+        } else if (refParam?.startsWith('PRODUCT_')) {
+          productIdFromAd = refParam.replace('PRODUCT_', '');
+          console.log(`   ✅ Product ID from ref param: ${productIdFromAd}`);
+        } else if (adId) {
+          // Try to load ad-to-product mapping
+          try {
+            const mappingPath = path.join(process.cwd(), 'data', 'ad-product-mapping.json');
+            const mappingData = await fs.readFile(mappingPath, 'utf8');
+            const mapping = JSON.parse(mappingData);
+            const adMapping = mapping.mappings?.[adId];
+            if (adMapping?.productId) {
+              productIdFromAd = adMapping.productId;
+              console.log(`   ✅ Product ID from ad mapping: ${productIdFromAd} (${adMapping.productName})`);
+            }
+          } catch (err) {
+            console.log(`   ℹ️ No ad mapping found for ad ${adId}`);
+          }
+        }
+
+        if (productIdFromAd) {
+          adContext = `[SHOW_PRODUCT:${productIdFromAd}] გამარჯობა! დაინტერესდი ამ პროდუქტით?`;
+        } else {
+          adContext = `[User came from Facebook ad: ${adId}]`;
+        }
+      }
+
       if (!senderId || (!event.message?.text && !event.message?.attachments)) {
         console.log(`⚠️ [WH:${webhookId}] Event does not contain required data, skipping.`);
         continue;
+      }
+
+      // Replace message text with ad context if available (for product ads)
+      if (adContext) {
+        if (productIdFromAd) {
+          // For product ads, replace the message entirely with product inquiry
+          event.message.text = adContext;
+          console.log(`   🎯 Replaced message with product inquiry: ${productIdFromAd}`);
+        } else if (event.message?.text) {
+          // For generic ads, prepend context
+          event.message.text = `${adContext} ${event.message.text}`;
+          console.log(`   Added ad context to message`);
+        }
       }
 
       // ═══════════════════════════════════════════════════════
