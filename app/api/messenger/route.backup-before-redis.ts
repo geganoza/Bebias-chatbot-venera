@@ -6,8 +6,6 @@ import { db } from "../../../lib/firestore";
 import { sendOrderEmail, parseOrderNotification } from "../../../lib/sendOrderEmail";
 import { logOrder } from "../../../lib/orderLogger";
 import { Client as QStashClient } from "@upstash/qstash";
-import { isFeatureEnabled } from "../../../lib/featureFlags";
-import { addMessageToBatch, testRedisConnection } from "../../../lib/redis";
 
 // Force dynamic rendering to ensure console.log statements appear in production
 export const dynamic = 'force-dynamic';
@@ -416,49 +414,7 @@ async function saveMessageAndQueue(event: any): Promise<void> {
   // Log to meta messages
   await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
 
-  // ==================== QUEUE TO QSTASH (with optional Redis batching) ====================
-
-  // Check if Redis batching is enabled for this user
-  const useRedisBatching = isFeatureEnabled('REDIS_MESSAGE_BATCHING', senderId);
-
-  if (useRedisBatching) {
-    console.log(`🔬 [EXPERIMENTAL] Using Redis batching for user ${senderId}`);
-
-    try {
-      // Add message to Redis batch
-      await addMessageToBatch(senderId, {
-        messageId,
-        text: messageText,
-        attachments: messageAttachments,
-        timestamp: Date.now(),
-        originalContent: userContent
-      });
-
-      // Queue processing with delay for batching
-      const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
-      const batchWindow = Math.floor(Date.now() / 2500); // 2.5 second windows
-
-      await qstash.publishJSON({
-        url: 'https://bebias-venera-chatbot.vercel.app/api/process-batch-redis',
-        body: {
-          senderId,
-          batchKey: `msgbatch:${senderId}`,
-          timestamp: Date.now()
-        },
-        delay: 2.5, // Wait 2.5 seconds to collect more messages
-        deduplicationId: `batch_${senderId}_${batchWindow}`,
-        retries: 0
-      });
-
-      console.log(`✅ [REDIS] Message batched and processing scheduled for ${senderId}`);
-      return;
-    } catch (error) {
-      console.error(`❌ [REDIS] Failed to use Redis batching, falling back to normal flow:`, error);
-      // Fall through to normal processing
-    }
-  }
-
-  // Normal QStash processing (existing code)
+  // ==================== QUEUE TO QSTASH ====================
   if (!process.env.QSTASH_TOKEN) {
     console.error(`❌ QSTASH_TOKEN not configured - message will not be processed`);
     return;
