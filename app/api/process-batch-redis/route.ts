@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { getMessageBatch, clearMessageBatch } from "@/lib/redis";
-import OpenAI from "openai";
-import { db } from "@/lib/firestore";
-import fs from "fs";
-import path from "path";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
-});
+import {
+  loadConversation,
+  saveConversation,
+  getAIResponse,
+  sendMessage,
+  facebookImageToBase64,
+  type MessageContent,
+  type ConversationData,
+} from "@/lib/bot-core";
 
 /**
  * Process batched messages from Redis
- * This is a NEW endpoint specifically for Redis-based message batching
+ * This endpoint processes multiple messages that were batched together
  */
 async function handler(req: Request) {
   const body = await req.json();
@@ -50,42 +51,98 @@ async function handler(req: Request) {
       return NextResponse.json({ status: 'waiting_for_more' });
     }
 
+    // Load conversation from Firestore
+    const conversationData = await loadConversation(senderId);
+
+    // Build the combined message content
+    let userContent: MessageContent = "";
+    const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
+
     // Combine all text messages
     const combinedText = messages
       .map(m => m.text)
       .filter(Boolean)
       .join(' ');
 
-    // Collect all attachments
+    if (combinedText) {
+      contentParts.push({ type: "text", text: combinedText });
+    }
+
+    // Process all attachments
     const allAttachments = messages.flatMap(m => m.attachments || []);
+
+    for (const attachment of allAttachments) {
+      if (attachment.type === "image" && attachment.url) {
+        console.log(`🖼️ Processing image attachment: ${attachment.url}`);
+
+        // Convert Facebook image to base64 for OpenAI
+        const base64Image = await facebookImageToBase64(attachment.url);
+
+        if (base64Image) {
+          contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+          console.log(`✅ Image converted and added to message`);
+        } else {
+          console.warn(`⚠️ Failed to convert image`);
+          if (!combinedText) {
+            contentParts.push({ type: "text", text: "[User sent an image]" });
+          }
+        }
+      }
+    }
+
+    // Set userContent based on content parts
+    if (contentParts.length === 1 && contentParts[0].type === "text") {
+      userContent = contentParts[0].text;
+    } else if (contentParts.length > 0) {
+      userContent = contentParts;
+    } else {
+      userContent = combinedText || "[No text content]";
+    }
 
     console.log(`💬 [REDIS BATCH] Combined text: "${combinedText.substring(0, 100)}..."`);
     console.log(`📎 [REDIS BATCH] Total attachments: ${allAttachments.length}`);
 
-    // Load conversation from Firestore
-    const docRef = db.collection('conversations').doc(senderId);
-    const doc = await docRef.get();
-    const conversationData = doc.exists ? doc.data() : { history: [] };
+    // Process with actual AI logic using the bot-core functions
+    const response = await getAIResponse(
+      userContent,
+      conversationData.history,
+      conversationData.orders || [],
+      conversationData.storeVisitCount || 0,
+      conversationData.operatorInstruction
+    );
 
-    // Process with existing AI logic
-    // NOTE: This should use your existing getAIResponse function
-    // For now, we'll do a simple implementation
-    const response = await processWithAI(combinedText, allAttachments, conversationData.history);
+    // Extract and send any images mentioned in the response
+    const imageMatch = response.match(/SEND_IMAGE:\s*([^\s]+)/);
+    if (imageMatch) {
+      const productId = imageMatch[1];
+      const responseWithoutImages = response.replace(/SEND_IMAGE:\s*[^\s]+/g, '').trim();
 
-    // Send response to user
-    await sendMessage(senderId, response);
+      // Send text response first
+      await sendMessage(senderId, responseWithoutImages);
+
+      // Then send the image
+      console.log(`🖼️ Sending product image for ID: ${productId}`);
+      // Note: You'll need to implement sendProductImage function or import it
+      // For now, we'll just log it
+      console.log(`TODO: Send product image ${productId} to ${senderId}`);
+    } else {
+      // Send response without images
+      await sendMessage(senderId, response);
+    }
 
     // Update conversation history
     conversationData.history.push(
-      { role: "user", content: combinedText },
+      { role: "user", content: userContent },
       { role: "assistant", content: response }
     );
 
+    // Keep only last 20 exchanges (40 messages)
+    if (conversationData.history.length > 40) {
+      conversationData.history = conversationData.history.slice(-40);
+    }
+
     // Save updated conversation
-    await docRef.set({
-      ...conversationData,
-      lastActive: new Date().toISOString()
-    });
+    await saveConversation(conversationData);
 
     // Clear the Redis batch
     await clearMessageBatch(senderId);
@@ -108,66 +165,6 @@ async function handler(req: Request) {
       { error: error.message },
       { status: 500 }
     );
-  }
-}
-
-// Simple AI processing (replace with your actual implementation)
-async function processWithAI(text: string, attachments: any[], history: any[]): Promise<string> {
-  try {
-    const hasImages = attachments.some(att => att.type === 'image');
-    const model = hasImages ? 'gpt-4o' : 'gpt-4o';
-
-    console.log(`🤖 [REDIS BATCH] Using model: ${model}`);
-
-    const messages = [
-      {
-        role: "system" as const,
-        content: "You are a helpful assistant for BEBIAS, a Georgian company selling handmade products."
-      },
-      ...history.slice(-10), // Last 10 messages for context
-      {
-        role: "user" as const,
-        content: text
-      }
-    ];
-
-    const completion = await openai.chat.completions.create({
-      model,
-      messages,
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
-
-    return completion.choices[0]?.message?.content || "Sorry, I couldn't process your request.";
-  } catch (error) {
-    console.error(`❌ [REDIS BATCH] AI processing error:`, error);
-    return "Sorry, there was an error processing your request. Please try again.";
-  }
-}
-
-// Simple message sending (replace with your actual implementation)
-async function sendMessage(recipientId: string, message: string): Promise<void> {
-  const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN || "";
-  const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: { text: message }
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error(`❌ [REDIS BATCH] Facebook API error:`, error);
-    } else {
-      console.log(`✅ [REDIS BATCH] Message sent to ${recipientId}`);
-    }
-  } catch (error) {
-    console.error(`❌ [REDIS BATCH] Error sending message:`, error);
   }
 }
 
