@@ -173,8 +173,3 @@ async function sendMessage(recipientId: string, message: string): Promise<void> 
 
 // Export with QStash verification
 export const POST = verifySignatureAppRouter(handler);
-
-// Also export without verification for testing
-export async function POST_TEST(req: Request) {
-  return handler(req);
-}
