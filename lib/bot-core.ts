@@ -173,33 +173,33 @@ export function filterProductsByQuery(products: Product[], userMessage: string, 
     return products;
   }
 
-  // Enhanced keyword detection
+  // Enhanced keyword detection with Latin transcriptions and typos
   const keywords = {
     colors: {
-      'წითელ': ['red', 'წითელი', 'წითელ'],
-      'შავ': ['black', 'შავი', 'შავ'],
-      'თეთრ': ['white', 'თეთრი', 'თეთრ', 'undyed'],
-      'ნაცრისფერ': ['grey', 'gray', 'ნაცრისფერი'],
-      'ლურჯ': ['blue', 'ლურჯი'],
+      'წითელ': ['red', 'წითელი', 'წითელ', 'witeli', 'witel', 'citel', 'citeli', 'წითერლ'],  // Added typo and Latin
+      'შავ': ['black', 'შავი', 'შავ', 'shavi', 'shav', 'savi'],  // Added Latin transcriptions
+      'თეთრ': ['white', 'თეთრი', 'თეთრ', 'tetri', 'tetr', 'undyed'],  // Added Latin
+      'ნაცრისფერ': ['grey', 'gray', 'ნაცრისფერი', 'nacrisfer', 'nacris'],  // Added Latin
+      'ლურჯ': ['blue', 'ლურჯი', 'ლურჯ', 'lurji', 'lurj'],  // Added Latin
       'turquoise': ['turquoise', 'ღია ღვინისფერ', 'ღია'],
-      'მწვანე': ['green', 'მწვანე'],
-      'ყავისფერ': ['brown', 'ყავისფერი'],
-      'orange': ['orange', 'ნარინჯისფერ'],
-      'აგურისფერ': ['brick', 'აგურისფერ'],
-      'გირჩისფერ': ['cone', 'გირჩისფერ'],
+      'მწვანე': ['green', 'მწვანე', 'mcvane', 'mwvane'],  // Added Latin
+      'ყავისფერ': ['brown', 'ყავისფერი', 'yavisfer', 'kavisfer'],  // Added Latin
+      'orange': ['orange', 'ნარინჯისფერ', 'narinjisfer'],
+      'აგურისფერ': ['brick', 'აგურისფერ', 'agurisfer'],
+      'გირჩისფერ': ['cone', 'გირჩისფერ', 'gircisfer'],
     },
     materials: {
-      'ბამბა': ['cotton', 'ბამბა', 'ბამბის'],
-      'შალი': ['wool', 'შალი', 'შალის'],
+      'ბამბა': ['cotton', 'ბამბა', 'ბამბის', 'bamba', 'bambis'],  // Added Latin
+      'შალი': ['wool', 'შალი', 'შალის', 'shali', 'sali'],  // Added Latin
     },
     types: {
-      'ქუდი': ['hat', 'ქუდი', 'ქუდები'],
-      'წინდა': ['sock', 'წინდა', 'წინდები'],
+      'ქუდი': ['hat', 'ქუდი', 'ქუდები', 'qudi', 'kudi', 'qudebi'],  // Added Latin
+      'წინდა': ['sock', 'წინდა', 'წინდები', 'cinda', 'winda', 'tsindebi'],  // Added Latin
     },
     styles: {
-      'პომპონ': ['pompom', 'პომპონი', 'პომპონით', 'პომპონიანი'],
-      'მოკლე': ['short', 'მოკლე'],
-      'სადა': ['plain', 'სადა'],
+      'პომპონ': ['pompom', 'პომპონი', 'პომპონით', 'პომპონიანი', 'pomponi'],
+      'მოკლე': ['short', 'მოკლე', 'mokle'],  // Added Latin
+      'სადა': ['plain', 'სადა', 'sada'],  // Added Latin
     }
   };
 
