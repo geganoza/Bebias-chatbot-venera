@@ -108,11 +108,12 @@ async function handler(req: Request) {
     let userContent: MessageContent = "";
     const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
 
-    // Combine all text messages
+    // Combine all text messages with better formatting
+    // If multiple messages, join them more clearly
     const combinedText = messages
       .map(m => m.text)
       .filter(Boolean)
-      .join(' ');
+      .join('. '); // Use period-space to make it clearer these are complete thoughts
 
     if (combinedText) {
       contentParts.push({ type: "text", text: combinedText });
@@ -149,8 +150,10 @@ async function handler(req: Request) {
       userContent = combinedText || "[No text content]";
     }
 
-    console.log(`💬 [REDIS BATCH] Combined text: "${combinedText.substring(0, 100)}..."`);
+    console.log(`💬 [REDIS BATCH] Combined text: "${combinedText}"`);
     console.log(`📎 [REDIS BATCH] Total attachments: ${allAttachments.length}`);
+    console.log(`🔍 [REDIS BATCH] Message count: ${messages.length}`);
+    console.log(`📝 [REDIS BATCH] Individual messages:`, messages.map(m => m.text));
 
     // Process with actual AI logic using the bot-core functions
     const response = await getAIResponse(

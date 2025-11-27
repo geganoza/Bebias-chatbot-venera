@@ -24,7 +24,13 @@ const FEATURES = {
 export function isFeatureEnabled(feature: keyof typeof FEATURES, userId: string): boolean {
   const config = FEATURES[feature];
 
+  console.log(`🔍 [FEATURE CHECK] Feature: ${feature}, User: ${userId}`);
+  console.log(`🔍 [FEATURE CHECK] Config enabled: ${config?.enabled}`);
+  console.log(`🔍 [FEATURE CHECK] ENABLE_REDIS_BATCHING env: ${process.env.ENABLE_REDIS_BATCHING}`);
+  console.log(`🔍 [FEATURE CHECK] Test users: ${config?.testUsers?.join(', ')}`);
+
   if (!config || !config.enabled) {
+    console.log(`❌ [FEATURE CHECK] Feature ${feature} is disabled`);
     return false;
   }
 
