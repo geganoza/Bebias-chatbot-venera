@@ -189,9 +189,11 @@ const wrappedHandler = async (req: Request) => {
 
     if (hasQstashHeaders) {
       console.log(`⚠️ [REDIS BATCH] Request has QStash headers but verification failed`);
-      // Still try to process for now (temporary for debugging)
-      console.log(`🔧 [REDIS BATCH] Attempting to process anyway for debugging`);
-      return await handler(req);
+      // DO NOT process if verification fails - this causes duplicate processing!
+      return NextResponse.json(
+        { error: 'QStash signature verification failed' },
+        { status: 401 }
+      );
     }
 
     throw error;
