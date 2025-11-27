@@ -272,6 +272,11 @@ export async function sendMessage(recipientId: string, messageText: string): Pro
   const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN || "";
   const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
 
+  // Add detailed logging to debug duplicate messages
+  const messagePreview = messageText.substring(0, 50);
+  const callStack = new Error().stack?.split('\n').slice(2, 5).join(' -> ') || 'unknown';
+  console.log(`📤 SENDING MESSAGE to ${recipientId}: "${messagePreview}..." from: ${callStack}`);
+
   try {
     const response = await fetch(url, {
       method: "POST",
