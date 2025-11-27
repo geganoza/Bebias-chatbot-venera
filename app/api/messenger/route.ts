@@ -8,6 +8,7 @@ import { logOrder } from "../../../lib/orderLogger";
 import { Client as QStashClient } from "@upstash/qstash";
 import { isFeatureEnabled } from "../../../lib/featureFlags";
 import { addMessageToBatch, testRedisConnection } from "../../../lib/redis";
+import { setUserTyping } from "../../../lib/typingTracker";
 
 // Force dynamic rendering to ensure console.log statements appear in production
 export const dynamic = 'force-dynamic';
@@ -2146,6 +2147,15 @@ export async function POST(req: Request) {
       // ═══════════════════════════════════════════════════════
       if (event.message?.is_echo) {
         console.log(`⏭️ [WH:${webhookId}] ECHO message (our own response) - skipping`);
+        continue;
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // HANDLE TYPING INDICATORS - Track when users are typing
+      // ═══════════════════════════════════════════════════════
+      if (event.sender?.id && event.sender?.typing_on) {
+        setUserTyping(event.sender.id);
+        console.log(`⌨️ [WH:${webhookId}] User ${event.sender.id} is typing`);
         continue;
       }
 

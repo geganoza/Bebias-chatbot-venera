@@ -10,6 +10,7 @@ import {
   type MessageContent,
   type ConversationData,
 } from "@/lib/bot-core";
+import { isUserTyping } from "@/lib/typingTracker";
 
 /**
  * Process batched messages from Redis
@@ -33,12 +34,17 @@ async function handler(req: Request) {
 
     console.log(`📦 [REDIS BATCH] Found ${messages.length} messages to process`);
 
-    // Check if user is still sending messages (within last 1.5 seconds)
+    // Check if user is still sending messages (within last 1.5 seconds) or typing
     const lastMessage = messages[messages.length - 1];
     const timeSinceLastMessage = Date.now() - lastMessage.timestamp;
+    const userIsTyping = isUserTyping(senderId);
 
-    if (lastMessage && timeSinceLastMessage < 1500) {
-      console.log(`⏳ [REDIS BATCH] Recent message detected (${timeSinceLastMessage}ms ago), waiting for more...`);
+    if ((lastMessage && timeSinceLastMessage < 1500) || userIsTyping) {
+      if (userIsTyping) {
+        console.log(`⌨️ [REDIS BATCH] User is typing, waiting for more messages...`);
+      } else {
+        console.log(`⏳ [REDIS BATCH] Recent message detected (${timeSinceLastMessage}ms ago), waiting for more...`);
+      }
 
       // Re-queue with the SAME conversation ID to ensure single processing
       const { Client: QStashClient } = await import("@upstash/qstash");
