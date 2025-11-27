@@ -12,7 +12,7 @@ const TEST_USER_IDS: string[] = [
 // Feature flags
 const FEATURES = {
   REDIS_MESSAGE_BATCHING: {
-    enabled: process.env.ENABLE_REDIS_BATCHING === 'true',
+    enabled: process.env.ENABLE_REDIS_BATCHING?.trim() === 'true',
     testUsers: TEST_USER_IDS,
     rolloutPercentage: 0, // 0% rollout initially, can increase gradually
   }
@@ -24,13 +24,11 @@ const FEATURES = {
 export function isFeatureEnabled(feature: keyof typeof FEATURES, userId: string): boolean {
   const config = FEATURES[feature];
 
-  console.log(`🔍 [FEATURE CHECK] Feature: ${feature}, User: ${userId}`);
-  console.log(`🔍 [FEATURE CHECK] Config enabled: ${config?.enabled}`);
-  console.log(`🔍 [FEATURE CHECK] ENABLE_REDIS_BATCHING env: ${process.env.ENABLE_REDIS_BATCHING}`);
-  console.log(`🔍 [FEATURE CHECK] Test users: ${config?.testUsers?.join(', ')}`);
+  // Trim the env var to handle any whitespace issues
+  const envValue = process.env.ENABLE_REDIS_BATCHING?.trim();
+  const isEnabled = envValue === 'true';
 
-  if (!config || !config.enabled) {
-    console.log(`❌ [FEATURE CHECK] Feature ${feature} is disabled`);
+  if (!config || !isEnabled) {
     return false;
   }
 
