@@ -5,8 +5,8 @@
 
 // Test user IDs - add your test Facebook user IDs here
 const TEST_USER_IDS: string[] = [
-  // '3282789748459241', // Giorgi's test account - TEMPORARILY DISABLED due to duplicate issues
-  // '252143893748', // New test user - can clear history with "clear history" command
+  '3282789748459241', // Giorgi's test account - Re-enabled with working version
+  // '252143893748', // New test user - disabled for now
 ];
 
 // Feature flags

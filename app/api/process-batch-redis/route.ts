@@ -7,12 +7,9 @@ import {
   getAIResponse,
   sendMessage,
   facebookImageToBase64,
-  loadProducts,
   type MessageContent,
   type ConversationData,
 } from "@/lib/bot-core";
-import { isUserTyping } from "@/lib/typingTracker";
-import { isSessionActive, setSessionActive, clearSession } from "@/lib/conversationSession";
 
 /**
  * Process batched messages from Redis
@@ -26,16 +23,6 @@ async function handler(req: Request) {
   console.log(`🔄 [REDIS BATCH] Processing batched messages for user ${senderId} - ID: ${processingId}`);
 
   try {
-    // Check if a session is already active (being processed)
-    const sessionActive = await isSessionActive(senderId);
-    if (sessionActive) {
-      console.log(`⚠️ [REDIS BATCH] Session already active for ${senderId}, skipping duplicate processing`);
-      return NextResponse.json({ status: 'session_active' });
-    }
-
-    // Lock the session to prevent duplicate processing
-    await setSessionActive(senderId);
-
     // Get all messages from Redis batch
     const messages = await getMessageBatch(senderId);
 
@@ -46,17 +33,12 @@ async function handler(req: Request) {
 
     console.log(`📦 [REDIS BATCH] Found ${messages.length} messages to process`);
 
-    // Check if user is still sending messages (within last 1.5 seconds) or typing
+    // Check if user is still sending messages (within last 1.5 seconds)
     const lastMessage = messages[messages.length - 1];
     const timeSinceLastMessage = Date.now() - lastMessage.timestamp;
-    const userIsTyping = isUserTyping(senderId);
 
-    if ((lastMessage && timeSinceLastMessage < 1500) || userIsTyping) {
-      if (userIsTyping) {
-        console.log(`⌨️ [REDIS BATCH] User is typing, waiting for more messages...`);
-      } else {
-        console.log(`⏳ [REDIS BATCH] Recent message detected (${timeSinceLastMessage}ms ago), waiting for more...`);
-      }
+    if (lastMessage && timeSinceLastMessage < 1500) {
+      console.log(`⏳ [REDIS BATCH] Recent message detected (${timeSinceLastMessage}ms ago), waiting for more...`);
 
       // Re-queue with the SAME conversation ID to ensure single processing
       const { Client: QStashClient } = await import("@upstash/qstash");
@@ -133,61 +115,19 @@ async function handler(req: Request) {
     );
 
     // Extract and send any images mentioned in the response
-    const imageRegex = /SEND_IMAGE:\s*(.+?)(?:\n|$)/gi;
-    const imageMatches = [...response.matchAll(imageRegex)];
-
-    if (imageMatches.length > 0) {
-      // Remove SEND_IMAGE commands from response
-      const responseWithoutImages = response.replace(imageRegex, '').trim();
+    const imageMatch = response.match(/SEND_IMAGE:\s*([^\s]+)/);
+    if (imageMatch) {
+      const productId = imageMatch[1];
+      const responseWithoutImages = response.replace(/SEND_IMAGE:\s*[^\s]+/g, '').trim();
 
       // Send text response first
       await sendMessage(senderId, responseWithoutImages);
 
-      // Load products to get image URLs
-      const products = await loadProducts();
-      const productMap = new Map(products.map(p => [p.id, p]));
-
-      // Send each product image
-      for (const match of imageMatches) {
-        const productId = match[1].trim();
-        console.log(`🖼️ Sending product image for ID: ${productId}`);
-
-        const product = productMap.get(productId);
-        if (product && product.image &&
-            product.image !== "IMAGE_URL_HERE" &&
-            !product.image.includes('facebook.com') &&
-            product.image.startsWith('http')) {
-
-          // Send the image using Facebook Messenger API
-          const imageUrl = `https://graph.facebook.com/v17.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
-
-          try {
-            const imageResponse = await fetch(imageUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                recipient: { id: senderId },
-                message: {
-                  attachment: {
-                    type: 'image',
-                    payload: { url: product.image }
-                  }
-                }
-              })
-            });
-
-            if (imageResponse.ok) {
-              console.log(`✅ Sent image for product ${productId}`);
-            } else {
-              console.error(`❌ Failed to send image for ${productId}:`, await imageResponse.text());
-            }
-          } catch (error) {
-            console.error(`❌ Error sending image for ${productId}:`, error);
-          }
-        } else {
-          console.warn(`⚠️ No valid image found for product ${productId}`);
-        }
-      }
+      // Then send the image
+      console.log(`🖼️ Sending product image for ID: ${productId}`);
+      // Note: You'll need to implement sendProductImage function or import it
+      // For now, we'll just log it
+      console.log(`TODO: Send product image ${productId} to ${senderId}`);
     } else {
       // Send response without images
       await sendMessage(senderId, response);
@@ -210,9 +150,6 @@ async function handler(req: Request) {
     // Clear the Redis batch
     await clearMessageBatch(senderId);
 
-    // Clear the session lock after successful processing
-    await clearSession(senderId);
-
     console.log(`✅ [REDIS BATCH] Successfully processed ${messages.length} messages for ${senderId} - ID: ${processingId}`);
 
     return NextResponse.json({
@@ -226,9 +163,6 @@ async function handler(req: Request) {
 
     // Clear the batch to prevent stuck messages
     await clearMessageBatch(senderId);
-
-    // Clear session lock on error
-    await clearSession(senderId);
 
     return NextResponse.json(
       { error: error.message },
