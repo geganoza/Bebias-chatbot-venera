@@ -5,7 +5,7 @@
 
 // Test user IDs - add your test Facebook user IDs here
 const TEST_USER_IDS: string[] = [
-  // '3282789748459241', // Giorgi's test account - DISABLED - batching causes duplicates
+  '3282789748459241', // Giorgi's test account - Re-enabled for testing
   // '252143893748', // New test user - disabled for now
 ];
 
