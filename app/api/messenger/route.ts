@@ -464,19 +464,22 @@ async function saveMessageAndQueue(event: any): Promise<void> {
   // Log to meta messages (always)
   await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
 
-  // Normal QStash processing (existing code)
-  if (!process.env.QSTASH_TOKEN) {
-    console.error(`❌ QSTASH_TOKEN not configured - message will not be processed`);
-    return;
-  }
+  // Only do normal QStash processing if Redis batching wasn't used
+  // (If Redis batching was successful, we already returned at line 434)
+  if (!useRedisBatching) {
+    // Normal QStash processing (existing code)
+    if (!process.env.QSTASH_TOKEN) {
+      console.error(`❌ QSTASH_TOKEN not configured - message will not be processed`);
+      return;
+    }
 
-  try {
-    const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN });
+    try {
+      const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN });
 
-    // Always use production URL - VERCEL_URL contains deployment-specific URL which breaks after redeploy
-    const callbackUrl = 'https://bebias-venera-chatbot.vercel.app/api/process-message';
+      // Always use production URL - VERCEL_URL contains deployment-specific URL which breaks after redeploy
+      const callbackUrl = 'https://bebias-venera-chatbot.vercel.app/api/process-message';
 
-    await qstash.publishJSON({
+      await qstash.publishJSON({
       url: callbackUrl,
       body: {
         senderId,
@@ -492,10 +495,11 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       deduplicationId: messageId
     });
 
-    console.log(`✅ Message queued to QStash for ${senderId}`);
-  } catch (error: any) {
-    console.error(`❌ Failed to queue message to QStash:`, error.message);
-    // No fallback - message saved to Firestore, can be reprocessed manually if needed
+      console.log(`✅ Message queued to QStash for ${senderId}`);
+    } catch (error: any) {
+      console.error(`❌ Failed to queue message to QStash:`, error.message);
+      // No fallback - message saved to Firestore, can be reprocessed manually if needed
+    }
   }
 }
 
