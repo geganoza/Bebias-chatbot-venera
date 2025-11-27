@@ -396,26 +396,6 @@ async function saveMessageAndQueue(event: any): Promise<void> {
     contentForHistory = userContent;
   }
 
-  // Add user message to history (with placeholder for images)
-  conversationData.history.push({
-    role: "user",
-    content: contentForHistory
-  });
-
-  // Trim history if too long
-  while (conversationData.history.length > MAX_HISTORY_LENGTH * 2) {
-    conversationData.history.shift();
-  }
-
-  conversationData.lastActive = new Date().toISOString();
-
-  // Save to Firestore
-  await saveConversation(conversationData);
-  console.log(`💾 Message saved to Firestore for ${senderId}`);
-
-  // Log to meta messages
-  await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
-
   // ==================== QUEUE TO QSTASH (with optional Redis batching) ====================
 
   // Check if Redis batching is enabled for this user
@@ -457,6 +437,32 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       // Fall through to normal processing
     }
   }
+
+  // For non-Redis batching users, save message to conversation immediately
+  // (Redis batching will save the combined message later)
+  if (!useRedisBatching) {
+    // Add user message to history (with placeholder for images)
+    conversationData.history.push({
+      role: "user",
+      content: contentForHistory
+    });
+
+    // Trim history if too long
+    while (conversationData.history.length > MAX_HISTORY_LENGTH * 2) {
+      conversationData.history.shift();
+    }
+
+    conversationData.lastActive = new Date().toISOString();
+
+    // Save to Firestore
+    await saveConversation(conversationData);
+    console.log(`💾 Message saved to Firestore for ${senderId}`);
+  } else {
+    console.log(`⏸️ Skipping individual message save for Redis batched user ${senderId}`);
+  }
+
+  // Log to meta messages (always)
+  await logMetaMessage(senderId, senderId, 'user', userTextForProcessing);
 
   // Normal QStash processing (existing code)
   if (!process.env.QSTASH_TOKEN) {
