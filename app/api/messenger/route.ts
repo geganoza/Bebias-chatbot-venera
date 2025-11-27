@@ -2278,6 +2278,47 @@ export async function POST(req: Request) {
       const hasImage = event.message?.attachments?.some((a: any) => a.type === 'image');
       const contentKey = messageText || (hasImage ? 'IMAGE_ATTACHMENT' : 'EMPTY');
 
+      // ═══════════════════════════════════════════════════════
+      // SPECIAL COMMAND: Clear history for test user 252143893748
+      // ═══════════════════════════════════════════════════════
+      if (senderId === '252143893748' && messageText.toLowerCase() === 'clear history') {
+        console.log(`🧹 Clearing history and rate limits for test user ${senderId}`);
+
+        try {
+          // Clear conversation history
+          await db.collection('conversations').doc(senderId).delete();
+
+          // Clear rate limit
+          await db.collection('rateLimits').doc(senderId).delete();
+
+          // Clear any Redis batches
+          const { clearMessageBatch } = await import('@/lib/redis');
+          await clearMessageBatch(senderId);
+
+          // Clear session if exists
+          const { clearSession } = await import('@/lib/conversationSession');
+          await clearSession(senderId);
+
+          // Send confirmation message
+          await fetch(
+            `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient: { id: senderId },
+                message: { text: "✅ History and rate limits cleared! You can start fresh now." }
+              })
+            }
+          );
+
+          console.log(`✅ Successfully cleared history and rate limits for ${senderId}`);
+          continue; // Skip normal processing
+        } catch (error) {
+          console.error(`❌ Error clearing history for ${senderId}:`, error);
+        }
+      }
+
       // Create content hash: first 50 chars + length + 30-second bucket
       const timeBucket = Math.floor(Date.now() / 30000); // 30-second windows
       const contentHash = `content_${contentKey.substring(0, 50).replace(/[^a-zA-Z0-9\u10A0-\u10FF]/g, '')}_${contentKey.length}_${timeBucket}`;

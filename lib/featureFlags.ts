@@ -6,6 +6,7 @@
 // Test user IDs - add your test Facebook user IDs here
 const TEST_USER_IDS: string[] = [
   '3282789748459241', // Giorgi's test account - Re-enabled to prevent context duplication
+  '252143893748', // New test user - can clear history with "clear history" command
 ];
 
 // Feature flags
