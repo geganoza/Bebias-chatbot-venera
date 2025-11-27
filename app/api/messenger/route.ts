@@ -2295,10 +2295,6 @@ export async function POST(req: Request) {
           const { clearMessageBatch } = await import('@/lib/redis');
           await clearMessageBatch(senderId);
 
-          // Clear session if exists
-          const { clearSession } = await import('@/lib/conversationSession');
-          await clearSession(senderId);
-
           // Send confirmation message
           await fetch(
             `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
