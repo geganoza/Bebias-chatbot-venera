@@ -400,7 +400,10 @@ async function saveMessageAndQueue(event: any): Promise<void> {
   // ==================== QUEUE TO QSTASH (with optional Redis batching) ====================
 
   // Check if Redis batching is enabled for this user
+  console.log(`🔍 Checking batching for user ${senderId}`);
+  console.log(`🔍 ENABLE_REDIS_BATCHING env value: "${process.env.ENABLE_REDIS_BATCHING}"`);
   const useRedisBatching = isFeatureEnabled('REDIS_MESSAGE_BATCHING', senderId);
+  console.log(`🔍 Batching enabled: ${useRedisBatching}`);
 
   if (useRedisBatching) {
     console.log(`🔬 [EXPERIMENTAL] Using Redis batching for user ${senderId}`);
