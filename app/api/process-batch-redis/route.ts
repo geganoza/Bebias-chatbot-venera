@@ -23,11 +23,50 @@ async function handler(req: Request) {
   console.log(`🔄 [REDIS BATCH] Processing batched messages for user ${senderId} - ID: ${processingId}`);
 
   try {
+    // CRITICAL: Acquire a processing lock to prevent multiple batch processors
+    // This prevents race conditions where multiple processors run for the same user
+    const lockKey = `batch_processing_${senderId}`;
+    const lockExpiry = Date.now() + 30000; // 30 second lock expiry
+
+    // Try to acquire lock in Redis
+    const { Redis } = require('@upstash/redis');
+    const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+
+    if (!url || !token) {
+      console.warn('⚠️ [REDIS BATCH] Redis not configured, cannot acquire lock');
+      return NextResponse.json({ status: 'redis_not_configured' });
+    }
+
+    const redis = new Redis({ url, token });
+
+    // Use SET NX (set if not exists) with expiry
+    const lockAcquired = await redis.set(lockKey, processingId, {
+      nx: true,  // Only set if doesn't exist
+      px: 30000  // Expire after 30 seconds
+    });
+
+    if (!lockAcquired) {
+      console.log(`⏭️ [REDIS BATCH] Another processor is already handling user ${senderId}, skipping`);
+      return NextResponse.json({ status: 'already_processing' });
+    }
+
+    console.log(`🔐 [REDIS BATCH] Lock acquired for ${senderId} - Processing ID: ${processingId}`);
+
     // Get all messages from Redis batch
     const messages = await getMessageBatch(senderId);
 
     if (messages.length === 0) {
       console.log(`⚠️ [REDIS BATCH] No messages found for ${senderId}`);
+
+      // Release the lock since we're not processing anything
+      try {
+        await redis.del(lockKey);
+        console.log(`🔓 [REDIS BATCH] Lock released (no messages) for ${senderId}`);
+      } catch (lockError) {
+        console.error(`⚠️ [REDIS BATCH] Failed to release lock:`, lockError);
+      }
+
       return NextResponse.json({ status: 'no_messages' });
     }
 
@@ -39,6 +78,14 @@ async function handler(req: Request) {
 
     if (lastMessage && timeSinceLastMessage < 1500) {
       console.log(`⏳ [REDIS BATCH] Recent message detected (${timeSinceLastMessage}ms ago), waiting for more...`);
+
+      // Release the lock before re-queueing (so the new processor can acquire it)
+      try {
+        await redis.del(lockKey);
+        console.log(`🔓 [REDIS BATCH] Lock released before re-queue for ${senderId}`);
+      } catch (lockError) {
+        console.error(`⚠️ [REDIS BATCH] Failed to release lock before re-queue:`, lockError);
+      }
 
       // Re-queue with the SAME conversation ID to ensure single processing
       const { Client: QStashClient } = await import("@upstash/qstash");
@@ -150,6 +197,14 @@ async function handler(req: Request) {
     // Clear the Redis batch
     await clearMessageBatch(senderId);
 
+    // Release the processing lock
+    try {
+      await redis.del(lockKey);
+      console.log(`🔓 [REDIS BATCH] Lock released for ${senderId}`);
+    } catch (lockError) {
+      console.error(`⚠️ [REDIS BATCH] Failed to release lock:`, lockError);
+    }
+
     console.log(`✅ [REDIS BATCH] Successfully processed ${messages.length} messages for ${senderId} - ID: ${processingId}`);
 
     return NextResponse.json({
@@ -163,6 +218,20 @@ async function handler(req: Request) {
 
     // Clear the batch to prevent stuck messages
     await clearMessageBatch(senderId);
+
+    // Try to release the lock on error
+    try {
+      const { Redis } = require('@upstash/redis');
+      const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+      if (url && token) {
+        const redis = new Redis({ url, token });
+        await redis.del(`batch_processing_${senderId}`);
+        console.log(`🔓 [REDIS BATCH] Lock released after error for ${senderId}`);
+      }
+    } catch (lockError) {
+      console.error(`⚠️ [REDIS BATCH] Failed to release lock after error:`, lockError);
+    }
 
     return NextResponse.json(
       { error: error.message },
