@@ -5,7 +5,7 @@
 
 // Test user IDs - add your test Facebook user IDs here
 const TEST_USER_IDS: string[] = [
-  // '3282789748459241', // Giorgi's test account - TEMPORARILY DISABLED due to duplicate messages
+  '3282789748459241', // Giorgi's test account - Re-enabled to prevent context duplication
 ];
 
 // Feature flags
