@@ -7,6 +7,7 @@ import {
   getAIResponse,
   sendMessage,
   facebookImageToBase64,
+  loadProducts,
   type MessageContent,
   type ConversationData,
 } from "@/lib/bot-core";
@@ -132,19 +133,61 @@ async function handler(req: Request) {
     );
 
     // Extract and send any images mentioned in the response
-    const imageMatch = response.match(/SEND_IMAGE:\s*([^\s]+)/);
-    if (imageMatch) {
-      const productId = imageMatch[1];
-      const responseWithoutImages = response.replace(/SEND_IMAGE:\s*[^\s]+/g, '').trim();
+    const imageRegex = /SEND_IMAGE:\s*(.+?)(?:\n|$)/gi;
+    const imageMatches = [...response.matchAll(imageRegex)];
+
+    if (imageMatches.length > 0) {
+      // Remove SEND_IMAGE commands from response
+      const responseWithoutImages = response.replace(imageRegex, '').trim();
 
       // Send text response first
       await sendMessage(senderId, responseWithoutImages);
 
-      // Then send the image
-      console.log(`🖼️ Sending product image for ID: ${productId}`);
-      // Note: You'll need to implement sendProductImage function or import it
-      // For now, we'll just log it
-      console.log(`TODO: Send product image ${productId} to ${senderId}`);
+      // Load products to get image URLs
+      const products = await loadProducts();
+      const productMap = new Map(products.map(p => [p.id, p]));
+
+      // Send each product image
+      for (const match of imageMatches) {
+        const productId = match[1].trim();
+        console.log(`🖼️ Sending product image for ID: ${productId}`);
+
+        const product = productMap.get(productId);
+        if (product && product.image &&
+            product.image !== "IMAGE_URL_HERE" &&
+            !product.image.includes('facebook.com') &&
+            product.image.startsWith('http')) {
+
+          // Send the image using Facebook Messenger API
+          const imageUrl = `https://graph.facebook.com/v17.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
+
+          try {
+            const imageResponse = await fetch(imageUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: { id: senderId },
+                message: {
+                  attachment: {
+                    type: 'image',
+                    payload: { url: product.image }
+                  }
+                }
+              })
+            });
+
+            if (imageResponse.ok) {
+              console.log(`✅ Sent image for product ${productId}`);
+            } else {
+              console.error(`❌ Failed to send image for ${productId}:`, await imageResponse.text());
+            }
+          } catch (error) {
+            console.error(`❌ Error sending image for ${productId}:`, error);
+          }
+        } else {
+          console.warn(`⚠️ No valid image found for product ${productId}`);
+        }
+      }
     } else {
       // Send response without images
       await sendMessage(senderId, response);
