@@ -11,6 +11,7 @@ import {
   type ConversationData,
 } from "@/lib/bot-core";
 import { isUserTyping } from "@/lib/typingTracker";
+import { isSessionActive, setSessionActive, clearSession } from "@/lib/conversationSession";
 
 /**
  * Process batched messages from Redis
@@ -24,6 +25,16 @@ async function handler(req: Request) {
   console.log(`🔄 [REDIS BATCH] Processing batched messages for user ${senderId} - ID: ${processingId}`);
 
   try {
+    // Check if a session is already active (being processed)
+    const sessionActive = await isSessionActive(senderId);
+    if (sessionActive) {
+      console.log(`⚠️ [REDIS BATCH] Session already active for ${senderId}, skipping duplicate processing`);
+      return NextResponse.json({ status: 'session_active' });
+    }
+
+    // Lock the session to prevent duplicate processing
+    await setSessionActive(senderId);
+
     // Get all messages from Redis batch
     const messages = await getMessageBatch(senderId);
 
@@ -156,6 +167,9 @@ async function handler(req: Request) {
     // Clear the Redis batch
     await clearMessageBatch(senderId);
 
+    // Clear the session lock after successful processing
+    await clearSession(senderId);
+
     console.log(`✅ [REDIS BATCH] Successfully processed ${messages.length} messages for ${senderId} - ID: ${processingId}`);
 
     return NextResponse.json({
@@ -169,6 +183,9 @@ async function handler(req: Request) {
 
     // Clear the batch to prevent stuck messages
     await clearMessageBatch(senderId);
+
+    // Clear session lock on error
+    await clearSession(senderId);
 
     return NextResponse.json(
       { error: error.message },
