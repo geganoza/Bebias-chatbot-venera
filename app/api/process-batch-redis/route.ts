@@ -19,7 +19,8 @@ async function handler(req: Request) {
   const body = await req.json();
   const { senderId, batchKey } = body;
 
-  console.log(`🔄 [REDIS BATCH] Processing batched messages for user ${senderId}`);
+  const processingId = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  console.log(`🔄 [REDIS BATCH] Processing batched messages for user ${senderId} - ID: ${processingId}`);
 
   try {
     // Get all messages from Redis batch
@@ -147,7 +148,7 @@ async function handler(req: Request) {
     // Clear the Redis batch
     await clearMessageBatch(senderId);
 
-    console.log(`✅ [REDIS BATCH] Successfully processed ${messages.length} messages for ${senderId}`);
+    console.log(`✅ [REDIS BATCH] Successfully processed ${messages.length} messages for ${senderId} - ID: ${processingId}`);
 
     return NextResponse.json({
       status: 'processed',
