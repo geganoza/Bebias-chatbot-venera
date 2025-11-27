@@ -413,8 +413,8 @@ async function saveMessageAndQueue(event: any): Promise<void> {
         messageId,
         text: messageText,
         attachments: messageAttachments,
-        timestamp: Date.now(),
-        originalContent: userContent
+        timestamp: Date.now()
+        // Removed originalContent to avoid Redis serialization issues
       });
 
       messageAddedToRedis = true;

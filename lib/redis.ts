@@ -57,20 +57,37 @@ export async function getMessageBatch(senderId: string): Promise<any[]> {
 
     // Parse each message - handle potential double-stringification
     return messages.map(msg => {
+      // Log the type of data we're getting
+      console.log(`[DEBUG] Message type from Redis: ${typeof msg}`);
+
       // If msg is already an object, return it
       if (typeof msg === 'object' && msg !== null) {
+        console.log(`[DEBUG] Message is already an object, returning as-is`);
         return msg;
       }
 
-      // Try to parse as JSON
-      try {
-        const parsed = JSON.parse(msg as string);
-        return parsed;
-      } catch (e) {
-        console.error(`⚠️ Failed to parse message from Redis:`, msg);
-        // If parsing fails, return the raw message
-        return { text: String(msg), timestamp: Date.now() };
+      // If it's a string, try to parse it
+      if (typeof msg === 'string') {
+        // Check if it's the "[object Object]" issue
+        if (msg === '[object Object]') {
+          console.error(`⚠️ Message was stored as '[object Object]' - data lost`);
+          return { text: '', timestamp: Date.now() };
+        }
+
+        try {
+          const parsed = JSON.parse(msg);
+          console.log(`[DEBUG] Successfully parsed message from JSON`);
+          return parsed;
+        } catch (e) {
+          console.error(`⚠️ Failed to parse message from Redis:`, msg);
+          // If parsing fails, return the raw message
+          return { text: String(msg), timestamp: Date.now() };
+        }
       }
+
+      // Fallback - shouldn't reach here
+      console.warn(`⚠️ Unexpected message type: ${typeof msg}`);
+      return { text: '', timestamp: Date.now() };
     });
   } catch (error) {
     console.error(`❌ Redis error getting message batch:`, error);
