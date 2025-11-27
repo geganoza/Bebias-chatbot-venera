@@ -404,6 +404,8 @@ async function saveMessageAndQueue(event: any): Promise<void> {
   if (useRedisBatching) {
     console.log(`🔬 [EXPERIMENTAL] Using Redis batching for user ${senderId}`);
 
+    let messageAddedToRedis = false;
+
     try {
       // Add message to Redis batch
       await addMessageToBatch(senderId, {
@@ -413,6 +415,8 @@ async function saveMessageAndQueue(event: any): Promise<void> {
         timestamp: Date.now(),
         originalContent: userContent
       });
+
+      messageAddedToRedis = true;
 
       // Queue processing with delay for batching
       const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
@@ -434,7 +438,14 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       return;
     } catch (error) {
       console.error(`❌ [REDIS] Failed to use Redis batching, falling back to normal flow:`, error);
-      // Fall through to normal processing
+
+      // CRITICAL: If message was already added to Redis, we can't fall back
+      // because it would cause duplicate processing!
+      if (messageAddedToRedis) {
+        console.error(`⚠️ [REDIS] Message already in Redis, cannot fall back to normal processing to avoid duplicates`);
+        return; // Exit to prevent duplicate processing
+      }
+      // Only fall through if message was NOT added to Redis
     }
   }
 
