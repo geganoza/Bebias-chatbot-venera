@@ -1,0 +1,39 @@
+{
+  "testMode": {
+    "enabled": false,
+    "description": "Set to true to enable test mode for specific users"
+  },
+  "testUsers": {
+    "facebook": [
+      {
+        "userId": "TEST_USER_ID_1",
+        "name": "Test User 1",
+        "phone": "595000001",
+        "instructionsPath": "data/content/test/bot-instructions-modular.md",
+        "useModularInstructions": true,
+        "description": "Test user for modular instruction system"
+      },
+      {
+        "userId": "TEST_USER_ID_2",
+        "name": "Test User 2",
+        "phone": "595000002",
+        "instructionsPath": "data/content/test/bot-instructions-test.md",
+        "useModularInstructions": false,
+        "description": "Test user for traditional single-file instructions"
+      }
+    ]
+  },
+  "testFeatures": {
+    "enableDebugLogging": true,
+    "showInstructionSource": true,
+    "skipOrderEmail": true,
+    "testPaymentVerification": true
+  },
+  "notes": [
+    "To enable test mode:",
+    "1. Set testMode.enabled to true",
+    "2. Replace TEST_USER_ID_1 and TEST_USER_ID_2 with actual Facebook user IDs",
+    "3. The system will use test instructions for these users only",
+    "4. All other users will use production instructions"
+  ]
+}

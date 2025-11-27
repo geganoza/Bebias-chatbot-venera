@@ -55,8 +55,23 @@ export async function getMessageBatch(senderId: string): Promise<any[]> {
     // Get all messages from the batch
     const messages = await redis.lrange(batchKey, 0, -1);
 
-    // Parse each message
-    return messages.map(msg => JSON.parse(msg as string));
+    // Parse each message - handle potential double-stringification
+    return messages.map(msg => {
+      // If msg is already an object, return it
+      if (typeof msg === 'object' && msg !== null) {
+        return msg;
+      }
+
+      // Try to parse as JSON
+      try {
+        const parsed = JSON.parse(msg as string);
+        return parsed;
+      } catch (e) {
+        console.error(`⚠️ Failed to parse message from Redis:`, msg);
+        // If parsing fails, return the raw message
+        return { text: String(msg), timestamp: Date.now() };
+      }
+    });
   } catch (error) {
     console.error(`❌ Redis error getting message batch:`, error);
     return [];
