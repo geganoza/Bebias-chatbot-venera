@@ -421,11 +421,10 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       // Queue processing with delay for batching
       const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
 
-      // Use a session-based deduplication approach
-      // All messages within a rapid session get the same ID
-      // Session expires after 10 seconds of inactivity
-      const sessionWindow = Math.floor(Date.now() / 10000); // 10 second sessions
-      const deduplicationId = `batch_${senderId}_session_${sessionWindow}`;
+      // Use a SINGLE deduplication ID for the entire conversation burst
+      // This ensures only ONE batch processor runs for ALL rapid messages
+      // The batch processor will wait for messages to stop coming before processing
+      const conversationId = `batch_${senderId}_conversation`;
 
       await qstash.publishJSON({
         url: 'https://bebias-venera-chatbot.vercel.app/api/process-batch-redis',
@@ -435,11 +434,11 @@ async function saveMessageAndQueue(event: any): Promise<void> {
           timestamp: Date.now()
         },
         delay: 3, // Wait 3 seconds to collect more messages
-        deduplicationId,
+        deduplicationId: conversationId, // Same ID for ALL messages in burst
         retries: 0
       });
 
-      console.log(`✅ [REDIS] Message batched with dedupe ID: ${deduplicationId}`);
+      console.log(`✅ [REDIS] Message batched with conversation ID: ${conversationId}`);
 
       console.log(`✅ [REDIS] Message batched and processing scheduled for ${senderId}`);
       return;

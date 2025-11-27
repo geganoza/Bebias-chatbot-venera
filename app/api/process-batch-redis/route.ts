@@ -33,20 +33,22 @@ async function handler(req: Request) {
 
     console.log(`📦 [REDIS BATCH] Found ${messages.length} messages to process`);
 
-    // Check if user sent more messages very recently (within last 500ms)
+    // Check if user is still sending messages (within last 1.5 seconds)
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage && Date.now() - lastMessage.timestamp < 500) {
-      console.log(`⏳ [REDIS BATCH] Very recent message detected, waiting for more...`);
+    const timeSinceLastMessage = Date.now() - lastMessage.timestamp;
 
-      // Re-queue with a shorter delay
+    if (lastMessage && timeSinceLastMessage < 1500) {
+      console.log(`⏳ [REDIS BATCH] Recent message detected (${timeSinceLastMessage}ms ago), waiting for more...`);
+
+      // Re-queue with the SAME conversation ID to ensure single processing
       const { Client: QStashClient } = await import("@upstash/qstash");
       const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
 
       await qstash.publishJSON({
         url: 'https://bebias-venera-chatbot.vercel.app/api/process-batch-redis',
         body: { senderId, batchKey },
-        delay: 1, // Wait 1 more second
-        deduplicationId: `retry_${senderId}_${Date.now()}`
+        delay: 2, // Wait 2 more seconds
+        deduplicationId: `batch_${senderId}_conversation` // Use same conversation ID
       });
 
       return NextResponse.json({ status: 'waiting_for_more' });
