@@ -1,0 +1,230 @@
+================================================================================
+                     BEBIAS BOT TESTING FLOW - COMPLETE GUIDE
+================================================================================
+
+THREE TESTING MODES AVAILABLE:
+================================================================================
+
+MODE 1: LOCAL SIMULATOR (Recommended First!)
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Your Computer Only - No Internet/Facebook Needed                          │
+│                                                                             │
+│  You → Simulator UI → Test API → Test Instructions → AI → Response        │
+│         (browser)      (local)    (test-bot/data/*)                        │
+│                                                                             │
+│  ✅ Fastest iteration                                                       │
+│  ✅ Complete offline                                                        │
+│  ✅ Perfect for development                                                 │
+│  ✅ Safe experimentation                                                    │
+│                                                                             │
+│  Setup: 3 commands (see simulator/QUICK_START_SIMULATOR.md)                │
+└────────────────────────────────────────────────────────────────────────────┘
+
+MODE 2: FACEBOOK TEST USERS
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Real Facebook, Specific Test Users                                        │
+│                                                                             │
+│  Test User → FB Messenger → Test Webhook → Test Instructions → Response   │
+│              (real app)      (your server)  (test-bot/data/*)              │
+│                                                                             │
+│  ✅ Real Messenger interface                                                │
+│  ✅ Real Facebook integration                                               │
+│  ✅ Only test users affected                                                │
+│  ✅ Production users safe                                                   │
+│                                                                             │
+│  Setup: Configure test-config.json, activate webhook                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+MODE 3: PRODUCTION
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Live Customers                                                             │
+│                                                                             │
+│  Customer → FB Messenger → Main Webhook → Production Instr. → Response    │
+│             (real)          (your server)  (data/content/*)                │
+│                                                                             │
+│  ⚠️  Live users affected                                                    │
+│  ⚠️  Changes go live immediately                                            │
+│  ✅ Real business impact                                                    │
+│                                                                             │
+│  Deploy: After thorough testing in Mode 1 & 2                              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+RECOMMENDED TESTING WORKFLOW:
+================================================================================
+
+PHASE 1: Local Development (Mode 1)
+────────────────────────────────────
+1. Edit test-bot/data/content/ files
+2. Open simulator/index.html
+3. Test immediately
+4. Iterate quickly
+5. Export successful conversations
+
+Time: Minutes to hours
+Risk: Zero
+Iteration: Very fast
+
+PHASE 2: Integration Testing (Mode 2)
+──────────────────────────────────────
+1. Activate test webhook
+2. Configure 1-2 test users
+3. Test with real Messenger
+4. Verify images, formatting
+5. Test on mobile device
+
+Time: Hours to days
+Risk: Zero (only test users)
+Iteration: Fast
+
+PHASE 3: Production Deploy (Mode 3)
+────────────────────────────────────
+1. Copy test-bot files to production
+2. Deploy to server
+3. Monitor first conversations
+4. Quick rollback if needed
+
+Time: After confidence built
+Risk: Managed (can rollback)
+Iteration: Slower (affects users)
+
+================================================================================
+FILE STRUCTURE FOR EACH MODE:
+================================================================================
+
+Mode 1 (Simulator):
+└── test-bot/
+    ├── simulator/              ← UI and API
+    └── data/content/           ← Instructions
+
+Mode 2 (Facebook Test):
+└── test-bot/
+    ├── config/test-config.json ← Test user IDs
+    ├── api/test-webhook        ← Separate endpoint
+    └── data/content/           ← Instructions
+
+Mode 3 (Production):
+└── data/content/               ← Live instructions
+
+================================================================================
+ACTIVATION CHECKLIST:
+================================================================================
+
+MODE 1: LOCAL SIMULATOR
+☐ Run ./test-bot/simulator/activate-simulator.sh
+☐ Start dev server (npm run dev)
+☐ Open simulator/index.html
+☐ Select test user
+☐ Start chatting!
+
+MODE 2: FACEBOOK TEST
+☐ Get Facebook user IDs for test accounts
+☐ Add to test-bot/config/test-config.json
+☐ Set enabled: true in config
+☐ Copy test webhook to app/api/test-webhook/route.ts
+☐ Deploy or restart server
+☐ Point Facebook to test webhook URL
+☐ Message as test user
+
+MODE 3: PRODUCTION
+☐ Test thoroughly in Mode 1 & 2
+☐ Copy test-bot/data/content/ to data/content/
+☐ Review all changes
+☐ Create backup of current production
+☐ Deploy
+☐ Monitor first conversations
+☐ Have rollback plan ready
+
+================================================================================
+WHAT TO TEST IN EACH MODE:
+================================================================================
+
+Local Simulator Tests:
+✓ Greeting and tone
+✓ Product catalog
+✓ Order flow (all steps)
+✓ Order lookup
+✓ Context retention
+✓ Edge cases
+✓ Error handling
+✓ Response quality
+
+Facebook Test Tests:
+✓ Everything from simulator, plus:
+✓ Real Messenger formatting
+✓ Image sending/receiving
+✓ Mobile experience
+✓ Push notifications
+✓ Typing indicators
+✓ Message delivery
+
+Production Tests:
+✓ Monitor real conversations
+✓ Check error rates
+✓ User feedback
+✓ Completion rates
+✓ Response times
+
+================================================================================
+TRANSITION BETWEEN MODES:
+================================================================================
+
+Simulator → Facebook Test:
+1. Simulator working well
+2. Activate Mode 2
+3. Test with real FB
+4. Keep simulator for quick tests
+5. Both can coexist!
+
+Facebook Test → Production:
+1. All flows working
+2. Multiple test users successful
+3. No critical issues
+4. Copy files to production
+5. Deploy
+6. Monitor closely
+
+Rollback Production → Test:
+1. Issue detected
+2. Revert data/content/ files
+3. Redeploy
+4. Fix in test environment
+5. Re-test before retry
+
+================================================================================
+BENEFITS OF EACH MODE:
+================================================================================
+
+Local Simulator:
+🚀 Instant feedback
+🚀 Offline testing
+🚀 No setup complexity
+🚀 Perfect for iteration
+🚀 Safe experimentation
+
+Facebook Test:
+✅ Real integration
+✅ Actual user experience
+✅ Mobile testing
+✅ Limited exposure
+✅ Production-like
+
+Production:
+💰 Real business value
+💰 Customer satisfaction
+💰 Actual usage data
+💰 Revenue impact
+
+================================================================================
+CURRENT STATUS:
+================================================================================
+
+Mode 1: ✅ Ready - Just activate
+Mode 2: ✅ Ready - Just configure
+Mode 3: ⚠️  Use after testing
+
+Recommended Start: MODE 1 (Simulator)
+Then: MODE 2 (Facebook Test)
+Finally: MODE 3 (Production)
+
+================================================================================

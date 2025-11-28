@@ -1,0 +1,44 @@
+{
+  "enabled": false,
+  "description": "Test bot configuration - set enabled to true when ready to test",
+
+  "testUsers": [
+    {
+      "id": "REPLACE_WITH_FACEBOOK_USER_ID_1",
+      "name": "Test User 1",
+      "description": "Add real Facebook user ID here"
+    },
+    {
+      "id": "REPLACE_WITH_FACEBOOK_USER_ID_2",
+      "name": "Test User 2",
+      "description": "Add another test user ID here"
+    }
+  ],
+
+  "features": {
+    "debugMode": true,
+    "description": "When true, adds [TEST] prefix to responses",
+
+    "skipOrderEmails": true,
+    "description2": "When true, don't send real order confirmation emails",
+
+    "verboseLogging": true,
+    "description3": "When true, log all AI interactions to console",
+
+    "showInstructionSource": false,
+    "description4": "When true, show which instruction file was used"
+  },
+
+  "instructions": {
+    "basePath": "./test-bot/data/content",
+    "mainFile": "bot-instructions-modular.md",
+    "useModularSystem": true
+  },
+
+  "notes": [
+    "This configuration is for test users only",
+    "Production users are never affected",
+    "Safe to edit - nothing is connected yet",
+    "Set enabled to true when ready to activate test webhook"
+  ]
+}

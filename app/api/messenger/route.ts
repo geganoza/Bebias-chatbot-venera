@@ -425,10 +425,11 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       // Queue processing with delay for batching
       const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
 
-      // Use a SINGLE deduplication ID for the entire conversation burst
-      // This ensures only ONE batch processor runs for ALL rapid messages
-      // The batch processor will wait for messages to stop coming before processing
-      const conversationId = `batch_${senderId}_conversation`;
+      // Use timestamp-based deduplication ID to allow separate batches
+      // while still preventing duplicate processing of the same message burst
+      // Round to nearest 5 seconds to group rapid messages together
+      const batchWindow = Math.floor(Date.now() / 5000) * 5000;
+      const conversationId = `batch_${senderId}_${batchWindow}`;
 
       await qstash.publishJSON({
         url: 'https://bebias-venera-chatbot.vercel.app/api/process-batch-redis',
@@ -438,7 +439,7 @@ async function saveMessageAndQueue(event: any): Promise<void> {
           timestamp: Date.now()
         },
         delay: 3, // Wait 3 seconds to collect more messages
-        deduplicationId: conversationId, // Same ID for ALL messages in burst
+        deduplicationId: conversationId, // Unique per 5-second window
         retries: 0
       });
 
@@ -2151,6 +2152,40 @@ export async function POST(req: Request) {
       if (event.message?.is_echo) {
         console.log(`⏭️ [WH:${webhookId}] ECHO message (our own response) - skipping`);
         continue;
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // HANDLE "CLEAR" COMMAND FOR TEST USERS
+      // Allows test users to clear their history and rate limits
+      // ═══════════════════════════════════════════════════════
+      if (event.message?.text?.toLowerCase().trim() === 'clear') {
+        try {
+          const { isTestUser, clearTestUserData, getClearCommandResponse } = await import('../../../lib/clearTestUser');
+
+          if (isTestUser(senderId)) {
+            console.log(`🧹 [WH:${webhookId}] CLEAR command from test user ${senderId}`);
+            const success = await clearTestUserData(senderId);
+            const responseText = getClearCommandResponse(senderId, success);
+
+            await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient: { id: senderId },
+                message: { text: responseText }
+              })
+            });
+
+            console.log(`✅ [WH:${webhookId}] Clear command processed`);
+            continue;
+          } else {
+            console.log(`⏭️ [WH:${webhookId}] "clear" from non-test user - treating as normal message`);
+            // Fall through to normal message processing
+          }
+        } catch (error) {
+          console.error(`❌ [WH:${webhookId}] Error handling clear command:`, error);
+          // Fall through to normal message processing
+        }
       }
 
       // ═══════════════════════════════════════════════════════

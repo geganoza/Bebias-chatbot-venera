@@ -1,25 +1,17 @@
 {
   "testMode": {
-    "enabled": false,
-    "description": "Set to true to enable test mode for specific users"
+    "enabled": true,
+    "description": "Test mode enabled for Giorgi - safe testing without affecting production"
   },
   "testUsers": {
     "facebook": [
       {
-        "userId": "TEST_USER_ID_1",
-        "name": "Test User 1",
+        "userId": "3282789748459241",
+        "name": "Giorgi Test Account",
         "phone": "595000001",
-        "instructionsPath": "data/content/test/bot-instructions-modular.md",
+        "instructionsPath": "test-bot/data/content/bot-instructions-modular.md",
         "useModularInstructions": true,
-        "description": "Test user for modular instruction system"
-      },
-      {
-        "userId": "TEST_USER_ID_2",
-        "name": "Test User 2",
-        "phone": "595000002",
-        "instructionsPath": "data/content/test/bot-instructions-test.md",
-        "useModularInstructions": false,
-        "description": "Test user for traditional single-file instructions"
+        "description": "Giorgi - Testing restructured modular instructions with message batching"
       }
     ]
   },

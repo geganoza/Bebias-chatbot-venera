@@ -1,0 +1,2782 @@
+[
+  {
+    "id": "4719",
+    "name": "აგურისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4714",
+    "name": "აგურისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4715",
+    "name": "აგურისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 5,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4716",
+    "name": "აგურისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3999",
+    "name": "აგურისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3994",
+    "name": "აგურისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3995",
+    "name": "აგურისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3996",
+    "name": "აგურისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4891",
+    "name": "აგურისფერი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4893",
+    "name": "აგურისფერი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "4893",
+    "name": "აგურისფერი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "6570",
+    "name": "გირჩისფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%98%E1%83%A0%E1%83%A9%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6569",
+    "name": "გირჩისფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 18,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%98%E1%83%A0%E1%83%A9%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6568",
+    "name": "გირჩისფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%98%E1%83%A0%E1%83%A9%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6567",
+    "name": "გირჩისფერი ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%98%E1%83%A0%E1%83%A9%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "9952",
+    "name": "გირჩისფერი შალის წინდა თეთრი შეუღებავი ყელით - 36-39",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "9953",
+    "name": "გირჩისფერი შალის წინდა თეთრი შეუღებავი ყელით - 40-43",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "4763",
+    "name": "ენდროსფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4764",
+    "name": "ენდროსფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4765",
+    "name": "ენდროსფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4766",
+    "name": "ენდროსფერი ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5212",
+    "name": "ენდროსფერი ქუდი პომპონის გარეშე - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-2022_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5213",
+    "name": "ენდროსფერი ქუდი პომპონის გარეშე - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-2022_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5214",
+    "name": "ენდროსფერი ქუდი პომპონის გარეშე - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-2022_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "11300",
+    "name": "ვარდისფერი ბამბის მოკლე ქუდი - სტანდარტი (M)",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%95%E1%83%90%E1%83%A0%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5547",
+    "name": "ზურმუხტისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%96%E1%83%A3%E1%83%A0%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%A2%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97..jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5546",
+    "name": "ზურმუხტისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%96%E1%83%A3%E1%83%A0%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%A2%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97..jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5545",
+    "name": "ზურმუხტისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%96%E1%83%A3%E1%83%A0%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%A2%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97..jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5544",
+    "name": "ზურმუხტისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%96%E1%83%A3%E1%83%A0%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%A2%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97..jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8592",
+    "name": "თეთრი ყურებიანი ქუდი ორნამენტით - M",
+    "price": 99,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%97%E1%83%94%E1%83%97%E1%83%A0%E1%83%98-%E1%83%A7%E1%83%A3%E1%83%A0%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%9C%E1%83%98-scaled.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4648",
+    "name": "თეთრი შეუღებავი შალის სადა ქუდი - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4649",
+    "name": "თეთრი შეუღებავი შალის სადა ქუდი - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4650",
+    "name": "თეთრი შეუღებავი შალის სადა ქუდი - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4651",
+    "name": "თეთრი შეუღებავი შალის სადა ქუდი - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5451",
+    "name": "თეთრი შეუღებავი შალის ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5682",
+    "name": "თეთრი შეუღებავი შალის ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5683",
+    "name": "თეთრი შეუღებავი შალის ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2393",
+    "name": "თეთრი შეუღებავი შალის ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%A0%E1%83%94%E1%83%9B%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9947",
+    "name": "თეთრი შეუღებავი შალის წინდა გირჩისფერი ყელით - 36-39",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "9948",
+    "name": "თეთრი შეუღებავი შალის წინდა გირჩისფერი ყელით - 40-43",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "6950",
+    "name": "თეთრი შეუღებავი ხელთათმანი - L",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/IMG_7790.png",
+    "short_description": ""
+  },
+  {
+    "id": "6951",
+    "name": "თეთრი შეუღებავი ხელთათმანი - S/M",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/IMG_7790.png",
+    "short_description": ""
+  },
+  {
+    "id": "5528",
+    "name": "თეთრი წინდა ორნამენტებით - 36-39",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%97%E1%83%94%E1%83%97%E1%83%A0%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9920",
+    "name": "იასამნისფერი რბილი შალის ნაკრები",
+    "price": 209,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/SON05252-Photoroom-e1735203364128.jpeg",
+    "short_description": ""
+  },
+  {
+    "id": "9551",
+    "name": "იასამნისფერი რბილი შალის ქუდი - სტანდარტი (M)",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "8712",
+    "name": "იასამნისფერი რბილი შალის ქუდი პომპონით - სტანდარტი (M)",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%98%E1%83%90%E1%83%A1%E1%83%90%E1%83%9B%E1%83%9C%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A0%E1%83%91%E1%83%98%E1%83%9A%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3771",
+    "name": "კაკლის წენგოსფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%90%E1%83%99%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%AC%E1%83%94%E1%83%9C%E1%83%92%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3770",
+    "name": "კაკლის წენგოსფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%90%E1%83%99%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%AC%E1%83%94%E1%83%9C%E1%83%92%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3769",
+    "name": "კაკლის წენგოსფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%90%E1%83%99%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%AC%E1%83%94%E1%83%9C%E1%83%92%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3768",
+    "name": "კაკლის წენგოსფერი ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%99%E1%83%90%E1%83%99%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%AC%E1%83%94%E1%83%9C%E1%83%92%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "11406",
+    "name": "ლურჯი ბამბის მოკლე ქუდი - სტანდარტი (M)",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8730",
+    "name": "ლურჯი რბილი შალის ქუდი - სტანდარტი (M)",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A0%E1%83%91%E1%83%98%E1%83%9A%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9000",
+    "name": "ლურჯი რბილი შალის ქუდი პომპონით - სტანდარტი (M)",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A0%E1%83%91%E1%83%98%E1%83%9A%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4737",
+    "name": "ლურჯი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4736",
+    "name": "ლურჯი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4735",
+    "name": "ლურჯი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4734",
+    "name": "ლურჯი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4270",
+    "name": "ლურჯი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4269",
+    "name": "ლურჯი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4268",
+    "name": "ლურჯი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4267",
+    "name": "ლურჯი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5526",
+    "name": "ლურჯი წინდა - 36-39",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5817",
+    "name": "ლურჯი წინდა წითელი ზოლებით - 36-39",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%96%E1%83%9D%E1%83%9A%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5818",
+    "name": "ლურჯი წინდა წითელი ზოლებით - 40-43",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%96%E1%83%9D%E1%83%9A%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5813",
+    "name": "ლურჯი წინდა წითელი ორნამენტით - 36-39",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/72-76.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5814",
+    "name": "ლურჯი წინდა წითელი ორნამენტით - 40-43",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/72-76.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5950",
+    "name": "ლურჯი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4880",
+    "name": "მაღალყელიანი თეთრი წინდა ორნამენტებით - 37-40",
+    "price": 69,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%A0%E1%83%AB%E1%83%94%E1%83%9A%E1%83%98-%E1%83%97%E1%83%94%E1%83%97%E1%83%A0%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4877",
+    "name": "მაღალყელიანი ლურჯი წინდა ორნამენტებით - 36-39",
+    "price": 69,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%A0%E1%83%AB%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4918",
+    "name": "მაღალყელიანი მუქი ყავისფერი წინდა ორნამენტებით - 38-41",
+    "price": 69,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%A0%E1%83%AB%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4871",
+    "name": "მაღალყელიანი ცისფერი წინდა ორნამენტებით - 36-39",
+    "price": 69,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%92%E1%83%A0%E1%83%AB%E1%83%94%E1%83%9A%E1%83%98-%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9667",
+    "name": "მიწოდება/ უკან დაბრუნება - 15 ლარი",
+    "price": 15,
+    "currency": "GEL",
+    "category": "მიწოდება",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/imgpsh_fullsize_anim-5.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4888",
+    "name": "მუქი აგურისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4887",
+    "name": "მუქი აგურისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4886",
+    "name": "მუქი აგურისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4885",
+    "name": "მუქი აგურისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%90%E1%83%92%E1%83%A3%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5208",
+    "name": "მუქი ენდროსფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5209",
+    "name": "მუქი ენდროსფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5210",
+    "name": "მუქი ენდროსფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4642",
+    "name": "მუქი ლურჯი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4643",
+    "name": "მუქი ლურჯი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4644",
+    "name": "მუქი ლურჯი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4645",
+    "name": "მუქი ლურჯი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2397",
+    "name": "მუქი ლურჯი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2398",
+    "name": "მუქი ლურჯი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2399",
+    "name": "მუქი ლურჯი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2400",
+    "name": "მუქი ლურჯი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4741",
+    "name": "მუქი ლურჯი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4069",
+    "name": "მუქი მწვანე ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4068",
+    "name": "მუქი მწვანე ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4067",
+    "name": "მუქი მწვანე ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4066",
+    "name": "მუქი მწვანე ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4636",
+    "name": "მუქი ყავისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4637",
+    "name": "მუქი ყავისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4638",
+    "name": "მუქი ყავისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4639",
+    "name": "მუქი ყავისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2404",
+    "name": "მუქი ყავისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98_%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2405",
+    "name": "მუქი ყავისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98_%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2406",
+    "name": "მუქი ყავისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98_%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2407",
+    "name": "მუქი ყავისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98_%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%A0%E1%83%98_%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98_%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "7777",
+    "name": "მუყაოს სასაჩუქრე ყუთი",
+    "price": 19,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "3778",
+    "name": "მუხის ქერქისფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%94%E1%83%A0%E1%83%A5%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3777",
+    "name": "მუხის ქერქისფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%94%E1%83%A0%E1%83%A5%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3776",
+    "name": "მუხის ქერქისფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%94%E1%83%A0%E1%83%A5%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3775",
+    "name": "მუხის ქერქისფერი ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%AE%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%94%E1%83%A0%E1%83%A5%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "მწვანე ბამბის მოკლე ქუდი M",
+    "name": "მწვანე ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4630",
+    "name": "მწვანე სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4631",
+    "name": "მწვანე სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4632",
+    "name": "მწვანე სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4633",
+    "name": "მწვანე სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2411",
+    "name": "მწვანე ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2412",
+    "name": "მწვანე ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2413",
+    "name": "მწვანე ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2414",
+    "name": "მწვანე ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5228",
+    "name": "მწვანე ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4672",
+    "name": "ნაცრისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4673",
+    "name": "ნაცრისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4674",
+    "name": "ნაცრისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4675",
+    "name": "ნაცრისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2418",
+    "name": "ნაცრისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2419",
+    "name": "ნაცრისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2420",
+    "name": "ნაცრისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2421",
+    "name": "ნაცრისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "6767",
+    "name": "ჟოლოსფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9F%E1%83%9D%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6766",
+    "name": "ჟოლოსფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9F%E1%83%9D%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6765",
+    "name": "ჟოლოსფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9F%E1%83%9D%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6956",
+    "name": "ჟოლოსფერი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/IMG_7791.png",
+    "short_description": ""
+  },
+  {
+    "id": "6957",
+    "name": "ჟოლოსფერი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/IMG_7791.png",
+    "short_description": ""
+  },
+  {
+    "id": "8733",
+    "name": "რუხი ქუდი მთლიანი სარჩულით - სტანდარტი (M)",
+    "price": 69,
+    "currency": "GEL",
+    "category": "",
+    "stock": 7,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A0%E1%83%A3%E1%83%AE%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9B%E1%83%97%E1%83%9A%E1%83%98%E1%83%90%E1%83%9C%E1%83%98-%E1%83%A1%E1%83%90%E1%83%A0%E1%83%A9%E1%83%A3%E1%83%9A%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5539",
+    "name": "რუხი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5538",
+    "name": "რუხი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5537",
+    "name": "რუხი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5536",
+    "name": "რუხი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8593",
+    "name": "რუხი ყურებიანი ქუდი ორნამენტით - M",
+    "price": 99,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%A3%E1%83%A0%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%9C%E1%83%98-%E1%83%9C%E1%83%90%E1%83%A0%E1%83%98%E1%83%9C%E1%83%AF%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-scaled.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4775",
+    "name": "რუხი შეუღებავი შალის ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%A3%E1%83%9C%E1%83%94%E1%83%91%E1%83%A0%E1%83%98%E1%83%95%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4774",
+    "name": "რუხი შეუღებავი შალის ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%A3%E1%83%9C%E1%83%94%E1%83%91%E1%83%A0%E1%83%98%E1%83%95%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4773",
+    "name": "რუხი შეუღებავი შალის ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%A3%E1%83%9C%E1%83%94%E1%83%91%E1%83%A0%E1%83%98%E1%83%95%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4772",
+    "name": "რუხი შეუღებავი შალის ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%A3%E1%83%9C%E1%83%94%E1%83%91%E1%83%A0%E1%83%98%E1%83%95%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4771",
+    "name": "რუხი შეუღებავი შალის ქუდი პომპონით - XXS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%A3%E1%83%9C%E1%83%94%E1%83%91%E1%83%A0%E1%83%98%E1%83%95%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5236",
+    "name": "რუხი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5235",
+    "name": "რუხი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4263",
+    "name": "სალათისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%90%E1%83%9A%E1%83%90%E1%83%97%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4262",
+    "name": "სალათისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%90%E1%83%9A%E1%83%90%E1%83%97%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4261",
+    "name": "სალათისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%90%E1%83%9A%E1%83%90%E1%83%97%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4260",
+    "name": "სალათისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%90%E1%83%9A%E1%83%90%E1%83%97%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "name": "სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%A1-%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%981.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4678",
+    "name": "სტაფილოსფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 5,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4679",
+    "name": "სტაფილოსფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4680",
+    "name": "სტაფილოსფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 5,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4681",
+    "name": "სტაფილოსფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2425",
+    "name": "სტაფილოსფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%9D%E1%83%A0%E1%83%97%E1%83%9D%E1%83%AE%E1%83%9A%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "2426",
+    "name": "სტაფილოსფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%9D%E1%83%A0%E1%83%97%E1%83%9D%E1%83%AE%E1%83%9A%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "2427",
+    "name": "სტაფილოსფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%9D%E1%83%A0%E1%83%97%E1%83%9D%E1%83%AE%E1%83%9A%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "2428",
+    "name": "სტაფილოსფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%9D%E1%83%A0%E1%83%97%E1%83%9D%E1%83%AE%E1%83%9A%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "5954",
+    "name": "სტაფილოსფერი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%92%E1%83%9D%E1%83%92%E1%83%9D%E1%83%A1%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5955",
+    "name": "სტაფილოსფერი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%92%E1%83%9D%E1%83%92%E1%83%9D%E1%83%A1%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "ფირუზისფერი ბამბის მოკლე ქუდი M",
+    "name": "ფირუზისფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%94%E1%83%93%E1%83%98-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4666",
+    "name": "ფირუზისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4667",
+    "name": "ფირუზისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4668",
+    "name": "ფირუზისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4669",
+    "name": "ფირუზისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8996",
+    "name": "ფირუზისფერი ქუდი მთლიანი სარჩულით - სტანდარტი (M)",
+    "price": 69,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9B%E1%83%97%E1%83%9A%E1%83%98%E1%83%90%E1%83%9C%E1%83%98-%E1%83%A1%E1%83%90%E1%83%A0%E1%83%A9%E1%83%A3%E1%83%9A%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2468",
+    "name": "ფირუზისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2469",
+    "name": "ფირუზისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 20,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2470",
+    "name": "ფირუზისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2471",
+    "name": "ფირუზისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9012",
+    "name": "ფირუზისფერი ქუდი პომპონით 2024 - სტანდარტი (M)",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 11,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2024.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5487",
+    "name": "ფირუზისფერი ქუდი ყვითელი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5486",
+    "name": "ფირუზისფერი ქუდი ყვითელი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5485",
+    "name": "ფირუზისფერი ქუდი ყვითელი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5484",
+    "name": "ფირუზისფერი ქუდი ყვითელი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4789",
+    "name": "ფირუზისფერი შარფი - 160*25 სმ",
+    "price": 89,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A8%E1%83%90%E1%83%A0%E1%83%A4%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5237",
+    "name": "ფირუზისფერი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4857",
+    "name": "ფირუზისფერი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4848",
+    "name": "ფირუზისფერი ხელთათმანი თითების გარეშე - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-%E1%83%97%E1%83%98%E1%83%97%E1%83%94%E1%83%91%E1%83%98%E1%83%A1-%E1%83%92%E1%83%90%E1%83%A0%E1%83%94%E1%83%A8%E1%83%94.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5715",
+    "name": "ღია ენდროსფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5716",
+    "name": "ღია ენდროსფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5717",
+    "name": "ღია ენდროსფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%94%E1%83%9C%E1%83%93%E1%83%A0%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4702",
+    "name": "ღია მწვანე სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4703",
+    "name": "ღია მწვანე სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 5,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4704",
+    "name": "ღია მწვანე სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4705",
+    "name": "ღია მწვანე სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9107",
+    "name": "ღია სტაფილოსფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4087",
+    "name": "ღია ყავისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4082",
+    "name": "ღია ყავისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4083",
+    "name": "ღია ყავისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4084",
+    "name": "ღია ყავისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4742",
+    "name": "ღია ყავისფერი ხელთათმანი - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/55-with-label.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "6757",
+    "name": "ღია ცისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6756",
+    "name": "ღია ცისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6755",
+    "name": "ღია ცისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "6754",
+    "name": "ღია ცისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.png",
+    "short_description": ""
+  },
+  {
+    "id": "ყავისფერი ბამბის მოკლე ქუდი M",
+    "name": "ყავისფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 6,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-3.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4660",
+    "name": "ყავისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4661",
+    "name": "ყავისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4662",
+    "name": "ყავისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4663",
+    "name": "ყავისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2287",
+    "name": "ყავისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2288",
+    "name": "ყავისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2289",
+    "name": "ყავისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2290",
+    "name": "ყავისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8590",
+    "name": "ყავისფერი ყურებიანი ქუდი - M",
+    "price": 79,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/MG_9818-scaled.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4868",
+    "name": "ყავისფერი წინდა ორნამენტებით - 36-39",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%90%E1%83%95%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4696",
+    "name": "ყვითელი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4697",
+    "name": "ყვითელი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4698",
+    "name": "ყვითელი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4699",
+    "name": "ყვითელი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2446",
+    "name": "ყვითელი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%98%E1%83%9B%E1%83%9D%E1%83%9C%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2447",
+    "name": "ყვითელი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%98%E1%83%9B%E1%83%9D%E1%83%9C%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2448",
+    "name": "ყვითელი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%98%E1%83%9B%E1%83%9D%E1%83%9C%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2449",
+    "name": "ყვითელი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%98%E1%83%9B%E1%83%9D%E1%83%9C%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5494",
+    "name": "ყვითელი ქუდი ფირუზისფერი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5493",
+    "name": "ყვითელი ქუდი ფირუზისფერი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5492",
+    "name": "ყვითელი ქუდი ფირუზისფერი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5491",
+    "name": "ყვითელი ქუდი ფირუზისფერი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A7%E1%83%95%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8591",
+    "name": "ყვითელი ყურებიანი ქუდი - M",
+    "price": 79,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/MG_9818_yellow-scaled.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "შავი ბამბის მოკლე ქუდი M",
+    "name": "შავი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 11,
+    "image": "https://bebias.ge/wp-content/uploads/SON04852-Photoroom-e1734620854972.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "შერეული ლურჯი ბამბის მოკლე ქუდი M",
+    "name": "შერეული ლურჯი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A0%E1%83%94%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "შერეული სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "name": "შერეული სტაფილოსფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 4,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A0%E1%83%94%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-1.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4713",
+    "name": "შეუღებავი შალის სადა ქუდი - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4712",
+    "name": "შეუღებავი შალის სადა ქუდი - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4711",
+    "name": "შეუღებავი შალის სადა ქუდი - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4710",
+    "name": "შეუღებავი შალის სადა ქუდი - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3785",
+    "name": "შეუღებავი შალის ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3784",
+    "name": "შეუღებავი შალის ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3783",
+    "name": "შეუღებავი შალის ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "3782",
+    "name": "შეუღებავი შალის ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A3%E1%83%A6%E1%83%94%E1%83%91%E1%83%90%E1%83%95%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4747",
+    "name": "შეუღებავი შალის წინდა - 36-39",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/86-with-label.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4746",
+    "name": "შეუღებავი შალის წინდა ვიწრო ყელით - 36-39",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/85-with-label.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5825",
+    "name": "შეუღებავი შალის წინდა ვიწრო ყელით - 40-43",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/85-with-label.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4745",
+    "name": "შეუღებავი შალის ხელთათმანი - L",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/68-70.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4725",
+    "name": "შინდისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4724",
+    "name": "შინდისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4723",
+    "name": "შინდისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4722",
+    "name": "შინდისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4025",
+    "name": "შინდისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4024",
+    "name": "შინდისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4023",
+    "name": "შინდისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4022",
+    "name": "შინდისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%98%E1%83%9C%E1%83%93%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5750",
+    "name": "ჩაისფერი სადა ქუდი - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5739",
+    "name": "ჩაისფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-20222.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5740",
+    "name": "ჩაისფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 11,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-20222.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5741",
+    "name": "ჩაისფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-20222.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "6853",
+    "name": "ჩაისფერი ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97-20222.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5745",
+    "name": "ჩაისფერი ქუდი პომპონის გარეშე - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%A1-%E1%83%92%E1%83%90%E1%83%A0%E1%83%94%E1%83%A8%E1%83%94-2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5756",
+    "name": "ჩაისფერი ხელთათმანი - S/M",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%A9%E1%83%90%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-2.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4690",
+    "name": "ცისფერი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4691",
+    "name": "ცისფერი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 1,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4692",
+    "name": "ცისფერი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4693",
+    "name": "ცისფერი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2460",
+    "name": "ცისფერი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2461",
+    "name": "ცისფერი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2462",
+    "name": "ცისფერი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "2463",
+    "name": "ცისფერი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4865",
+    "name": "ცისფერი წინდა ორნამენტებით - 36-39",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AA%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%AC%E1%83%98%E1%83%9C%E1%83%93%E1%83%90-%E1%83%9D%E1%83%A0%E1%83%9C%E1%83%90%E1%83%9B%E1%83%94%E1%83%9C%E1%83%A2%E1%83%94%E1%83%91%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "წითელი ბამბის მოკლე ქუდი M",
+    "name": "წითელი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 12,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%A1-%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%981.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "8718",
+    "name": "წითელი რბილი შალის ქუდი - სტანდარტი (M)",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 10,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A0%E1%83%91%E1%83%98%E1%83%9A%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-2024.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9005",
+    "name": "წითელი რბილი შალის ქუდი პომპონით - სტანდარტი (M)",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A0%E1%83%91%E1%83%98%E1%83%9A%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "9625",
+    "name": "წითელი რბილი შალის ხელთათმანი - S/M",
+    "price": 54,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A0%E1%83%91%E1%83%98%E1%83%9A%E1%83%98-%E1%83%A8%E1%83%90%E1%83%9A%E1%83%98%E1%83%A1-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4684",
+    "name": "წითელი სადა ქუდი - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%AB%E1%83%95%E1%83%94%E1%83%9A%E1%83%98.jpeg",
+    "short_description": ""
+  },
+  {
+    "id": "4685",
+    "name": "წითელი სადა ქუდი - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%AB%E1%83%95%E1%83%94%E1%83%9A%E1%83%98.jpeg",
+    "short_description": ""
+  },
+  {
+    "id": "4686",
+    "name": "წითელი სადა ქუდი - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 2,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%AB%E1%83%95%E1%83%94%E1%83%9A%E1%83%98.jpeg",
+    "short_description": ""
+  },
+  {
+    "id": "4687",
+    "name": "წითელი სადა ქუდი - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%AB%E1%83%95%E1%83%94%E1%83%9A%E1%83%98.jpeg",
+    "short_description": ""
+  },
+  {
+    "id": "4950",
+    "name": "წითელი ქუდი პომპონით - L",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4949",
+    "name": "წითელი ქუდი პომპონით - M",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 3,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4948",
+    "name": "წითელი ქუდი პომპონით - S",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 8,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4947",
+    "name": "წითელი ქუდი პომპონით - XS",
+    "price": 59,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97_2022.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5815",
+    "name": "წითელი წინდა ლურჯი ზოლებით - 36-39",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/89-90.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5816",
+    "name": "წითელი წინდა ლურჯი ზოლებით - 40-43",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/89-90.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4860",
+    "name": "წითელი ხელთათმანი - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5689",
+    "name": "წითელი ხელთათმანი თითების გარეშე - L",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-%E1%83%97%E1%83%98%E1%83%97%E1%83%94%E1%83%91%E1%83%98%E1%83%A1-%E1%83%92%E1%83%90%E1%83%A0%E1%83%94%E1%83%A8%E1%83%94.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "5690",
+    "name": "წითელი ხელთათმანი თითების გარეშე - S/M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%AE%E1%83%94%E1%83%9A%E1%83%97%E1%83%90%E1%83%97%E1%83%9B%E1%83%90%E1%83%9C%E1%83%98-%E1%83%97%E1%83%98%E1%83%97%E1%83%94%E1%83%91%E1%83%98%E1%83%A1-%E1%83%92%E1%83%90%E1%83%A0%E1%83%94%E1%83%A8%E1%83%94.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "7774",
+    "name": "ხის სასაჩუქრე ყუთი",
+    "price": 29,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "",
+    "short_description": ""
+  },
+  {
+    "id": "ჯინსისფერი ბამბის მოკლე ქუდი M",
+    "name": "ჯინსისფერი ბამბის მოკლე ქუდი M",
+    "price": 49,
+    "currency": "GEL",
+    "category": "ქუდები",
+    "stock": 5,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AF%E1%83%98%E1%83%9C%E1%83%A1%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4777",
+    "name": "ჯინჯერისფერი ქუდი პომპონით - L",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AF%E1%83%98%E1%83%9C%E1%83%AF%E1%83%94%E1%83%A0%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4778",
+    "name": "ჯინჯერისფერი ქუდი პომპონით - M",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AF%E1%83%98%E1%83%9C%E1%83%AF%E1%83%94%E1%83%A0%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4779",
+    "name": "ჯინჯერისფერი ქუდი პომპონით - S",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AF%E1%83%98%E1%83%9C%E1%83%AF%E1%83%94%E1%83%A0%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  },
+  {
+    "id": "4780",
+    "name": "ჯინჯერისფერი ქუდი პომპონით - XS",
+    "price": 64,
+    "currency": "GEL",
+    "category": "",
+    "stock": 0,
+    "image": "https://bebias.ge/wp-content/uploads/%E1%83%AF%E1%83%98%E1%83%9C%E1%83%AF%E1%83%94%E1%83%A0%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
+    "short_description": ""
+  }
+]

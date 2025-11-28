@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEBIAS Bot Test Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .simulator-container {
+            display: flex;
+            width: 1200px;
+            height: 800px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e4e6eb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e4e6eb;
+        }
+
+        .sidebar-header h2 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .test-mode-indicator {
+            background: #ff9800;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .test-users {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .test-user {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #f0f2f5;
+            transition: background 0.2s;
+        }
+
+        .test-user:hover {
+            background: #f0f2f5;
+        }
+
+        .test-user.active {
+            background: #e7f3ff;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-id {
+            font-size: 11px;
+            color: #65676b;
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e4e6eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-header .user-avatar {
+            width: 36px;
+            height: 36px;
+        }
+
+        .chat-info h3 {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .chat-status {
+            font-size: 12px;
+            color: #65676b;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 60%;
+            padding: 8px 12px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .message.bot .message-bubble {
+            background: #e4e6eb;
+            color: #050505;
+        }
+
+        .message.user .message-bubble {
+            background: #0084ff;
+            color: white;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #65676b;
+            margin-top: 4px;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #e4e6eb;
+            border-radius: 18px;
+            width: fit-content;
+        }
+
+        .typing-indicator.active {
+            display: flex;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #65676b;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 12px 20px;
+            border-top: 1px solid #e4e6eb;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ced0d4;
+            border-radius: 20px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            max-height: 100px;
+            outline: none;
+        }
+
+        .message-input:focus {
+            border-color: #0084ff;
+        }
+
+        .send-button {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #0084ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .send-button:hover {
+            background: #0073e6;
+        }
+
+        .send-button:disabled {
+            background: #bcc0c4;
+            cursor: not-allowed;
+        }
+
+        /* Image in message */
+        .message-image {
+            max-width: 300px;
+            border-radius: 8px;
+            margin-top: 4px;
+        }
+
+        /* System message */
+        .system-message {
+            text-align: center;
+            color: #65676b;
+            font-size: 12px;
+            margin: 20px 0;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            width: 280px;
+            background: #f7f8fa;
+            border-left: 1px solid #e4e6eb;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .settings-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #050505;
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-item {
+            margin-bottom: 12px;
+        }
+
+        .setting-label {
+            font-size: 13px;
+            color: #65676b;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced0d4;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quick-action-btn {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #ced0d4;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .quick-action-btn:hover {
+            background: #f0f2f5;
+            border-color: #0084ff;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-indicator.online {
+            background: #31a24c;
+        }
+
+        .status-indicator.offline {
+            background: #bcc0c4;
+        }
+    </style>
+</head>
+<body>
+    <div class="simulator-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Test Simulator</h2>
+                <span class="test-mode-indicator">🧪 TEST MODE</span>
+            </div>
+            <div class="test-users" id="testUsers">
+                <!-- Test users will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <div class="chat-header" id="chatHeader">
+                <div class="user-avatar">?</div>
+                <div class="chat-info">
+                    <h3>Select a test user</h3>
+                    <div class="chat-status">Choose a user from the sidebar</div>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messagesContainer">
+                <div class="system-message">
+                    Select a test user to start chatting
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+
+            <div class="input-area">
+                <textarea
+                    class="message-input"
+                    id="messageInput"
+                    placeholder="Type a message..."
+                    rows="1"
+                    disabled
+                ></textarea>
+                <button class="send-button" id="sendButton" disabled>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel">
+            <div class="settings-group">
+                <h3>Connection Status</h3>
+                <div class="setting-item">
+                    <span class="status-indicator online"></span>
+                    <span style="font-size: 13px;">Local Simulator</span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Test Configuration</h3>
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useTestInstructions" checked>
+                        Use Test Instructions
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="debugMode" checked>
+                        Debug Mode
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showTimestamps" checked>
+                        Show Timestamps
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enableBatching" checked>
+                        🔀 Message Batching (2s delay)
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Quick Test Messages</h3>
+                <div class="quick-actions">
+                    <button class="quick-action-btn" data-message="გამარჯობა">
+                        👋 Greeting
+                    </button>
+                    <button class="quick-action-btn" data-message="შავი ქუდი მინდა">
+                        🧢 Order product
+                    </button>
+                    <button class="quick-action-btn" data-message="სად არის ჩემი შეკვეთა?">
+                        📦 Check order
+                    </button>
+                    <button class="quick-action-btn" data-message="რა ქუდები გაქვთ?">
+                        🔍 Browse products
+                    </button>
+                    <button class="quick-action-btn" id="testBatchBtn">
+                        🔀 Test Batching (3 msgs)
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Actions</h3>
+                <button class="quick-action-btn" onclick="clearMessages()">
+                    🗑️ Clear Messages
+                </button>
+                <button class="quick-action-btn" onclick="exportChat()">
+                    💾 Export Chat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/test-chat/simulator.js"></script>
+</body>
+</html>

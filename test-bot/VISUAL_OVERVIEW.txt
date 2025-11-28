@@ -1,0 +1,185 @@
+================================================================================
+                        TEST BOT SYSTEM - VISUAL OVERVIEW
+================================================================================
+
+CURRENT STATE (Safe - Nothing Connected):
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         PRODUCTION SYSTEM                                 │
+│  Location: /data/content/                                                │
+│  Status: ✅ Running normally                                             │
+│  Users: All customers                                                    │
+│  Impact: None from test-bot                                              │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          TEST SYSTEM                                      │
+│  Location: /test-bot/                                                    │
+│  Status: ✅ Built and ready, ❌ NOT connected                            │
+│  Users: None (yet)                                                       │
+│  Impact: Zero                                                            │
+│  Safety: 100% isolated                                                   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+FOLDER STRUCTURE:
+================================================================================
+
+test-bot/
+│
+├── 📚 DOCUMENTATION (Read These First!)
+│   ├── QUICK_START.md          ← Start here!
+│   ├── INDEX.md                ← Complete overview
+│   ├── README.md               ← System introduction
+│   ├── ACTIVATION_GUIDE.md     ← How to activate (owner)
+│   ├── EMPLOYEE_GUIDE.md       ← How to edit (employees)
+│   └── VISUAL_OVERVIEW.txt     ← This file
+│
+├── 📝 INSTRUCTION FILES (Edit These!)
+│   └── data/content/
+│       ├── bot-instructions-modular.md   ← Main instructions
+│       │
+│       ├── 📁 core/                      ← Core functionality
+│       │   ├── critical-rules.md
+│       │   ├── order-flow-steps.md
+│       │   ├── order-lookup-system.md
+│       │   └── order-confirmation-format.md
+│       │
+│       ├── 📁 context/                   ← Context management
+│       │   ├── context-retention-rules.md
+│       │   └── context-awareness-rules.md
+│       │
+│       └── 📝 All other .md files
+│           ├── tone-style.md
+│           ├── image-handling.md
+│           ├── product-recognition.md
+│           └── [10 more files...]
+│
+├── ⚙️  CONFIGURATION
+│   └── config/
+│       └── test-config.json     ← Add test users here
+│
+└── 🔌 WEBHOOK CODE (Reference Only)
+    └── api/
+        └── test-webhook-REFERENCE-ONLY.ts
+
+================================================================================
+HOW TO USE:
+================================================================================
+
+STEP 1: Read Documentation
+┌────────────────────────────────────────┐
+│  1. QUICK_START.md  ← Start here       │
+│  2. INDEX.md        ← Full overview    │
+│  3. Your role guide ← Owner or Emp     │
+└────────────────────────────────────────┘
+
+STEP 2: Edit Instructions (Employees)
+┌────────────────────────────────────────┐
+│  → Navigate to: data/content/          │
+│  → Choose file to edit                 │
+│  → Make changes                        │
+│  → Save                                │
+│  ✅ 100% Safe - can't break production │
+└────────────────────────────────────────┘
+
+STEP 3: Activate Test (Owner - When Ready)
+┌────────────────────────────────────────┐
+│  1. Get test user Facebook IDs         │
+│  2. Edit config/test-config.json       │
+│  3. Set enabled: true                  │
+│  4. Follow ACTIVATION_GUIDE.md         │
+│  5. Deploy                             │
+└────────────────────────────────────────┘
+
+STEP 4: Test & Iterate
+┌────────────────────────────────────────┐
+│  → Test user messages bot              │
+│  → Bot uses test instructions          │
+│  → Check if working as expected        │
+│  → Make more changes if needed         │
+│  → Repeat until perfect                │
+└────────────────────────────────────────┘
+
+STEP 5: Deploy to Production
+┌────────────────────────────────────────┐
+│  → Copy tested files to production     │
+│  → Deploy normally                     │
+│  → All users get improvements!         │
+└────────────────────────────────────────┘
+
+================================================================================
+MODULAR SYSTEM BENEFITS:
+================================================================================
+
+OLD SYSTEM:                      NEW SYSTEM:
+┌─────────────────────┐         ┌──────────┬──────────┬──────────┐
+│   One Big File      │   →     │  Order   │ Context  │  Tone    │
+│  (20,000 lines)     │         │  Flow    │  Rules   │  Rules   │
+│                     │         ├──────────┼──────────┼──────────┤
+│  Hard to edit       │         │  Lookup  │ Critical │  Image   │
+│  Easy to break      │         │  System  │  Rules   │ Handling │
+│  Confusing          │         └──────────┴──────────┴──────────┘
+└─────────────────────┘         Focused, Clear, Safe to Edit
+
+================================================================================
+WHO SHOULD EDIT WHAT:
+================================================================================
+
+EMPLOYEES CAN EDIT:
+✅ All .md files in test-bot/data/content/
+✅ Order flow steps
+✅ Tone rules
+✅ Context awareness
+✅ Any instruction file
+
+OWNER SHOULD HANDLE:
+⚙️  config/test-config.json (adding test users)
+⚙️  Activation process
+⚙️  Final deployment to production
+
+DON'T EDIT (until you understand the system):
+❌ Production files (/data/content/)
+❌ Webhook code
+❌ Core system files
+
+================================================================================
+SAFETY CHECKLIST:
+================================================================================
+
+✅ Test bot is in separate folder
+✅ Cannot affect production users
+✅ Not connected to any users yet
+✅ Easy rollback (set enabled: false)
+✅ All changes reversible
+✅ Clear documentation for everyone
+✅ Employee-safe editing environment
+
+================================================================================
+QUICK REFERENCE:
+================================================================================
+
+Want to...                     Do this...
+──────────────────────────────────────────────────────────────────
+Understand the system         Read QUICK_START.md
+Activate test bot            Read ACTIVATION_GUIDE.md
+Edit instructions            Read EMPLOYEE_GUIDE.md
+See complete overview        Read INDEX.md
+Configure test users         Edit config/test-config.json
+Change order flow            Edit core/order-flow-steps.md
+Update tone rules            Edit bot-instructions-modular.md
+Improve context              Edit context/context-awareness-rules.md
+
+================================================================================
+CURRENT STATUS:
+================================================================================
+
+Built:        ✅ Complete
+Documented:   ✅ Comprehensive guides for all users
+Connected:    ❌ Not yet (intentional - safe!)
+Ready:        ✅ Can activate whenever you want
+Safe:         ✅ 100% isolated from production
+Impact:       ✅ Zero impact on production users
+
+Next Step:    Read test-bot/QUICK_START.md
+
+================================================================================
