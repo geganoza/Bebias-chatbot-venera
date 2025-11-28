@@ -164,23 +164,64 @@ async function handler(req: Request) {
       conversationData.operatorInstruction
     );
 
-    // Extract and send any images mentioned in the response
-    const imageMatch = response.match(/SEND_IMAGE:\s*([^\s]+)/);
-    if (imageMatch) {
-      const productId = imageMatch[1];
-      const responseWithoutImages = response.replace(/SEND_IMAGE:\s*[^\s]+/g, '').trim();
+    // Parse and handle SEND_IMAGE commands
+    const imageRegex = /SEND_IMAGE:\s*(.+?)(?:\n|$)/gi;
+    const imageMatches = [...response.matchAll(imageRegex)];
+    const productIds = imageMatches.map(match => match[1].trim());
+    const cleanResponse = response.replace(imageRegex, '').trim();
 
-      // Send text response first
-      await sendMessage(senderId, responseWithoutImages);
+    console.log(`[REDIS BATCH] Found ${productIds.length} image command(s)`);
 
-      // Then send the image
-      console.log(`🖼️ Sending product image for ID: ${productId}`);
-      // Note: You'll need to implement sendProductImage function or import it
-      // For now, we'll just log it
-      console.log(`TODO: Send product image ${productId} to ${senderId}`);
-    } else {
-      // Send response without images
-      await sendMessage(senderId, response);
+    // Send text response first (without SEND_IMAGE commands)
+    if (cleanResponse) {
+      await sendMessage(senderId, cleanResponse);
+    }
+
+    // Send product images if requested
+    if (productIds.length > 0) {
+      console.log(`🖼️ [REDIS BATCH] Sending ${productIds.length} product image(s):`, productIds);
+
+      // Load products for image lookup
+      const { loadProducts } = await import('@/lib/bot-core');
+      const allProducts = await loadProducts();
+      const productMap = new Map(allProducts.map((p: any) => [p.id, p]));
+
+      for (const productId of productIds) {
+        const product = productMap.get(productId);
+        if (product && product.image &&
+            product.image !== "IMAGE_URL_HERE" &&
+            !product.image.includes('facebook.com') &&
+            product.image.startsWith('http')) {
+
+          // Send image using Facebook Send API
+          const imageUrl = `https://graph.facebook.com/v21.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
+          const imageResponse = await fetch(imageUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipient: { id: senderId },
+              message: {
+                attachment: {
+                  type: 'image',
+                  payload: {
+                    url: product.image,
+                    is_reusable: true
+                  }
+                }
+              },
+            }),
+          });
+
+          if (imageResponse.ok) {
+            console.log(`✅ [REDIS BATCH] Sent image for ${productId}`);
+          } else {
+            const error = await imageResponse.json();
+            console.error(`❌ [REDIS BATCH] Failed to send image for ${productId}:`, error);
+          }
+        } else {
+          console.warn(`⚠️ [REDIS BATCH] No valid image found for product ${productId}`);
+        }
+      }
     }
 
     // Update conversation history
