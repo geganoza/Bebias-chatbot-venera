@@ -123,11 +123,14 @@ async function handler(req: Request) {
     const allAttachments = messages.flatMap(m => m.attachments || []);
 
     for (const attachment of allAttachments) {
-      if (attachment.type === "image" && attachment.url) {
-        console.log(`🖼️ Processing image attachment: ${attachment.url}`);
+      // CRITICAL FIX: Facebook sends attachment.payload.url, NOT attachment.url
+      const imageUrl = attachment.payload?.url;
+
+      if (attachment.type === "image" && imageUrl) {
+        console.log(`🖼️ Processing image attachment: ${imageUrl}`);
 
         // Convert Facebook image to base64 for OpenAI
-        const base64Image = await facebookImageToBase64(attachment.url);
+        const base64Image = await facebookImageToBase64(imageUrl);
 
         if (base64Image) {
           contentParts.push({ type: "image_url", image_url: { url: base64Image } });
