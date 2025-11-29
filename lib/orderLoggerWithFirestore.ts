@@ -223,8 +223,14 @@ export async function logOrder(
         quantity?: number;
     }
 ): Promise<string> {
+    console.log(`🔵 [logOrder] STARTED for source: ${source}, product: ${orderData.product}`);
+    const startTime = Date.now();
+
     try {
+        console.log(`🔵 [logOrder] Step 1: Generating order number...`);
         const orderNumber = await generateOrderNumber(source);
+        console.log(`✅ [logOrder] Step 1 complete: ${orderNumber} (${Date.now() - startTime}ms)`);
+
         const timestamp = new Date().toISOString();
         const paymentMethod = options?.paymentMethod || 'bank_transfer'; // Messenger orders are paid upfront
 
@@ -233,10 +239,15 @@ export async function logOrder(
         let productId = options?.productId;
 
         if (!productSku) {
+            console.log(`🔵 [logOrder] Step 2: Extracting product info...`);
             const productInfo = await extractProductInfo(orderData.product);
+            console.log(`✅ [logOrder] Step 2 complete (${Date.now() - startTime}ms)`);
             if (productInfo) {
                 productSku = productInfo.docId;
                 productId = productInfo.wcId || undefined;
+                console.log(`📦 [logOrder] Product SKU: ${productSku}, WC ID: ${productId}`);
+            } else {
+                console.warn(`⚠️ [logOrder] No product info found for: ${orderData.product}`);
             }
         }
 
@@ -248,18 +259,23 @@ export async function logOrder(
 
         // Handle stock update based on payment method
         if (productSku) {
+            console.log(`🔵 [logOrder] Step 3: Handling stock (method: ${paymentMethod})...`);
             if (paymentMethod === 'bank_transfer') {
                 // Reserve stock for bank transfer (will be confirmed later)
                 const reserved = await reserveStock(productSku, quantityNum, orderNumber, 30);
+                console.log(`✅ [logOrder] Step 3 complete: reserved=${reserved} (${Date.now() - startTime}ms)`);
                 if (reserved) {
                     console.log(`📦 Stock reserved for order ${orderNumber} (awaiting payment)`);
                 }
             } else {
                 // Cash on delivery - update stock immediately
                 const updated = await updateProductStock(productSku, quantityNum, orderNumber);
+                console.log(`✅ [logOrder] Step 3 complete: updated=${updated} (${Date.now() - startTime}ms)`);
                 firestoreUpdated = updated;
                 paymentStatus = updated ? 'confirmed' : 'failed';
             }
+        } else {
+            console.log(`⚠️ [logOrder] Step 3 skipped: No productSku`);
         }
 
         const orderLog: OrderLog = {
@@ -275,9 +291,11 @@ export async function logOrder(
         };
 
         // Save to Firestore orders collection
+        console.log(`🔵 [logOrder] Step 4: Saving to Firestore...`);
         await db.collection('orders').doc(orderNumber).set(orderLog);
+        console.log(`✅ [logOrder] Step 4 complete (${Date.now() - startTime}ms)`);
 
-        console.log(`✅ Order logged to Firestore: ${orderNumber}`);
+        console.log(`✅ [logOrder] COMPLETED: ${orderNumber} (total: ${Date.now() - startTime}ms)`);
 
         // Push to warehouse app (non-blocking)
         pushToWarehouse(orderLog).catch(err =>
@@ -286,7 +304,12 @@ export async function logOrder(
 
         return orderNumber;
     } catch (error) {
-        console.error('❌ Error logging order:', error);
+        console.error(`❌ [logOrder] FAILED after ${Date.now() - startTime}ms:`, error);
+        console.error(`❌ [logOrder] Error details:`, {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            orderData: { product: orderData.product, client: orderData.clientName }
+        });
         throw error;
     }
 }

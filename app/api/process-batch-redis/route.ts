@@ -383,27 +383,38 @@ async function handler(req: Request) {
             console.log(`✅ [REDIS BATCH ORDER] Used existing order number: ${existingOrderNumber}`);
           } else if (gotOrderLock) {
             // We got the lock - create the order
-            const orderNumber = await logOrder(orderData, 'messenger');
-            console.log(`✅ [REDIS BATCH ORDER] Order logged: ${orderNumber}`);
-
-            // Replace order number placeholder with actual order number
-            finalResponse = replaceOrderNumberPlaceholders(cleanResponse, orderNumber);
-            console.log(`✅ [REDIS BATCH ORDER] Replaced [ORDER_NUMBER] with ${orderNumber}`);
-
-            // Add order to conversation
-            if (!conversationData.orders) conversationData.orders = [];
-            conversationData.orders.push({
-              orderNumber,
-              timestamp: new Date().toISOString(),
-              items: orderData.product
-            });
-
-            // Send email (non-blocking - don't let failure affect message)
+            console.log(`🔵 [REDIS BATCH ORDER] Calling logOrder() for product: ${orderData.product}`);
+            let orderNumber: string;
             try {
-              await sendOrderEmail(orderData, orderNumber);
-              console.log(`📧 [REDIS BATCH ORDER] Email sent`);
-            } catch (emailErr: any) {
-              console.error(`⚠️ [REDIS BATCH ORDER] Email failed (order still valid): ${emailErr.message}`);
+              orderNumber = await logOrder(orderData, 'messenger');
+              console.log(`✅ [REDIS BATCH ORDER] Order logged successfully: ${orderNumber}`);
+
+              // Replace order number placeholder with actual order number
+              finalResponse = replaceOrderNumberPlaceholders(cleanResponse, orderNumber);
+              console.log(`✅ [REDIS BATCH ORDER] Replaced [ORDER_NUMBER] with ${orderNumber}`);
+
+              // Add order to conversation
+              if (!conversationData.orders) conversationData.orders = [];
+              conversationData.orders.push({
+                orderNumber,
+                timestamp: new Date().toISOString(),
+                items: orderData.product
+              });
+              console.log(`✅ [REDIS BATCH ORDER] Order added to conversation data`);
+
+              // Send email (non-blocking - don't let failure affect message)
+              try {
+                await sendOrderEmail(orderData, orderNumber);
+                console.log(`📧 [REDIS BATCH ORDER] Email sent`);
+              } catch (emailErr: any) {
+                console.error(`⚠️ [REDIS BATCH ORDER] Email failed (order still valid): ${emailErr.message}`);
+              }
+            } catch (logOrderError: any) {
+              console.error(`❌ [REDIS BATCH ORDER] logOrder() FAILED:`, logOrderError);
+              console.error(`❌ [REDIS BATCH ORDER] Error message:`, logOrderError?.message);
+              console.error(`❌ [REDIS BATCH ORDER] Error stack:`, logOrderError?.stack);
+              // Don't throw - we'll handle it in the outer catch
+              throw logOrderError;
             }
           }
         } catch (err: any) {
