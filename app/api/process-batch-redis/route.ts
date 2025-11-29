@@ -10,6 +10,96 @@ import {
   type MessageContent,
   type ConversationData,
 } from "@/lib/bot-core";
+import { logOrder } from "@/lib/orderLoggerWithFirestore";
+import { sendOrderEmail } from "@/lib/sendOrderEmail";
+import { db } from "@/lib/firestore";
+
+/**
+ * Parse order confirmation from Georgian format
+ * Detects order confirmations by looking for:
+ * - "შეკვეთა მიღებულია" + order number placeholder
+ * - Emoji-prefixed fields: 👤, 📞, 📍, 📦, 💰
+ */
+function parseGeorgianOrderConfirmation(text: string): {
+  product: string;
+  quantity: string;
+  clientName: string;
+  telephone: string;
+  address: string;
+  total: string;
+  needsOrderNumber: boolean;
+} | null {
+  console.log(`🔍 [REDIS BATCH] parseGeorgianOrderConfirmation called, text length: ${text.length}`);
+  console.log(`🔍 [REDIS BATCH] Text preview: ${text.substring(0, 200)}`);
+
+  // Check for order confirmation indicator
+  const hasOrderConfirmation = text.includes('შეკვეთა მიღებულია');
+  if (!hasOrderConfirmation) {
+    console.log('❌ [REDIS BATCH] No "შეკვეთა მიღებულია" found');
+    return null;
+  }
+
+  // Check for order number placeholder
+  const hasOrderNumberPlaceholder =
+    text.includes('[ORDER_NUMBER]') ||
+    text.includes('[შეკვეთის ნომერი მალე]') ||
+    text.includes('შეკვეთის ნომერი:') ||
+    text.includes('🎫');
+
+  if (!hasOrderNumberPlaceholder) {
+    console.log('❌ [REDIS BATCH] No order number placeholder found');
+    return null;
+  }
+
+  console.log('✅ [REDIS BATCH] Order confirmation pattern detected');
+
+  // Extract fields using emoji prefixes
+  const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?=[\r\n]|📞|📍|📦|💰|🎫|$)/);
+  const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?=[\r\n]|👤|📍|📦|💰|🎫|$)/);
+  const addressMatch = text.match(/📍[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📦|💰|🎫|$)/);
+  const productMatch = text.match(/📦[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|💰|🎫|$)/);
+  const totalMatch = text.match(/💰[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|📦|🎫|$)/);
+
+  console.log(`🔍 [REDIS BATCH] Field extraction results:`);
+  console.log(`   👤 Name: ${nameMatch ? 'FOUND - ' + nameMatch[1] : 'MISSING'}`);
+  console.log(`   📞 Phone: ${phoneMatch ? 'FOUND - ' + phoneMatch[1] : 'MISSING'}`);
+  console.log(`   📍 Address: ${addressMatch ? 'FOUND - ' + addressMatch[1].substring(0, 50) : 'MISSING'}`);
+  console.log(`   📦 Product: ${productMatch ? 'FOUND - ' + productMatch[1].substring(0, 50) : 'MISSING'}`);
+  console.log(`   💰 Total: ${totalMatch ? 'FOUND - ' + totalMatch[1] : 'MISSING'}`);
+
+  if (nameMatch && phoneMatch && addressMatch && productMatch && totalMatch) {
+    const result = {
+      product: productMatch[1].trim(),
+      quantity: '1',
+      clientName: nameMatch[1].trim(),
+      telephone: phoneMatch[1].trim().replace(/\s/g, ''),
+      address: addressMatch[1].trim(),
+      total: totalMatch[1].trim(),
+      needsOrderNumber: true,
+    };
+    console.log('✅ [REDIS BATCH] Parsed Georgian order confirmation successfully');
+    return result;
+  }
+
+  console.log('❌ [REDIS BATCH] Could not parse Georgian order - missing required fields');
+  return null;
+}
+
+/**
+ * Replace all order number placeholder variants with actual order number
+ */
+function replaceOrderNumberPlaceholders(text: string, orderNumber: string): string {
+  return text
+    .replace(/\[ORDER_NUMBER\]/g, orderNumber)
+    .replace(/\[შეკვეთის ნომერი მალე\]/g, orderNumber);
+}
+
+/**
+ * Check if text contains any order number placeholder
+ */
+function hasOrderNumberPlaceholder(text: string): boolean {
+  return text.includes('[ORDER_NUMBER]') || text.includes('[შეკვეთის ნომერი მალე]');
+}
 
 /**
  * Process batched messages from Redis
@@ -175,10 +265,8 @@ async function handler(req: Request) {
 
     console.log(`[REDIS BATCH] Found ${productIds.length} image command(s)`);
 
-    // Send text response first (without SEND_IMAGE commands)
-    if (cleanResponse) {
-      await sendMessage(senderId, cleanResponse);
-    }
+    // DON'T send message yet - need to process orders first and replace [ORDER_NUMBER]!
+    // Message will be sent after order processing
 
     // Send product images if requested
     if (productIds.length > 0) {
@@ -227,10 +315,145 @@ async function handler(req: Request) {
       }
     }
 
-    // Update conversation history
+    // ==================== ORDER PROCESSING ====================
+    // CRITICAL: Must process orders and replace [ORDER_NUMBER] before saving to history!
+
+    let finalResponse = cleanResponse;
+
+    console.log(`🔍 [REDIS BATCH ORDER] Checking for order confirmation in response`);
+    const orderData = parseGeorgianOrderConfirmation(cleanResponse);
+
+    if (orderData) {
+      console.log("📦 [REDIS BATCH ORDER] ORDER DETECTED! Processing order...");
+      console.log("📦 [REDIS BATCH ORDER] Order data:", JSON.stringify(orderData));
+
+      // Check for duplicate order (same product + phone within 2 minutes)
+      let isDuplicateOrder = false;
+      let duplicateOrderNumber: string | null = null;
+
+      if (conversationData.orders && conversationData.orders.length > 0) {
+        const lastOrder = conversationData.orders[conversationData.orders.length - 1];
+        const lastOrderTime = new Date(lastOrder.timestamp).getTime();
+        const now = Date.now();
+        const twoMinutes = 2 * 60 * 1000;
+
+        if (lastOrder.items === orderData.product && (now - lastOrderTime) < twoMinutes) {
+          isDuplicateOrder = true;
+          duplicateOrderNumber = lastOrder.orderNumber;
+          console.log(`⚠️ [REDIS BATCH ORDER] Duplicate order detected: ${duplicateOrderNumber}`);
+        }
+      }
+
+      if (!isDuplicateOrder) {
+        try {
+          // ATOMIC RACE CONDITION FIX: Use Firestore create() to claim order creation slot
+          const minuteBucket = Math.floor(Date.now() / 60000);
+          const phoneKey = orderData.telephone?.replace(/\D/g, '') || senderId;
+          const orderLockRef = db.collection('orderCreationLocks').doc(`order_phone_${phoneKey}_${minuteBucket}`);
+          let gotOrderLock = false;
+          let existingOrderNumber: string | null = null;
+
+          try {
+            await orderLockRef.create({
+              createdAt: new Date().toISOString(),
+              senderId,
+              product: orderData.product
+            });
+            gotOrderLock = true;
+            console.log(`🔒 [REDIS BATCH ORDER] Acquired order creation lock`);
+          } catch (lockError: any) {
+            // Another request already has the lock - check for existing order
+            if (lockError.code === 6 || lockError.message?.includes('ALREADY_EXISTS')) {
+              console.log(`⏭️ [REDIS BATCH ORDER] Order lock exists - checking for existing order`);
+              const freshConversation = await loadConversation(senderId);
+              if (freshConversation.orders && freshConversation.orders.length > 0) {
+                existingOrderNumber = freshConversation.orders[freshConversation.orders.length - 1].orderNumber;
+                console.log(`✅ [REDIS BATCH ORDER] Found existing order: ${existingOrderNumber}`);
+              }
+            } else {
+              throw lockError;
+            }
+          }
+
+          if (existingOrderNumber) {
+            // Use existing order number (race condition - another request created it)
+            finalResponse = replaceOrderNumberPlaceholders(cleanResponse, existingOrderNumber);
+            const freshConversation = await loadConversation(senderId);
+            conversationData.orders = freshConversation.orders;
+            console.log(`✅ [REDIS BATCH ORDER] Used existing order number: ${existingOrderNumber}`);
+          } else if (gotOrderLock) {
+            // We got the lock - create the order
+            const orderNumber = await logOrder(orderData, 'messenger');
+            console.log(`✅ [REDIS BATCH ORDER] Order logged: ${orderNumber}`);
+
+            // Replace order number placeholder with actual order number
+            finalResponse = replaceOrderNumberPlaceholders(cleanResponse, orderNumber);
+            console.log(`✅ [REDIS BATCH ORDER] Replaced [ORDER_NUMBER] with ${orderNumber}`);
+
+            // Add order to conversation
+            if (!conversationData.orders) conversationData.orders = [];
+            conversationData.orders.push({
+              orderNumber,
+              timestamp: new Date().toISOString(),
+              items: orderData.product
+            });
+
+            // Send email (non-blocking - don't let failure affect message)
+            try {
+              await sendOrderEmail(orderData, orderNumber);
+              console.log(`📧 [REDIS BATCH ORDER] Email sent`);
+            } catch (emailErr: any) {
+              console.error(`⚠️ [REDIS BATCH ORDER] Email failed (order still valid): ${emailErr.message}`);
+            }
+          }
+        } catch (err: any) {
+          console.error("❌ [REDIS BATCH ORDER] Error:", err.message);
+
+          // FALLBACK: If lock mechanism failed, still try to create order
+          if (orderData && hasOrderNumberPlaceholder(finalResponse)) {
+            console.log("🔄 [REDIS BATCH ORDER] Attempting fallback order creation...");
+            try {
+              const orderNumber = await logOrder(orderData, 'messenger');
+              finalResponse = replaceOrderNumberPlaceholders(cleanResponse, orderNumber);
+              console.log(`✅ [REDIS BATCH ORDER] Fallback order created: ${orderNumber}`);
+
+              if (!conversationData.orders) conversationData.orders = [];
+              conversationData.orders.push({
+                orderNumber,
+                timestamp: new Date().toISOString(),
+                items: orderData.product
+              });
+            } catch (fallbackErr: any) {
+              console.error("❌ [REDIS BATCH ORDER] Fallback also failed:", fallbackErr.message);
+            }
+          }
+        }
+      } else if (duplicateOrderNumber) {
+        // Duplicate order - use existing order number
+        console.log("⚠️ [REDIS BATCH ORDER] Duplicate order, using existing number");
+        finalResponse = replaceOrderNumberPlaceholders(cleanResponse, duplicateOrderNumber);
+        console.log(`✅ [REDIS BATCH ORDER] Using existing order number: ${duplicateOrderNumber}`);
+      }
+    } else {
+      console.log(`ℹ️ [REDIS BATCH ORDER] No order detected in response`);
+    }
+
+    // SAFETY: If any order placeholder still exists, it means order creation failed
+    if (hasOrderNumberPlaceholder(finalResponse)) {
+      console.log('⚠️ [REDIS BATCH ORDER] Order placeholder still exists - order creation may have failed');
+    }
+
+    // ==================== SEND TEXT RESPONSE ====================
+    // Send the FINAL response (with order number replaced) to the user
+    if (finalResponse) {
+      await sendMessage(senderId, finalResponse);
+      console.log(`✅ [REDIS BATCH] Sent message to user (length: ${finalResponse.length})`);
+    }
+
+    // Update conversation history with the FINAL response (with order number replaced)
     conversationData.history.push(
       { role: "user", content: userContent },
-      { role: "assistant", content: response }
+      { role: "assistant", content: finalResponse }
     );
 
     // Keep only last 20 exchanges (40 messages)
