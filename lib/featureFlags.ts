@@ -14,7 +14,7 @@ const FEATURES = {
   REDIS_MESSAGE_BATCHING: {
     enabled: process.env.ENABLE_REDIS_BATCHING?.trim() === 'true',
     testUsers: TEST_USER_IDS,
-    rolloutPercentage: 0, // 0% rollout initially, can increase gradually
+    rolloutPercentage: 100, // 100% rollout - all users now use Redis batching
   }
 };
 
