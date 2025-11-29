@@ -46,10 +46,6 @@ export async function sendOrderEmail(orderData: OrderData, orderNumber?: string)
                 <td style="padding: 8px 0;">${orderData.product}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">რაოდენობა:</td>
-                <td style="padding: 8px 0;">${orderData.quantity}</td>
-              </tr>
-              <tr>
                 <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">კლიენტის სახელი:</td>
                 <td style="padding: 8px 0;">${orderData.clientName}</td>
               </tr>
@@ -77,7 +73,6 @@ export async function sendOrderEmail(orderData: OrderData, orderNumber?: string)
 ${orderNumber ? `\nშეკვეთის ნომერი: #${orderNumber}` : ''}
 
 პროდუქტი: ${orderData.product}
-რაოდენობა: ${orderData.quantity}
 კლიენტის სახელი: ${orderData.clientName}
 ტელეფონი: ${orderData.telephone}
 მისამართი: ${orderData.address}
