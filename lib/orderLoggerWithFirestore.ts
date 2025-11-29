@@ -278,6 +278,7 @@ export async function logOrder(
             console.log(`⚠️ [logOrder] Step 3 skipped: No productSku`);
         }
 
+        // Build order log - only include productSku/productId if they have values (Firestore doesn't accept undefined)
         const orderLog: OrderLog = {
             ...orderData,
             orderNumber,
@@ -286,9 +287,15 @@ export async function logOrder(
             paymentMethod,
             paymentStatus,
             firestoreUpdated,
-            productSku: productSku || undefined,
-            productId: productId || undefined,  // WooCommerce ID for syncing
         };
+
+        // Only add optional fields if they have actual values
+        if (productSku) {
+            orderLog.productSku = productSku;
+        }
+        if (productId) {
+            orderLog.productId = productId;
+        }
 
         // Save to Firestore orders collection
         console.log(`🔵 [logOrder] Step 4: Saving to Firestore...`);
