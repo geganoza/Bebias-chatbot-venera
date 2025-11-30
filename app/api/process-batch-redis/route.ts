@@ -130,6 +130,52 @@ async function handler(req: Request) {
 
     const redis = new Redis({ url, token });
 
+    // ⛔ CHECK CONVERSATION MODE - If conversation is in manual mode, silently drop messages
+    try {
+      const conversationDoc = await db.collection('conversations').doc(senderId).get();
+      if (conversationDoc.exists) {
+        const conversationData = conversationDoc.data();
+        if (conversationData?.manualMode === true) {
+          console.log(`👤 [REDIS BATCH] Conversation in MANUAL mode - manager handling ${senderId}`);
+          console.log(`👤 Manual mode enabled at: ${conversationData.manualModeEnabledAt || 'Unknown'}`);
+
+          // Clear messages from Redis to prevent buildup
+          await clearMessageBatch(senderId);
+
+          return NextResponse.json({
+            status: 'manual_mode',
+            message: 'Manager is handling this conversation'
+          });
+        }
+      }
+    } catch (conversationModeError) {
+      console.error(`⚠️ [REDIS BATCH] Error checking conversation mode:`, conversationModeError);
+      // Continue processing if check fails (fail-open for availability)
+    }
+
+    // ⛔ CHECK GLOBAL KILL SWITCH - If bot is globally paused, silently drop all messages
+    try {
+      const killSwitchDoc = await db.collection('botSettings').doc('botKillSwitch').get();
+      if (killSwitchDoc.exists) {
+        const killSwitchData = killSwitchDoc.data();
+        if (killSwitchData?.active === true) {
+          console.log(`⛔ [REDIS BATCH] Bot is GLOBALLY PAUSED - dropping messages for ${senderId}`);
+          console.log(`⛔ Reason: ${killSwitchData.reason || 'Not specified'}`);
+
+          // Clear messages from Redis to prevent buildup
+          await clearMessageBatch(senderId);
+
+          return NextResponse.json({
+            status: 'bot_paused',
+            reason: killSwitchData.reason
+          });
+        }
+      }
+    } catch (killSwitchError) {
+      console.error(`⚠️ [REDIS BATCH] Error checking kill switch:`, killSwitchError);
+      // Continue processing if kill switch check fails (fail-open for availability)
+    }
+
     // Use SET NX (set if not exists) with expiry
     const lockAcquired = await redis.set(lockKey, processingId, {
       nx: true,  // Only set if doesn't exist

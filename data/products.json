@@ -165,7 +165,7 @@
     "price": 54,
     "currency": "GEL",
     "category": "",
-    "stock": 3,
+    "stock": 2,
     "image": "",
     "short_description": ""
   },
@@ -505,7 +505,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "",
-    "stock": 3,
+    "stock": 2,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-1.jpg",
     "short_description": ""
   },
@@ -1055,7 +1055,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 4,
+    "stock": 5,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-1.jpg",
     "short_description": ""
   },
@@ -1305,7 +1305,7 @@
     "price": 59,
     "currency": "GEL",
     "category": "",
-    "stock": 4,
+    "stock": 3,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%9B%E1%83%A3%E1%83%A5%E1%83%98-%E1%83%9C%E1%83%90%E1%83%AA%E1%83%A0%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
     "short_description": ""
   },
@@ -1455,7 +1455,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 3,
+    "stock": 4,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%A1-%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%981.jpg",
     "short_description": ""
   },
@@ -1565,7 +1565,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 2,
+    "stock": 1,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%94%E1%83%93%E1%83%98-1.jpg",
     "short_description": ""
   },
@@ -1635,7 +1635,7 @@
     "price": 59,
     "currency": "GEL",
     "category": "",
-    "stock": 20,
+    "stock": 19,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%A4%E1%83%98%E1%83%A0%E1%83%A3%E1%83%96%E1%83%98%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98-%E1%83%9E%E1%83%9D%E1%83%9B%E1%83%9E%E1%83%9D%E1%83%9C%E1%83%98%E1%83%97.jpg",
     "short_description": ""
   },
@@ -1795,7 +1795,7 @@
     "price": 59,
     "currency": "GEL",
     "category": "",
-    "stock": 5,
+    "stock": 4,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%A6%E1%83%98%E1%83%90-%E1%83%9B%E1%83%AC%E1%83%95%E1%83%90%E1%83%9C%E1%83%94-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%98.jpg",
     "short_description": ""
   },
@@ -2165,7 +2165,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 11,
+    "stock": 22,
     "image": "https://bebias.ge/wp-content/uploads/SON04852-Photoroom-e1734620854972.jpg",
     "short_description": ""
   },
@@ -2175,7 +2175,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 1,
+    "stock": 3,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A0%E1%83%94%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%9A%E1%83%A3%E1%83%A0%E1%83%AF%E1%83%98-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-1.jpg",
     "short_description": ""
   },
@@ -2185,7 +2185,7 @@
     "price": 49,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 4,
+    "stock": 7,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%A8%E1%83%94%E1%83%A0%E1%83%94%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%A1%E1%83%A2%E1%83%90%E1%83%A4%E1%83%98%E1%83%9A%E1%83%9D%E1%83%A1%E1%83%A4%E1%83%94%E1%83%A0%E1%83%98-1.jpg",
     "short_description": ""
   },
@@ -2552,10 +2552,10 @@
   {
     "id": "წითელი ბამბის მოკლე ქუდი M",
     "name": "წითელი ბამბის მოკლე ქუდი M",
-    "price": 49,
+    "price": 39,
     "currency": "GEL",
     "category": "ქუდები",
-    "stock": 12,
+    "stock": 9,
     "image": "https://bebias.ge/wp-content/uploads/%E1%83%91%E1%83%94%E1%83%91%E1%83%98%E1%83%90%E1%83%A1-%E1%83%AC%E1%83%98%E1%83%97%E1%83%94%E1%83%9A%E1%83%98-%E1%83%9B%E1%83%9D%E1%83%99%E1%83%9A%E1%83%94-%E1%83%91%E1%83%90%E1%83%9B%E1%83%91%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%A3%E1%83%93%E1%83%981.jpg",
     "short_description": ""
   },

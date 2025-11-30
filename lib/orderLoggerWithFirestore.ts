@@ -73,7 +73,7 @@ export interface OrderLog extends OrderData {
     orderNumber: string;
     timestamp: string;
     source: 'messenger' | 'chat';
-    paymentMethod?: 'bank_transfer' | 'cash_on_delivery';
+    paymentMethod?: 'bank_transfer' | 'cash_on_delivery' | 'confirmed';
     paymentStatus?: 'pending' | 'confirmed' | 'failed';
     firestoreUpdated?: boolean;
     productSku?: string;     // Document ID = product name (for stock updates)
@@ -217,7 +217,7 @@ export async function logOrder(
     orderData: OrderData,
     source: 'messenger' | 'chat',
     options?: {
-        paymentMethod?: 'bank_transfer' | 'cash_on_delivery';
+        paymentMethod?: 'bank_transfer' | 'cash_on_delivery' | 'confirmed';
         productSku?: string;
         productId?: string;
         quantity?: number;
@@ -232,7 +232,7 @@ export async function logOrder(
         console.log(`✅ [logOrder] Step 1 complete: ${orderNumber} (${Date.now() - startTime}ms)`);
 
         const timestamp = new Date().toISOString();
-        const paymentMethod = options?.paymentMethod || 'bank_transfer'; // Messenger orders are paid upfront
+        const paymentMethod = options?.paymentMethod || 'confirmed'; // Default: payment already confirmed
 
         // Get product info (docId for stock, wcId for WooCommerce reference)
         let productSku = options?.productSku;
@@ -268,7 +268,7 @@ export async function logOrder(
                     console.log(`📦 Stock reserved for order ${orderNumber} (awaiting payment)`);
                 }
             } else {
-                // Cash on delivery - update stock immediately
+                // Payment confirmed - update stock immediately
                 const updated = await updateProductStock(productSku, quantityNum, orderNumber);
                 console.log(`✅ [logOrder] Step 3 complete: updated=${updated} (${Date.now() - startTime}ms)`);
                 firestoreUpdated = updated;

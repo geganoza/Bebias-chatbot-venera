@@ -60,6 +60,14 @@ export default function ControlPanelDashboard() {
   // Ref for auto-scrolling to bottom of messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Manual order creation states
+  const [showManualOrder, setShowManualOrder] = useState(false);
+  const [conversationText, setConversationText] = useState('');
+  const [analyzedData, setAnalyzedData] = useState<any>(null);
+  const [manualOrderLoading, setManualOrderLoading] = useState(false);
+  const [manualOrderMessage, setManualOrderMessage] = useState('');
+  const [createdOrders, setCreatedOrders] = useState<any[]>([]);
+
 
   const handleLogout = async () => {
     try {
@@ -134,6 +142,81 @@ export default function ControlPanelDashboard() {
       setBotControlMessage('❌ Error: ' + error);
     } finally {
       setBotControlLoading(false);
+    }
+  };
+
+  // Analyze conversation with AI
+  const analyzeConversation = async () => {
+    if (!conversationText.trim()) {
+      setManualOrderMessage('Please paste a conversation first');
+      return;
+    }
+
+    setManualOrderLoading(true);
+    setManualOrderMessage('');
+    setAnalyzedData(null);
+
+    try {
+      const response = await fetch('/api/analyze-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation: conversationText })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAnalyzedData(result.data);
+        setManualOrderMessage('Conversation analyzed successfully!');
+        setTimeout(() => setManualOrderMessage(''), 3000);
+      } else {
+        const error = await response.json();
+        setManualOrderMessage('Failed to analyze: ' + (error.error || 'Unknown error'));
+      }
+    } catch (error: any) {
+      setManualOrderMessage('Error: ' + error.message);
+    } finally {
+      setManualOrderLoading(false);
+    }
+  };
+
+  // Create manual order from analyzed data
+  const createManualOrder = async () => {
+    if (!analyzedData) {
+      setManualOrderMessage('Please analyze a conversation first');
+      return;
+    }
+
+    setManualOrderLoading(true);
+    setManualOrderMessage('');
+    setCreatedOrders([]);
+
+    try {
+      const response = await fetch('/api/create-manual-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(analyzedData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setCreatedOrders(result.orders);
+        setManualOrderMessage(`Successfully created ${result.orders.filter((o: any) => o.status === 'success').length} order(s)!`);
+
+        // Clear form after successful creation
+        setTimeout(() => {
+          setConversationText('');
+          setAnalyzedData(null);
+          setCreatedOrders([]);
+          setManualOrderMessage('');
+        }, 5000);
+      } else {
+        const error = await response.json();
+        setManualOrderMessage('Failed to create order: ' + (error.error || 'Unknown error'));
+      }
+    } catch (error: any) {
+      setManualOrderMessage('Error: ' + error.message);
+    } finally {
+      setManualOrderLoading(false);
     }
   };
 
@@ -1024,7 +1107,7 @@ export default function ControlPanelDashboard() {
             </div>
 
             <button
-              disabled
+              onClick={() => setShowManualOrder(true)}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -1032,18 +1115,26 @@ export default function ControlPanelDashboard() {
                 gap: '12px',
                 padding: '12px',
                 marginBottom: '10px',
-                backgroundColor: '#f8f9fa',
-                color: '#6c757d',
-                border: '1px solid #e0e0e0',
+                backgroundColor: '#fff',
+                color: '#333',
+                border: '1px solid #ddd',
                 borderRadius: '8px',
-                cursor: 'not-allowed',
-                opacity: 0.6
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f0f7ff';
+                e.currentTarget.style.borderColor = '#2563eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#fff';
+                e.currentTarget.style.borderColor = '#ddd';
               }}
             >
-              <div style={{ fontSize: '24px' }}>🚚</div>
+              <div style={{ fontSize: '24px' }}>📝</div>
               <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>WOLT Send</div>
-                <div style={{ fontSize: '10px', fontStyle: 'italic' }}>Coming Soon</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Create Manual Order</div>
+                <div style={{ fontSize: '10px', color: '#666' }}>AI-powered order tool</div>
               </div>
             </button>
 
@@ -1095,6 +1186,332 @@ export default function ControlPanelDashboard() {
             </button>
           </div>
         </div>
+        )}
+
+        {/* Manual Order Creation Modal */}
+        {showManualOrder && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>Create Manual Order</h3>
+                <button
+                  onClick={() => {
+                    setShowManualOrder(false);
+                    setConversationText('');
+                    setAnalyzedData(null);
+                    setCreatedOrders([]);
+                    setManualOrderMessage('');
+                  }}
+                  style={{
+                    background: '#f0f0f0',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    cursor: 'pointer',
+                    fontSize: '18px'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {manualOrderMessage && (
+                <div style={{
+                  padding: '12px',
+                  borderRadius: '6px',
+                  backgroundColor: manualOrderMessage.includes('Error') || manualOrderMessage.includes('Failed') ? '#fee' : '#efe',
+                  color: manualOrderMessage.includes('Error') || manualOrderMessage.includes('Failed') ? '#c00' : '#080',
+                  marginBottom: '16px',
+                  fontSize: '14px'
+                }}>
+                  {manualOrderMessage}
+                </div>
+              )}
+
+              {!analyzedData ? (
+                <>
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', color: '#333' }}>
+                      Paste Customer Conversation
+                    </label>
+                    <textarea
+                      value={conversationText}
+                      onChange={(e) => setConversationText(e.target.value)}
+                      placeholder="Paste the conversation with customer here..."
+                      style={{
+                        width: '100%',
+                        minHeight: '200px',
+                        padding: '12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontFamily: 'monospace',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={analyzeConversation}
+                    disabled={manualOrderLoading || !conversationText.trim()}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      backgroundColor: '#2563eb',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: manualOrderLoading || !conversationText.trim() ? 'not-allowed' : 'pointer',
+                      opacity: manualOrderLoading || !conversationText.trim() ? 0.6 : 1
+                    }}
+                  >
+                    {manualOrderLoading ? '🔄 Analyzing...' : '🤖 Analyze with AI'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '20px' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#333' }}>Extracted Order Details</h4>
+
+                    {/* Products */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
+                        Products
+                      </label>
+                      {analyzedData.products && analyzedData.products.length > 0 ? (
+                        analyzedData.products.map((product: any, index: number) => (
+                          <div key={index} style={{
+                            padding: '10px',
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '6px',
+                            marginBottom: '8px',
+                            display: 'flex',
+                            justifyContent: 'space-between'
+                          }}>
+                            <div>
+                              <input
+                                type="text"
+                                value={product.name}
+                                onChange={(e) => {
+                                  const newData = { ...analyzedData };
+                                  newData.products[index].name = e.target.value;
+                                  setAnalyzedData(newData);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div style={{ marginLeft: '12px' }}>
+                              <input
+                                type="number"
+                                value={product.quantity}
+                                onChange={(e) => {
+                                  const newData = { ...analyzedData };
+                                  newData.products[index].quantity = parseInt(e.target.value) || 1;
+                                  setAnalyzedData(newData);
+                                }}
+                                style={{
+                                  width: '60px',
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p style={{ color: '#999', fontSize: '13px' }}>No products found</p>
+                      )}
+                    </div>
+
+                    {/* Customer Name */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        Customer Name
+                      </label>
+                      <input
+                        type="text"
+                        value={analyzedData.customerName || ''}
+                        onChange={(e) => setAnalyzedData({ ...analyzedData, customerName: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    {/* Telephone */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        Telephone
+                      </label>
+                      <input
+                        type="text"
+                        value={analyzedData.telephone || ''}
+                        onChange={(e) => setAnalyzedData({ ...analyzedData, telephone: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    {/* Address */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        Address
+                      </label>
+                      <textarea
+                        value={analyzedData.address || ''}
+                        onChange={(e) => setAnalyzedData({ ...analyzedData, address: e.target.value })}
+                        style={{
+                          width: '100%',
+                          minHeight: '60px',
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          resize: 'vertical'
+                        }}
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        Notes (Optional)
+                      </label>
+                      <textarea
+                        value={analyzedData.notes || ''}
+                        onChange={(e) => setAnalyzedData({ ...analyzedData, notes: e.target.value })}
+                        placeholder="Any special instructions..."
+                        style={{
+                          width: '100%',
+                          minHeight: '60px',
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          resize: 'vertical'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Created Orders Display */}
+                  {createdOrders.length > 0 && (
+                    <div style={{
+                      marginBottom: '16px',
+                      padding: '12px',
+                      backgroundColor: '#f0f9ff',
+                      borderRadius: '8px',
+                      border: '1px solid #bae6fd'
+                    }}>
+                      <h5 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', color: '#0369a1' }}>
+                        Created Orders
+                      </h5>
+                      {createdOrders.map((order: any, index: number) => (
+                        <div key={index} style={{
+                          padding: '8px',
+                          backgroundColor: order.status === 'success' ? '#dcfce7' : '#fee2e2',
+                          borderRadius: '4px',
+                          marginBottom: '6px',
+                          fontSize: '13px'
+                        }}>
+                          {order.status === 'success' ? (
+                            <div>
+                              ✅ <strong>{order.orderNumber}</strong> - {order.product} x {order.quantity}
+                            </div>
+                          ) : (
+                            <div>
+                              ❌ {order.product} x {order.quantity} - {order.error}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      onClick={() => {
+                        setAnalyzedData(null);
+                        setCreatedOrders([]);
+                        setManualOrderMessage('');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#666',
+                        backgroundColor: '#f0f0f0',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={createManualOrder}
+                      disabled={manualOrderLoading || createdOrders.length > 0}
+                      style={{
+                        flex: 2,
+                        padding: '12px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: 'white',
+                        backgroundColor: '#16a34a',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: manualOrderLoading || createdOrders.length > 0 ? 'not-allowed' : 'pointer',
+                        opacity: manualOrderLoading || createdOrders.length > 0 ? 0.6 : 1
+                      }}
+                    >
+                      {manualOrderLoading ? '🔄 Creating...' : '✅ Create Order'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
