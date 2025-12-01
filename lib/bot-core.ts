@@ -564,4 +564,4 @@ Respond in English, concisely and clearly (max 200 words).`;
       ? "ბოდიში, შეცდომა მოხდა თქვენი მოთხოვნის დამუშავებისას. გთხოვთ, სცადოთ ხელახლა."
       : "Sorry, there was an error processing your request. Please try again.";
   }
-}
+}// Trigger rebuild Mon Dec  1 15:19:59 +04 2025
