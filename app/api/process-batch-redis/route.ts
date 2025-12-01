@@ -300,7 +300,8 @@ async function handler(req: Request) {
       conversationData.history,
       conversationData.orders || [],
       conversationData.storeVisitCount || 0,
-      conversationData.operatorInstruction
+      conversationData.operatorInstruction,
+      senderId  // Pass senderId for dynamic instruction loading
     );
 
     // Parse and handle SEND_IMAGE commands

@@ -101,30 +101,71 @@ export async function loadProducts(): Promise<Product[]> {
 /**
  * Load content files
  */
-export async function loadContentFile(filename: string): Promise<string> {
+export async function loadContentFile(filename: string, baseDir: string = "data/content"): Promise<string> {
   try {
-    const filePath = path.join(process.cwd(), "data", "content", filename);
+    const filePath = path.join(process.cwd(), baseDir, filename);
     return await fs.promises.readFile(filePath, "utf-8");
   } catch (error) {
-    console.error(`Error loading ${filename}:`, error);
+    console.error(`Error loading ${filename} from ${baseDir}:`, error);
     return "";
   }
 }
 
 /**
+ * Check if user should get modular instructions
+ * Currently only for Giorgi's test account
+ */
+function shouldUseModularInstructions(senderId?: string): boolean {
+  // Only enable for Giorgi's test account for now
+  const MODULAR_INSTRUCTION_USERS = ['3282789748459241'];
+
+  if (!senderId) return false;
+
+  const useModular = MODULAR_INSTRUCTION_USERS.includes(senderId);
+
+  if (useModular) {
+    console.log(`🧪 [MODULAR] User ${senderId} will receive modular instructions from test-bot/`);
+  }
+
+  return useModular;
+}
+
+/**
  * Load all content
  */
-export async function loadAllContent() {
+export async function loadAllContent(senderId?: string) {
+  // Determine which instructions to load based on user
+  const useModular = shouldUseModularInstructions(senderId);
+  const baseDir = useModular ? 'test-bot/data/content' : 'data/content';
+  const instructionFile = useModular ? 'bot-instructions-modular.md' : 'bot-instructions.md';
+
+  console.log(`📚 Loading instructions from: ${baseDir}/${instructionFile}`);
+
+  // Load base files
   const [instructions, services, faqs, delivery, payment] = await Promise.all([
-    loadContentFile("bot-instructions.md"),
-    loadContentFile("services.md"),
-    loadContentFile("faqs.md"),
-    loadContentFile("delivery.md"),
-    loadContentFile("payment.md"),
+    loadContentFile(instructionFile, baseDir),
+    loadContentFile("services.md", baseDir),
+    loadContentFile("faqs.md", baseDir),
+    loadContentFile("delivery-info.md", baseDir),  // Note: test-bot uses delivery-info.md
+    loadContentFile("payment-info.md", baseDir),   // Note: test-bot uses payment-info.md
   ]);
 
+  // For modular instructions, also load additional context files
+  let contextAwareness = '';
+  let contextRetention = '';
+  if (useModular) {
+    [contextAwareness, contextRetention] = await Promise.all([
+      loadContentFile("context/context-awareness-rules.md", baseDir),
+      loadContentFile("context/context-retention-rules.md", baseDir),
+    ]);
+
+    console.log(`📚 [MODULAR] Also loaded context rules for user ${senderId}`);
+  }
+
   return {
-    instructions,
+    instructions: useModular ?
+      `${instructions}\n\n${contextRetention}\n\n${contextAwareness}` :
+      instructions,
     services,
     faqs,
     delivery,
@@ -335,7 +376,8 @@ export async function getAIResponse(
   history: Message[] = [],
   previousOrders: ConversationData['orders'] = [],
   storeVisitCount: number = 0,
-  operatorInstruction?: string
+  operatorInstruction?: string,
+  senderId?: string
 ): Promise<string> {
   const userText = typeof userMessage === 'string' ? userMessage : userMessage.find(c => c.type === 'text')?.text ?? '';
   const isKa = detectGeorgian(userText);
@@ -343,7 +385,7 @@ export async function getAIResponse(
   try {
     const [products, content, contactInfoStr] = await Promise.all([
       loadProducts(),
-      loadAllContent(),
+      loadAllContent(senderId),  // Pass senderId for dynamic instruction loading
       loadContentFile("contact-info.json"),
     ]);
 
