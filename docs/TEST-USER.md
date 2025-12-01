@@ -1,10 +1,18 @@
 # Test User Quick Reference
 
-## Test User ID
+## Test User IDs
+
+### Giorgi's Account
 ```
 3282789748459241
 ```
-This is Giorgi's Facebook Messenger account used for testing.
+Giorgi's Facebook Messenger account used for testing.
+
+### Nino Beriashvili's Account
+```
+25214389374891342
+```
+Nino Beriashvili's Facebook Messenger account used for testing.
 
 ---
 

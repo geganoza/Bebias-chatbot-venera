@@ -12,6 +12,14 @@
         "instructionsPath": "test-bot/data/content/bot-instructions-modular.md",
         "useModularInstructions": true,
         "description": "Giorgi - Testing restructured modular instructions with message batching"
+      },
+      {
+        "userId": "25214389374891342",
+        "name": "Nino Beriashvili",
+        "phone": "595000002",
+        "instructionsPath": "test-bot/data/content/bot-instructions-modular.md",
+        "useModularInstructions": true,
+        "description": "Nino - Testing restructured modular instructions with message batching"
       }
     ]
   },

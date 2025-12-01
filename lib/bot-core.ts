@@ -116,8 +116,11 @@ export async function loadContentFile(filename: string, baseDir: string = "data/
  * Currently only for Giorgi's test account
  */
 function shouldUseModularInstructions(senderId?: string): boolean {
-  // Only enable for Giorgi's test account for now
-  const MODULAR_INSTRUCTION_USERS = ['3282789748459241'];
+  // Test users for modular instructions
+  const MODULAR_INSTRUCTION_USERS = [
+    '3282789748459241',  // Giorgi's test account
+    '25214389374891342'  // Nino Beriashvili's account
+  ];
 
   if (!senderId) return false;
 
