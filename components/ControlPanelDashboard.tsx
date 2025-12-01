@@ -199,8 +199,21 @@ export default function ControlPanelDashboard() {
 
       if (response.ok) {
         const result = await response.json();
-        setCreatedOrders(result.orders);
-        setManualOrderMessage(`Successfully created ${result.orders.filter((o: any) => o.status === 'success').length} order(s)!`);
+
+        // Handle new single order response format
+        if (result.orderNumber) {
+          setCreatedOrders([{
+            orderNumber: result.orderNumber,
+            product: result.products.join(' + '),
+            quantity: result.totalQuantity,
+            status: 'success'
+          }]);
+          setManualOrderMessage(`✅ Order ${result.orderNumber} created successfully!`);
+        } else {
+          // Legacy format fallback (if needed)
+          setCreatedOrders(result.orders || []);
+          setManualOrderMessage(`Successfully created order!`);
+        }
 
         // Clear form after successful creation
         setTimeout(() => {

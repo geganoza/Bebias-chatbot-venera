@@ -43,12 +43,16 @@ export async function POST(req: Request) {
     // Load product catalog to get prices
     const productCatalog = await loadProducts();
 
-    const createdOrders = [];
+    // Build combined order data
+    let totalAmount = 0;
+    const productDescriptions: string[] = [];
+    const productQuantities: number[] = [];
 
-    // Create order for each product (same as bot does)
+    // Calculate total and build product description
     for (const product of products) {
+      const quantity = product.quantity || 1;
+
       // Find product in catalog to get price
-      let total = '0 ლარი';
       const catalogProduct = productCatalog.find(p =>
         p.name.toLowerCase().includes(product.name.toLowerCase()) ||
         product.name.toLowerCase().includes(p.name.toLowerCase())
@@ -56,77 +60,67 @@ export async function POST(req: Request) {
 
       if (catalogProduct) {
         const price = parseFloat(catalogProduct.price) || 0;
-        const quantity = product.quantity || 1;
-        const totalAmount = price * quantity;
-        total = `${totalAmount} ${catalogProduct.currency || 'ლარი'}`;
-        console.log(`💰 Calculated total for ${product.name}: ${total} (${price} x ${quantity})`);
+        totalAmount += price * quantity;
+        console.log(`💰 ${product.name}: ${price} x ${quantity} = ${price * quantity} ლარი`);
       } else {
-        console.warn(`⚠️ Product not found in catalog: ${product.name}, using default total`);
+        console.warn(`⚠️ Product not found in catalog: ${product.name}`);
       }
 
-      const orderData: OrderData = {
-        product: product.name,
-        quantity: String(product.quantity || 1),
-        clientName: customerName,
-        telephone: telephone,
-        address: address,
-        total: total
-      };
-
-      console.log(`📦 Creating order for: ${product.name} x ${product.quantity || 1}`);
-
-      try {
-        // Use the existing order logger with 'chat' source for manual orders
-        // Payment is already confirmed via instant bank transfer
-        const orderNumber = await logOrder(orderData, 'chat');
-
-        console.log(`✅ Order created: ${orderNumber}`);
-
-        // Send email notification
-        try {
-          await sendOrderEmail(orderData, orderNumber);
-          console.log(`📧 Email sent for order ${orderNumber}`);
-        } catch (emailError: any) {
-          console.error(`❌ Failed to send email for order ${orderNumber}:`, emailError.message);
-        }
-
-        createdOrders.push({
-          orderNumber,
-          product: product.name,
-          quantity: product.quantity || 1,
-          status: 'success'
-        });
-
-      } catch (error: any) {
-        console.error(`❌ Failed to create order for ${product.name}:`, error);
-        createdOrders.push({
-          product: product.name,
-          quantity: product.quantity || 1,
-          status: 'failed',
-          error: error.message
-        });
-      }
+      // Add to product description (like bot does: "product x quantity")
+      productDescriptions.push(`${product.name} x ${quantity}`);
+      productQuantities.push(quantity);
     }
 
-    // Check if all orders failed
-    const allFailed = createdOrders.every(o => o.status === 'failed');
-    if (allFailed) {
+    // Create combined product string (like bot does for multiple items)
+    const combinedProducts = productDescriptions.join(' + ');
+    const totalQuantity = productQuantities.reduce((sum, q) => sum + q, 0);
+
+    console.log(`📦 Creating single order for: ${combinedProducts}`);
+    console.log(`💰 Total amount: ${totalAmount} ლარი`);
+
+    const orderData: OrderData = {
+      product: combinedProducts,
+      quantity: String(totalQuantity),
+      clientName: customerName,
+      telephone: telephone,
+      address: address,
+      total: `${totalAmount} ლარი`
+    };
+
+    try {
+      // Create ONE order for all products combined
+      const orderNumber = await logOrder(orderData, 'chat');
+      console.log(`✅ Order created: ${orderNumber}`);
+
+      // Send email notification
+      try {
+        await sendOrderEmail(orderData, orderNumber);
+        console.log(`📧 Email sent for order ${orderNumber}`);
+      } catch (emailError: any) {
+        console.error(`❌ Failed to send email for order ${orderNumber}:`, emailError.message);
+      }
+
+      console.log(`✅ Manual order creation complete`);
+
+      return NextResponse.json({
+        success: true,
+        orderNumber,
+        products: productDescriptions,
+        totalQuantity,
+        totalAmount: `${totalAmount} ლარი`,
+        notes: notes || null
+      });
+
+    } catch (error: any) {
+      console.error(`❌ Failed to create order:`, error);
       return NextResponse.json(
         {
-          error: 'All orders failed to create',
-          details: createdOrders
+          error: 'Failed to create order',
+          details: error.message
         },
         { status: 500 }
       );
     }
-
-    console.log(`✅ Manual order creation complete. ${createdOrders.filter(o => o.status === 'success').length}/${createdOrders.length} successful`);
-
-    return NextResponse.json({
-      success: true,
-      orders: createdOrders,
-      notes: notes || null
-    });
 
   } catch (error: any) {
     console.error('❌ Error creating manual order:', error);
