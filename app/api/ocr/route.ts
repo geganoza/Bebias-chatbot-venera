@@ -1,7 +1,6 @@
 // app/api/ocr/route.ts
 
 import { NextResponse } from 'next/server';
-import Tesseract from 'tesseract.js';
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +9,9 @@ export async function POST(request: Request) {
     if (!imageUrl) {
       return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
     }
+
+    // Dynamic import to reduce bundle size
+    const Tesseract = (await import('tesseract.js')).default;
 
     const { data: { text } } = await Tesseract.recognize(
       imageUrl,
