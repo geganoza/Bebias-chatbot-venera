@@ -16,10 +16,6 @@ const nextConfig = {
       '**/*.map'
     ],
   },
-  // Optimize bundle size
-  experimental: {
-    outputFileTracingRoot: undefined,
-  },
 }
 
 module.exports = nextConfig
