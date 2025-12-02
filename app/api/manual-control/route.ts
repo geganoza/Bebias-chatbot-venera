@@ -300,6 +300,15 @@ export async function POST(req: Request) {
         conversation.manualModeEnabledAt = new Date().toISOString();
         await db.collection('conversations').doc(userId).set(conversation);
 
+        // Clear any pending messages from Redis to prevent them from being processed
+        try {
+          const { clearMessageBatch } = await import('@/lib/redis');
+          await clearMessageBatch(userId);
+          console.log(`🗑️ Cleared Redis cache for user ${userId}`);
+        } catch (err) {
+          console.warn(`⚠️ Could not clear Redis cache:`, err);
+        }
+
         console.log(`✅ Manual mode ENABLED for user ${userId}`);
         return NextResponse.json({ success: true, manualMode: true });
 
