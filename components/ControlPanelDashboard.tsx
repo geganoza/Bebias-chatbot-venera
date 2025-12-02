@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { toGeorgiaTime } from '@/lib/timeUtils';
 
 // Media query hook for mobile detection
 function useIsMobile() {
@@ -827,7 +828,7 @@ export default function ControlPanelDashboard() {
                       }}>
                         {message.senderType === 'bot' ? 'VENERA Bot' : message.senderType === 'human' ? 'Human Operator' : (selectedConversation.userName || 'User')}
                         {' · '}
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                        {toGeorgiaTime(message.timestamp)}
                       </div>
                     </div>
                   </div>
