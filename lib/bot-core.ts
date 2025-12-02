@@ -71,14 +71,44 @@ export async function loadConversation(senderId: string): Promise<ConversationDa
 }
 
 /**
- * Save conversation to Firestore
+ * Save conversation to Firestore and sync to metaMessages for control panel
  */
 export async function saveConversation(conversationData: ConversationData): Promise<void> {
+  // Save to conversations collection
   const docRef = db.collection('conversations').doc(conversationData.senderId);
   await docRef.set({
     ...conversationData,
     lastActive: new Date().toISOString(),
   });
+
+  // Also sync to metaMessages for control panel visibility
+  try {
+    if (conversationData.history && conversationData.history.length > 0) {
+      // Convert conversation history to meta messages format
+      const messages = conversationData.history
+        .filter(msg => msg.content)
+        .map((msg, index) => ({
+          id: `msg_${index}_${Date.now()}`,
+          senderId: msg.role === 'user' ? conversationData.senderId : 'bot',
+          senderType: msg.role === 'assistant' ? 'bot' : msg.role,
+          text: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+          timestamp: conversationData.lastActive || new Date().toISOString()
+        }));
+
+      // Update metaMessages collection
+      const metaRef = db.collection('metaMessages').doc(conversationData.senderId);
+      await metaRef.set({
+        userId: conversationData.senderId,
+        messages: messages,
+        lastUpdated: new Date().toISOString()
+      });
+
+      console.log(`📋 Synced ${messages.length} messages to control panel for user ${conversationData.senderId}`);
+    }
+  } catch (err) {
+    console.error(`❌ Error syncing to metaMessages:`, err);
+    // Don't throw - this is non-critical for message processing
+  }
 }
 
 /**
