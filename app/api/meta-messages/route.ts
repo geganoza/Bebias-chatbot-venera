@@ -24,7 +24,7 @@ type Conversation = {
 
 // Cache to reduce Firestore calls
 let cachedData: { conversations: Conversation[]; timestamp: number } | null = null;
-const CACHE_TTL = 5000; // 5 seconds (reduced for more real-time updates)
+const CACHE_TTL = 3000; // 3 seconds for faster updates
 
 export async function GET() {
   try {
@@ -39,10 +39,11 @@ export async function GET() {
     }
 
     // Fetch all data in parallel for better performance
+    // Limit to recent conversations for better performance
     const [metaSnapshot, profilesSnapshot, conversationsSnapshot] = await Promise.all([
-      db.collection('metaMessages').get(),
-      db.collection('userProfiles').get(),
-      db.collection('conversations').get()
+      db.collection('metaMessages').limit(100).get(), // Limit to 100 most recent
+      db.collection('userProfiles').limit(100).get(),
+      db.collection('conversations').orderBy('lastActive', 'desc').limit(100).get()
     ]);
 
     // Build lookup maps for O(1) access
