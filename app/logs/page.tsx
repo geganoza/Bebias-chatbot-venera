@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toGeorgiaTime } from "@/lib/timeUtils";
 
 type Log = {
   timestamp: string;
@@ -109,7 +110,7 @@ export default function LogsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm text-gray-500">
-                          {new Date(log.timestamp).toLocaleString()}
+                          {toGeorgiaTime(log.timestamp)}
                         </span>
                         {log.source && (
                           <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
