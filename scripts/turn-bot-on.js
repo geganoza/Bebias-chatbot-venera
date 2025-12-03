@@ -46,13 +46,17 @@ const db = new Firestore({
 async function turnOn() {
   console.log('\n=== TURNING BOT ON ===\n');
 
-  // Disable kill switch
+  // Disable the main kill switch (used by bot-status API)
+  await db.collection('botSettings').doc('botKillSwitch').delete();
+  console.log('✅ Main kill switch (botKillSwitch): OFF');
+
+  // Also disable qstashKillSwitch for compatibility
   await db.collection('botSettings').doc('qstashKillSwitch').set({
     active: false,
     reason: 'Manually disabled for testing',
     disabledAt: new Date().toISOString()
   });
-  console.log('✅ Kill switch: OFF');
+  console.log('✅ QStash kill switch: OFF');
 
   // Disable global pause
   await db.collection('botSettings').doc('global').set({
