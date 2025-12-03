@@ -2180,7 +2180,7 @@ export async function POST(req: Request) {
       // HANDLE "CLEAR" COMMAND FOR TEST USERS
       // Allows test users to clear their history and rate limits
       // ═══════════════════════════════════════════════════════
-      if (commandText === 'clear') {
+      if (event.message?.text?.toLowerCase().trim() === 'clear') {
         try {
           const { isTestUser, clearTestUserData, getClearCommandResponse } = await import('../../../lib/clearTestUser');
 
