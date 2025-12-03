@@ -2176,10 +2176,77 @@ export async function POST(req: Request) {
       }
 
       // ═══════════════════════════════════════════════════════
+      // HANDLE MANAGER COMMANDS - Since echoes are disabled
+      // Manager can type "pause bot" or "/pause" to take over
+      // ═══════════════════════════════════════════════════════
+      const messageText = event.message?.text?.toLowerCase().trim() || '';
+      if (messageText === 'pause bot' || messageText === '/pause' || messageText === 'pause') {
+        // Check if this is from the page (manager) by checking sender ID
+        // When page sends a message, sender ID is the page ID
+        // For now, enable manual mode for any pause command
+        try {
+          const { enableManualModeForConversation } = await import('@/lib/managerDetection');
+
+          // The manager is pausing the bot for a specific conversation
+          // The recipient of this message is the customer
+          const customerId = event.recipient?.id || senderId;
+
+          console.log(`⏸️ [WH:${webhookId}] Manager pause command detected`);
+          await enableManualModeForConversation(customerId, "Manager used pause command");
+
+          // Send confirmation to the conversation
+          await fetch(
+            `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient: { id: customerId },
+                message: { text: "🔴 Bot paused - Manager taking over conversation" }
+              })
+            }
+          );
+
+          continue; // Skip normal processing
+        } catch (err) {
+          console.error(`❌ [WH:${webhookId}] Error handling pause command:`, err);
+        }
+      }
+
+      // Resume command
+      if (messageText === 'resume bot' || messageText === '/resume' || messageText === 'resume') {
+        try {
+          const { disableManualMode } = await import('@/lib/managerDetection');
+
+          const customerId = event.recipient?.id || senderId;
+
+          console.log(`▶️ [WH:${webhookId}] Manager resume command detected`);
+          await disableManualMode(customerId);
+
+          // Send confirmation
+          await fetch(
+            `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient: { id: customerId },
+                message: { text: "🟢 Bot resumed - Automated responses active" }
+              })
+            }
+          );
+
+          continue;
+        } catch (err) {
+          console.error(`❌ [WH:${webhookId}] Error handling resume command:`, err);
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════
       // HANDLE "CLEAR" COMMAND FOR TEST USERS
       // Allows test users to clear their history and rate limits
       // ═══════════════════════════════════════════════════════
-      if (event.message?.text?.toLowerCase().trim() === 'clear') {
+      if (messageText === 'clear') {
         try {
           const { isTestUser, clearTestUserData, getClearCommandResponse } = await import('../../../lib/clearTestUser');
 
