@@ -2141,10 +2141,20 @@ export async function POST(req: Request) {
   for (const entry of body.entry || []) {
     for (const event of entry.messaging || []) {
       const senderId = event.sender?.id;
+      const recipientId = event.recipient?.id;
       const messageId = event.message?.mid;
       const webhookId = Math.random().toString(36).substring(2, 8);
+      const isEcho = event.message?.is_echo;
 
-      console.log(`📨 [WH:${webhookId}] Received message ${messageId} from ${senderId}`);
+      // Enhanced logging to debug echo messages
+      console.log(`📨 [WH:${webhookId}] Event received:`);
+      console.log(`   Sender: ${senderId}`);
+      console.log(`   Recipient: ${recipientId}`);
+      console.log(`   Message ID: ${messageId}`);
+      console.log(`   Is Echo: ${isEcho}`);
+      if (isEcho) {
+        console.log(`   🔊 ECHO MESSAGE DETAILS:`, JSON.stringify(event.message).substring(0, 500));
+      }
 
       // ═══════════════════════════════════════════════════════
       // HANDLE ECHO MESSAGES - Detect manager intervention

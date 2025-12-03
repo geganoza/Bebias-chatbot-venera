@@ -146,15 +146,27 @@ export async function processPageEchoMessage(event: any): Promise<void> {
   const message = event.message;
   const recipientId = event.recipient?.id; // The customer who received the message
   const messageText = message?.text;
+  const appId = message?.app_id;
+
+  console.log(`🔍 Processing echo message:`);
+  console.log(`   To customer: ${recipientId}`);
+  console.log(`   App ID: ${appId || 'NONE (likely human)'}`);
+  console.log(`   Text: "${messageText?.substring(0, 100)}..."`);
 
   if (!recipientId || !messageText) {
+    console.log(`⚠️ Missing recipient or text in echo message`);
     return;
   }
 
-  console.log(`🔍 Checking echo message to ${recipientId}: "${messageText.substring(0, 100)}..."`);
+  // If there's no app_id, it's likely from a human (Facebook Business Suite)
+  // If there's an app_id, it's from our bot
+  const isLikelyHuman = !appId;
+
+  console.log(`🔍 Echo analysis: ${isLikelyHuman ? 'Likely HUMAN (no app_id)' : 'Likely BOT (has app_id)'}`);
 
   // Check if this is a human manager message
-  if (isHumanManagerMessage(messageText)) {
+  // Use both app_id check and content analysis
+  if (isLikelyHuman || isHumanManagerMessage(messageText)) {
     console.log(`👨‍💼 Manager intervention detected for customer ${recipientId}`);
 
     // Save manager message to conversation history
