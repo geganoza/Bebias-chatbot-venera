@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Claude AI Launcher with Runbook Context
+# Simplified and robust version
+
+# Set project directory
+PROJECT_DIR="/Users/giorginozadze/Documents/BEBIAS CHATBOT VENERA beta_2"
+cd "$PROJECT_DIR" || exit 1
+
+# Set runbook path
+RUNBOOK_FILE="${PROJECT_DIR}/AI_DEVELOPMENT_RUNBOOK.md"
+
+# Verify runbook exists
+if [ ! -f "$RUNBOOK_FILE" ]; then
+    osascript -e "display alert \"Error\" message \"Runbook not found at: ${RUNBOOK_FILE}\" as critical"
+    exit 1
+fi
+
+# Create temp file for the prompt
+TEMP_PROMPT="/tmp/claude_runbook_$$_$(date +%s).md"
+
+# Write the prompt header
+cat > "$TEMP_PROMPT" << 'HEADER'
+I'm starting a new work session on the BEBIAS CHATBOT VENERA project. Please load and review the following runbook to ensure you have the latest context:
+
+---RUNBOOK START---
+HEADER
+
+# Append the runbook
+cat "$RUNBOOK_FILE" >> "$TEMP_PROMPT"
+
+# Write the prompt footer
+cat >> "$TEMP_PROMPT" << 'FOOTER'
+
+---RUNBOOK END---
+
+Please confirm you've loaded the runbook and are ready to assist with the BEBIAS CHATBOT VENERA project. Summarize the key points you understand about:
+1. The batching system and its critical importance
+2. Current project status
+3. Any critical issues or priorities
+
+After confirmation, I'll begin working on specific tasks.
+FOOTER
+
+# Check if file was created successfully
+if [ ! -s "$TEMP_PROMPT" ]; then
+    osascript -e 'display alert "Error" message "Failed to create prompt file" as critical'
+    exit 1
+fi
+
+# Open the file in TextEdit
+open -e "$TEMP_PROMPT"
+
+# Check for claude command
+if command -v claude &> /dev/null; then
+    # Open Terminal with Claude
+    osascript -e 'tell application "Terminal"' \
+              -e 'activate' \
+              -e "do script \"cd '${PROJECT_DIR}' && echo 'BEBIAS CHATBOT VENERA - Claude Launcher' && echo '' && echo 'Runbook loaded. Copy from TextEdit and paste into Claude.' && echo '' && claude\"" \
+              -e 'end tell'
+
+    MESSAGE="Claude CLI opened. Copy the prompt from TextEdit."
+else
+    # Show instructions
+    MESSAGE="Runbook loaded in TextEdit.\n\n1. Copy all text from TextEdit\n2. Open https://claude.ai\n3. Paste to start with context"
+fi
+
+# Show notification
+osascript -e "display notification \"${MESSAGE}\" with title \"Claude Launcher\" subtitle \"Ready\""
+
+# Schedule cleanup (5 minutes)
+( sleep 300 && rm -f "$TEMP_PROMPT" 2>/dev/null ) &
+
+exit 0

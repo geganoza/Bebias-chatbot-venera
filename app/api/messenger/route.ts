@@ -2147,10 +2147,21 @@ export async function POST(req: Request) {
       console.log(`📨 [WH:${webhookId}] Received message ${messageId} from ${senderId}`);
 
       // ═══════════════════════════════════════════════════════
-      // SKIP ECHO MESSAGES - These are our own bot responses sent back by Facebook
+      // HANDLE ECHO MESSAGES - Detect manager intervention
+      // Echo messages are sent when the Page sends a message
+      // We use these to detect when a human manager intervenes
       // ═══════════════════════════════════════════════════════
       if (event.message?.is_echo) {
-        console.log(`⏭️ [WH:${webhookId}] ECHO message (our own response) - skipping`);
+        console.log(`🔊 [WH:${webhookId}] ECHO message detected`);
+
+        // Import manager detection module and process echo
+        try {
+          const { processPageEchoMessage } = await import('@/lib/managerDetection');
+          await processPageEchoMessage(event);
+        } catch (err) {
+          console.error(`❌ [WH:${webhookId}] Error processing echo message:`, err);
+        }
+
         continue;
       }
 
@@ -2383,7 +2394,63 @@ export async function POST(req: Request) {
       }
 
       // ═══════════════════════════════════════════════════════
-      // QUEUE TO QSTASH (Quick - just HTTP POST)
+      // CHECK MANUAL MODE - Save to history but skip bot processing
+      // ═══════════════════════════════════════════════════════
+      let isManualMode = false;
+      try {
+        const { isManualModeEnabled } = await import('@/lib/managerDetection');
+        isManualMode = await isManualModeEnabled(senderId);
+        if (isManualMode) {
+          console.log(`👨‍💼 [WH:${webhookId}] Manual mode active for ${senderId}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ [WH:${webhookId}] Error checking manual mode:`, err);
+        // Continue with normal processing if check fails
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // ALWAYS SAVE MESSAGE TO HISTORY (even in manual mode)
+      // This ensures full context is maintained
+      // ═══════════════════════════════════════════════════════
+      if (isManualMode) {
+        // Save to history only (no queueing for bot response)
+        console.log(`📝 [WH:${webhookId}] Saving message to history (manual mode)`);
+        try {
+          // Extract message content for history
+          const messageText = event.message?.text;
+          const messageAttachments = event.message?.attachments;
+          let contentForHistory = messageText || "";
+
+          if (messageAttachments) {
+            for (const attachment of messageAttachments) {
+              if (attachment.type === "image") {
+                contentForHistory += contentForHistory ? "\n[User sent an image]" : "[User sent an image]";
+              }
+            }
+          }
+
+          // Load and update conversation
+          const conversationData = await loadConversation(senderId);
+          conversationData.history.push({
+            role: "user",
+            content: contentForHistory
+          });
+
+          // Trim history if too long
+          if (conversationData.history.length > MAX_HISTORY_LENGTH * 2) {
+            conversationData.history = conversationData.history.slice(-MAX_HISTORY_LENGTH * 2);
+          }
+
+          await saveConversation(conversationData);
+          console.log(`✅ [WH:${webhookId}] Message saved to history during manual mode`);
+        } catch (err) {
+          console.error(`❌ [WH:${webhookId}] Error saving to history:`, err);
+        }
+        continue; // Skip bot processing
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // QUEUE TO QSTASH (only if not in manual mode)
       // ═══════════════════════════════════════════════════════
       console.log(`🚀 [WH:${webhookId}] Queueing ${messageId}`);
       try {
