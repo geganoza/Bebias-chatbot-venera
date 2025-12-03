@@ -1,25 +1,32 @@
-# Manager Pause/Resume Commands
+# Manager Pause/Resume System
 
 ## Why This System?
 **Echo messages are DISABLED** to avoid double API costs (they were creating duplicate requests and costing twice as much money). Without echo messages, the bot cannot automatically detect when a manager responds.
 
-## Solution: Simple Commands
+## Solution: Web-Based Control
 
-### To Take Over a Conversation:
-**Type any of these in the customer conversation:**
-- `pause`
-- `pause bot`
-- `/pause`
+### Quick Pause URL Method (Recommended)
 
-**Bot will confirm:** 🔴 Bot paused - Manager taking over conversation
+**To pause bot for a specific user:**
+1. Get the user's Facebook ID from the conversation
+2. Visit: `https://bebias-venera-chatbot.vercel.app/api/quick-pause?userId=USER_ID_HERE&action=pause`
+3. You'll see a confirmation page
+4. Bot stops responding to that user
+5. **Customer sees nothing** - completely invisible
 
-### To Resume Bot:
-**Type any of these:**
-- `resume`
-- `resume bot`
-- `/resume`
+**To resume bot:**
+1. Visit: `https://bebias-venera-chatbot.vercel.app/api/quick-pause?userId=USER_ID_HERE&action=resume`
+2. Bot resumes responding
 
-**Bot will confirm:** 🟢 Bot resumed - Automated responses active
+**Pro tip:** Bookmark the URL for frequent customers!
+
+### Example URLs:
+```
+# For test user Giorgi (252143893748)
+Pause: https://bebias-venera-chatbot.vercel.app/api/quick-pause?userId=252143893748&action=pause
+Resume: https://bebias-venera-chatbot.vercel.app/api/quick-pause?userId=252143893748&action=resume
+Status: https://bebias-venera-chatbot.vercel.app/api/quick-pause?userId=252143893748
+```
 
 ## How It Works:
 
