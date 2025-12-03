@@ -2179,8 +2179,8 @@ export async function POST(req: Request) {
       // HANDLE MANAGER COMMANDS - Since echoes are disabled
       // Manager can type "pause bot" or "/pause" to take over
       // ═══════════════════════════════════════════════════════
-      const messageText = event.message?.text?.toLowerCase().trim() || '';
-      if (messageText === 'pause bot' || messageText === '/pause' || messageText === 'pause') {
+      const commandText = event.message?.text?.toLowerCase().trim() || '';
+      if (commandText === 'pause bot' || commandText === '/pause' || commandText === 'pause') {
         // Check if this is from the page (manager) by checking sender ID
         // When page sends a message, sender ID is the page ID
         // For now, enable manual mode for any pause command
@@ -2214,7 +2214,7 @@ export async function POST(req: Request) {
       }
 
       // Resume command
-      if (messageText === 'resume bot' || messageText === '/resume' || messageText === 'resume') {
+      if (commandText === 'resume bot' || commandText === '/resume' || commandText === 'resume') {
         try {
           const { disableManualMode } = await import('@/lib/managerDetection');
 
@@ -2246,7 +2246,7 @@ export async function POST(req: Request) {
       // HANDLE "CLEAR" COMMAND FOR TEST USERS
       // Allows test users to clear their history and rate limits
       // ═══════════════════════════════════════════════════════
-      if (messageText === 'clear') {
+      if (commandText === 'clear') {
         try {
           const { isTestUser, clearTestUserData, getClearCommandResponse } = await import('../../../lib/clearTestUser');
 
