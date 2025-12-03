@@ -175,12 +175,13 @@ export async function loadAllContent(senderId?: string) {
   console.log(`📚 Loading instructions from: ${baseDir}/${instructionFile}`);
 
   // Load base files
-  const [instructions, services, faqs, delivery, payment] = await Promise.all([
+  const [instructions, services, faqs, delivery, payment, imageHandling] = await Promise.all([
     loadContentFile(instructionFile, baseDir),
     loadContentFile("services.md", baseDir),
     loadContentFile("faqs.md", baseDir),
     loadContentFile("delivery-info.md", baseDir),  // Note: test-bot uses delivery-info.md
     loadContentFile("payment-info.md", baseDir),   // Note: test-bot uses payment-info.md
+    loadContentFile("image-handling.md", baseDir),  // CRITICAL: Instructions for SEND_IMAGE command
   ]);
 
   // For modular instructions, also load additional context files
@@ -203,6 +204,7 @@ export async function loadAllContent(senderId?: string) {
     faqs,
     delivery,
     payment,
+    imageHandling,
   };
 }
 
@@ -464,6 +466,9 @@ export async function getAIResponse(
     const systemPrompt = isKa
       ? `${content.instructions}
 
+# Image Handling Instructions
+${content.imageHandling}
+
 # Our Services
 ${content.services}
 
@@ -531,6 +536,9 @@ SEND_IMAGE: [EXACT_PRODUCT_ID]
 - Keep responses concise and clear (maximum 200 words)
 - Use friendly, helpful tone appropriate for e-commerce customer service`
       : `${content.instructions}
+
+# Image Handling Instructions
+${content.imageHandling}
 
 # Our Services
 ${content.services}
