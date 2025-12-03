@@ -3,6 +3,28 @@
 
 ---
 
+# ⛔⛔⛔ STOP! READ THIS FIRST ⛔⛔⛔
+
+## 🔴 THE MOST CRITICAL THING IN THIS ENTIRE CODEBASE: BATCHING
+
+**REDIS BATCHING IS THE #1 PRIORITY - DO NOT BREAK IT!**
+
+The user spent **TWO WEEKS** fixing batching. Breaking it will cause:
+- Bot to completely stop working
+- API costs to increase 1000% (from $0.02 to $0.20 per conversation)
+- EXTREME user frustration and anger
+
+### BATCHING GOLDEN RULES:
+1. **NEVER** process messages in the webhook - only save to Redis
+2. **NEVER** skip the 3-second QStash delay
+3. **NEVER** modify message processing flow without understanding batching
+4. **ALWAYS** test batching after ANY change
+5. **ALWAYS** verify messages batch together (multiple messages = 1 response)
+
+**If you're unsure about ANY change that might affect batching - STOP AND ASK!**
+
+---
+
 ## 📋 INSTRUCTIONS FOR AI ASSISTANTS
 
 ### How to Use This Document
@@ -117,10 +139,20 @@ vercel env add VARIABLE_NAME production
 
 ## 💀 CRITICALITY RANKING (By Business Impact)
 
+### TIER 0 - ABSOLUTE CRITICAL (NEVER TOUCH WITHOUT EXTREME CAUTION)
+1. **🔴🔴🔴 REDIS BATCHING 🔴🔴🔴**
+   - **USER SPENT 2 WEEKS FIXING THIS**
+   - Breaks = Bot completely stops working
+   - Breaks = API costs increase 1000% (from $0.02 to $0.20 per conversation)
+   - Breaks = User gets EXTREMELY angry (see December 3 incident)
+   - **TEST AFTER EVERY SINGLE CHANGE**
+   - **NEVER modify webhook message processing**
+   - **NEVER skip the 3-second QStash delay**
+   - **NEVER process messages outside batch processor**
+
 ### TIER 1 - BREAKS EVERYTHING (Business Stops)
-1. **Order Confirmation Flow** - No orders = No revenue
-2. **Payment Verification** - Can't confirm payments = Can't complete sales
-3. **Redis Batching** - Breaks = 10x API costs + bot stops responding
+2. **Order Confirmation Flow** - No orders = No revenue
+3. **Payment Verification** - Can't confirm payments = Can't complete sales
 
 ### TIER 2 - MAJOR FUNCTIONALITY (Lost Sales)
 4. **Product Image Sending** - Customers can't see products = Don't buy
