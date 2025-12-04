@@ -453,6 +453,59 @@ vercel env pull .env.local
 
 ---
 
+## 🛠️ December 4, 2025 - FIRESTORE PRODUCTS & PATH RESTRUCTURE
+
+### Changes Made
+
+**1. Made Modular Instructions the MAIN Route**
+- `test-bot/data/content/` is now the DEFAULT for ALL users
+- `data/content/` kept as backup path
+- Modified `shouldUseModularInstructions()` in `/lib/bot-core.ts` (line 216-222)
+
+**2. Products Now Load from Firestore**
+- **Main source**: Firestore `products` collection
+- **Backup**: Falls back to `data/products.json` if Firestore fails
+- **Cache**: 5-minute in-memory cache to reduce Firestore reads
+- Modified `loadProducts()` in `/lib/bot-core.ts` (lines 135-194)
+
+**3. Product Type Filtering (IMPORTANT)**
+- Bot only loads `type: "variation"` and `type: "simple"` products
+- `type: "variable"` (parent products) are EXCLUDED - this is CORRECT
+- Variable products are WooCommerce parent containers
+- Variations are the actual sellable items with specific sizes
+
+### Current Architecture
+
+```
+INSTRUCTION PATHS:
+├── MAIN: test-bot/data/content/  (all users)
+└── BACKUP: data/content/         (unused, kept for safety)
+
+PRODUCT SOURCES:
+├── MAIN: Firestore 'products' collection (real-time)
+└── BACKUP: data/products.json (fallback only)
+
+PRODUCT FILTERING:
+├── ✅ LOADED: type='variation' (sellable, e.g., "შავი ქუდი M")
+├── ✅ LOADED: type='simple' (standalone products)
+└── ❌ EXCLUDED: type='variable' (parent products, not sellable)
+```
+
+### Why Variable Products Are Excluded
+- Variable products in WooCommerce are PARENT containers
+- They hold aggregate data but aren't directly sellable
+- Variations are the actual items customers can buy
+- Example: "შავი ბამბის ქუდი" (variable, parent) → "შავი ბამბის ქუდი M" (variation, sellable)
+
+### Files Modified
+- `/lib/bot-core.ts` - Lines 135-194 (loadProducts), 216-222 (shouldUseModularInstructions)
+
+### Commits
+- `3dcd156` - feat: Make modular instructions the main route for ALL users
+- `7b2aa18` - feat: Load products from Firestore (main path) with JSON fallback
+
+---
+
 ## 📝 TODO / UPCOMING FIXES
 
 1. [ ] Add retry logic for failed Facebook API calls
@@ -503,7 +556,8 @@ vercel env pull .env.local
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Created**: December 3, 2025
+**Last Updated**: December 4, 2025
 **Primary Maintainer**: AI Assistants (Claude, GPT, etc.)
 **Repository**: https://github.com/geganoza/Bebias-chatbot-venera
