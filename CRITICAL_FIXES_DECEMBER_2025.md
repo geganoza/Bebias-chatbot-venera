@@ -1,4 +1,4 @@
-# Critical Fixes - December 2024
+# Critical Fixes - December 2025
 
 ## 1. BATCHING ERROR FIX
 
@@ -11,7 +11,7 @@ Environment variable `ENABLE_REDIS_BATCHING` had a newline character:
 - Expected: `"true"` (without newline)
 - This caused the feature flag check to fail: `"true\n" !== "true"`
 
-### Solution (Fixed December 2, 2024)
+### Solution (Fixed December 2, 2025)
 1. Removed and re-added the environment variable on Vercel:
 ```bash
 vercel env rm ENABLE_REDIS_BATCHING production
@@ -41,7 +41,7 @@ The AI model didn't know about SEND_IMAGE commands because:
 - BUT `image-handling.md` was NOT being loaded into the system prompt
 - So the AI never saw the SEND_IMAGE instruction
 
-### Solution (Fixed December 3, 2024 - Commit 14f4032)
+### Solution (Fixed December 3, 2025 - Commit 14f4032)
 
 Modified `/lib/bot-core.ts`:
 
@@ -125,5 +125,5 @@ Bot: [Shows product details]
 
 ## Status
 ✅ Both issues fixed and deployed to production
-- Batching fix: December 2, 2024
-- Image fix: December 3, 2024 (Commit 14f4032)
+- Batching fix: December 2, 2025
+- Image fix: December 3, 2025 (Commit 14f4032)

@@ -1,5 +1,5 @@
 # BEBIAS CHATBOT VENERA - AI Development Runbook
-**Last Updated: December 3, 2024**
+**Last Updated: December 4, 2025**
 
 ---
 
@@ -218,7 +218,7 @@ const conversationId = `batch_${senderId}_${batchWindow}`;
 
 ## 🛠️ CHRONOLOGICAL FIX LOG
 
-### December 2, 2024 - BATCHING COMPLETELY BROKEN
+### December 2, 2025 - BATCHING COMPLETELY BROKEN
 **AI Assistant**: Claude
 **Problem**: Bot stopped responding entirely, Redis batching not working
 **Root Cause**:
@@ -237,7 +237,7 @@ vercel env add ENABLE_REDIS_BATCHING production
 - Always verify env var values with debug endpoints
 - Hidden characters are invisible but deadly
 
-### December 3, 2024 - CLAUDE BROKE BATCHING (Critical Error)
+### December 3, 2025 - CLAUDE BROKE BATCHING (Critical Error)
 **AI Assistant**: Claude
 **Problem**: Claude added duplicate message processing to webhook
 **Root Cause**:
@@ -253,7 +253,7 @@ vercel env add ENABLE_REDIS_BATCHING production
 - Webhook should ONLY save to Redis
 - All processing happens in batch processor
 
-### December 3, 2024 - IMAGES NOT SENDING
+### December 3, 2025 - IMAGES NOT SENDING
 **AI Assistant**: Claude
 **Problem**: Bot wasn't sending product images despite code being present
 **Root Cause**:
@@ -489,7 +489,7 @@ vercel env pull .env.local
 
 - [REDIS_BATCHING_COMPLETE_FIX.md](./REDIS_BATCHING_COMPLETE_FIX.md)
 - [IMAGE_SENDING_FIX.md](./IMAGE_SENDING_FIX.md)
-- [CRITICAL_FIXES_DECEMBER_2024.md](./CRITICAL_FIXES_DECEMBER_2024.md)
+- [CRITICAL_FIXES_DECEMBER_2025.md](./CRITICAL_FIXES_DECEMBER_2025.md)
 
 ---
 
@@ -504,6 +504,6 @@ vercel env pull .env.local
 ---
 
 **Document Version**: 1.0
-**Created**: December 3, 2024
+**Created**: December 3, 2025
 **Primary Maintainer**: AI Assistants (Claude, GPT, etc.)
 **Repository**: https://github.com/geganoza/Bebias-chatbot-venera

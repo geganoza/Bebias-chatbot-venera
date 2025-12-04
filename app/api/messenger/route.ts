@@ -2152,6 +2152,14 @@ export async function POST(req: Request) {
       console.log(`   Recipient: ${recipientId}`);
       console.log(`   Message ID: ${messageId}`);
       console.log(`   Is Echo: ${isEcho}`);
+
+      // Log full raw event to capture ad referral data
+      console.log(`📦 [WH:${webhookId}] RAW EVENT:`, JSON.stringify({
+        postback: event.postback,
+        referral: event.referral,
+        message_referral: event.message?.referral,
+        message_text: event.message?.text?.substring(0, 100)
+      }));
       if (isEcho) {
         console.log(`   🔊 ECHO MESSAGE DETAILS:`, JSON.stringify(event.message).substring(0, 500));
       }
@@ -2230,6 +2238,24 @@ export async function POST(req: Request) {
           const refType = referral.type;
           console.log(`   Ad ID: ${adId}, Source: ${refSource}, Type: ${refType}`);
           adContext = `[User came from Facebook ad: ${title || 'Unknown'}]`;
+
+          // Save ad data from postback
+          if (adId && senderId) {
+            try {
+              await db.collection('users').doc(senderId).set({
+                first_ad_data: {
+                  ad_id: adId,
+                  ad_source: refSource || 'ADS',
+                  ad_type: refType || 'OPEN_THREAD',
+                  ad_clicked_at: new Date().toISOString(),
+                  source_type: 'postback'
+                },
+                last_ad_id: adId,
+                last_ad_clicked_at: new Date().toISOString(),
+              }, { merge: true });
+              console.log(`📊 [WH:${webhookId}] Saved POSTBACK ad data: ad_id=${adId}`);
+            } catch (e) { console.error(`❌ Failed to save postback ad data:`, e); }
+          }
         }
 
         // Create a synthetic message from the postback
@@ -2248,6 +2274,24 @@ export async function POST(req: Request) {
         const refSource = event.referral.source;
         const refType = event.referral.type;
         console.log(`   Ad ID: ${adId}, Source: ${refSource}, Type: ${refType}`);
+
+        // Save ad data from direct referral
+        if (adId && senderId) {
+          try {
+            await db.collection('users').doc(senderId).set({
+              first_ad_data: {
+                ad_id: adId,
+                ad_source: refSource || 'ADS',
+                ad_type: refType || 'OPEN_THREAD',
+                ad_clicked_at: new Date().toISOString(),
+                source_type: 'referral'
+              },
+              last_ad_id: adId,
+              last_ad_clicked_at: new Date().toISOString(),
+            }, { merge: true });
+            console.log(`📊 [WH:${webhookId}] Saved REFERRAL ad data: ad_id=${adId}`);
+          } catch (e) { console.error(`❌ Failed to save referral ad data:`, e); }
+        }
 
         // Create a synthetic message from the referral
         event.message = {
@@ -2298,6 +2342,34 @@ export async function POST(req: Request) {
           adContext = `[SHOW_PRODUCT:${productIdFromAd}] გამარჯობა! დაინტერესდი ამ პროდუქტით?`;
         } else {
           adContext = `[User came from Facebook ad: ${adId}]`;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // SAVE AD DATA TO FIRESTORE - Track which ad brought this user
+        // ═══════════════════════════════════════════════════════
+        if (adId && senderId) {
+          try {
+            const userRef = db.collection('users').doc(senderId);
+            const adData = {
+              ad_id: adId,
+              ad_source: refSource || 'ADS',
+              ad_type: refType || 'OPEN_THREAD',
+              ad_ref_param: refParam || null,
+              ad_product_id: productIdFromAd || productFromCatalog || null,
+              ad_clicked_at: new Date().toISOString(),
+            };
+
+            // Update user doc with ad data (merge to preserve existing data)
+            await userRef.set({
+              first_ad_data: adData,
+              last_ad_id: adId,
+              last_ad_clicked_at: new Date().toISOString(),
+            }, { merge: true });
+
+            console.log(`📊 [WH:${webhookId}] Saved ad data to Firestore for user ${senderId}: ad_id=${adId}`);
+          } catch (adSaveError) {
+            console.error(`❌ [WH:${webhookId}] Failed to save ad data:`, adSaveError);
+          }
         }
       }
 

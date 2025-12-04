@@ -143,10 +143,24 @@ export async function loadContentFile(filename: string, baseDir: string = "data/
 
 /**
  * Check if user should get modular instructions
- * Currently only for Giorgi's test account
+ *
+ * UPDATE December 4, 2025: Modular instructions are now the DEFAULT for ALL users.
+ * The test-bot instructions are now the MAIN route.
+ * Old production route (data/content) is kept as backup.
  */
 function shouldUseModularInstructions(senderId?: string): boolean {
-  // Test users for modular instructions
+  // ═══════════════════════════════════════════════════════════════════
+  // MODULAR INSTRUCTIONS ARE NOW DEFAULT FOR ALL USERS
+  // This was the "test" route, now promoted to MAIN route
+  // ═══════════════════════════════════════════════════════════════════
+  console.log(`📚 [MAIN] User ${senderId || 'unknown'} will receive modular instructions from test-bot/`);
+  return true;
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BACKUP: Old test-user-only logic (kept for reference)
+  // To revert, delete the return true above and uncomment below:
+  // ═══════════════════════════════════════════════════════════════════
+  /*
   const MODULAR_INSTRUCTION_USERS = [
     '3282789748459241',  // Giorgi's test account
     '25214389374891342'  // Nino Beriashvili's account
@@ -161,6 +175,7 @@ function shouldUseModularInstructions(senderId?: string): boolean {
   }
 
   return useModular;
+  */
 }
 
 /**
