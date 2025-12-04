@@ -120,12 +120,77 @@ export function detectGeorgian(text: string): boolean {
 }
 
 /**
- * Load products from JSON file
+ * In-memory cache for products (avoid Firestore reads on every request)
+ * Cache expires after 5 minutes
+ */
+let productsCache: { data: Product[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Load products - MAIN PATH reads from Firestore, BACKUP falls back to JSON
+ *
+ * UPDATE December 4, 2025: Main path now reads from Firestore for real-time updates.
+ * JSON file kept as backup for reliability.
  */
 export async function loadProducts(): Promise<Product[]> {
+  // Check cache first
+  if (productsCache && (Date.now() - productsCache.timestamp) < CACHE_TTL_MS) {
+    console.log(`📦 [PRODUCTS] Using cached products (${productsCache.data.length} items, cached ${Math.round((Date.now() - productsCache.timestamp) / 1000)}s ago)`);
+    return productsCache.data;
+  }
+
+  // Try Firestore first (MAIN PATH)
+  try {
+    console.log(`📦 [PRODUCTS] Loading from Firestore...`);
+    const snapshot = await db.collection('products').get();
+
+    if (!snapshot.empty) {
+      const products: Product[] = [];
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const type = data.type || 'simple';
+        const price = data.price || 0;
+
+        // Only include variations and simple products with price > 0
+        if ((type === 'variation' || type === 'simple') && price > 0) {
+          products.push({
+            id: data.id || doc.id,
+            name: data.name || doc.id,
+            price: String(parseFloat(price)),
+            currency: data.currency || 'GEL',
+            category: data.categories ? data.categories.split('>')[0].trim() : '',
+            stock: data.stock_qty ?? data.stock ?? 0,
+            image: data.images?.[0] || data.image || '',
+            description: data.short_description || '',
+          });
+        }
+      });
+
+      // Sort by name for consistency
+      products.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ka'));
+
+      // Update cache
+      productsCache = { data: products, timestamp: Date.now() };
+
+      console.log(`📦 [PRODUCTS] ✅ Loaded ${products.length} products from Firestore`);
+      return products;
+    }
+  } catch (firestoreError) {
+    console.error(`📦 [PRODUCTS] ❌ Firestore error, falling back to JSON:`, firestoreError);
+  }
+
+  // BACKUP PATH: Fall back to JSON file
+  console.log(`📦 [PRODUCTS] Using backup JSON file...`);
   const productsPath = path.join(process.cwd(), "data", "products.json");
   const productsRaw = await fs.promises.readFile(productsPath, "utf-8");
-  return JSON.parse(productsRaw);
+  const products = JSON.parse(productsRaw);
+
+  // Update cache with JSON data
+  productsCache = { data: products, timestamp: Date.now() };
+
+  console.log(`📦 [PRODUCTS] ✅ Loaded ${products.length} products from JSON backup`);
+  return products;
 }
 
 /**
