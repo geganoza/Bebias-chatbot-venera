@@ -202,50 +202,34 @@ export async function loadContentFile(filename: string, baseDir: string = "data/
 }
 
 /**
- * Check if user should get modular instructions
+ * Path selector for instructions
  *
- * UPDATE December 4, 2025: Modular instructions are now the DEFAULT for ALL users.
- * The test-bot instructions are now the MAIN route.
- * Old production route (data/content) is kept as backup.
+ * UPDATE December 4, 2025: Paths completely separated into main/ and backup/
+ * - main/data/content/ = Primary path for ALL users
+ * - backup/data/content/ = Backup path (not used, kept for safety)
+ * Deleting one folder will NOT affect the other.
  */
-function shouldUseModularInstructions(senderId?: string): boolean {
+function shouldUseMainPath(senderId?: string): boolean {
   // ═══════════════════════════════════════════════════════════════════
-  // MODULAR INSTRUCTIONS ARE NOW DEFAULT FOR ALL USERS
-  // This was the "test" route, now promoted to MAIN route
+  // MAIN PATH IS DEFAULT FOR ALL USERS
+  // Path: main/data/content/
   // ═══════════════════════════════════════════════════════════════════
-  console.log(`📚 [MAIN] User ${senderId || 'unknown'} will receive modular instructions from test-bot/`);
+  console.log(`📚 [MAIN] User ${senderId || 'unknown'} will receive instructions from main/`);
   return true;
-
-  // ═══════════════════════════════════════════════════════════════════
-  // BACKUP: Old test-user-only logic (kept for reference)
-  // To revert, delete the return true above and uncomment below:
-  // ═══════════════════════════════════════════════════════════════════
-  /*
-  const MODULAR_INSTRUCTION_USERS = [
-    '3282789748459241',  // Giorgi's test account
-    '25214389374891342'  // Nino Beriashvili's account
-  ];
-
-  if (!senderId) return false;
-
-  const useModular = MODULAR_INSTRUCTION_USERS.includes(senderId);
-
-  if (useModular) {
-    console.log(`🧪 [MODULAR] User ${senderId} will receive modular instructions from test-bot/`);
-  }
-
-  return useModular;
-  */
 }
 
 /**
- * Load all content
+ * Load all content from main/ folder
+ *
+ * Paths are now completely separated:
+ * - main/data/content/ = Used by bot
+ * - backup/data/content/ = Not used, kept for safety
  */
 export async function loadAllContent(senderId?: string) {
-  // Determine which instructions to load based on user
-  const useModular = shouldUseModularInstructions(senderId);
-  const baseDir = useModular ? 'test-bot/data/content' : 'data/content';
-  const instructionFile = useModular ? 'bot-instructions-modular.md' : 'bot-instructions.md';
+  // Always use main path
+  const useMain = shouldUseMainPath(senderId);
+  const baseDir = 'main/data/content';
+  const instructionFile = 'bot-instructions-modular.md';
 
   console.log(`📚 Loading instructions from: ${baseDir}/${instructionFile}`);
 
@@ -254,27 +238,21 @@ export async function loadAllContent(senderId?: string) {
     loadContentFile(instructionFile, baseDir),
     loadContentFile("services.md", baseDir),
     loadContentFile("faqs.md", baseDir),
-    loadContentFile("delivery-info.md", baseDir),  // Note: test-bot uses delivery-info.md
-    loadContentFile("payment-info.md", baseDir),   // Note: test-bot uses payment-info.md
+    loadContentFile("delivery-info.md", baseDir),
+    loadContentFile("payment-info.md", baseDir),
     loadContentFile("image-handling.md", baseDir),  // CRITICAL: Instructions for SEND_IMAGE command
   ]);
 
-  // For modular instructions, also load additional context files
-  let contextAwareness = '';
-  let contextRetention = '';
-  if (useModular) {
-    [contextAwareness, contextRetention] = await Promise.all([
-      loadContentFile("context/context-awareness-rules.md", baseDir),
-      loadContentFile("context/context-retention-rules.md", baseDir),
-    ]);
+  // Load additional context files
+  const [contextAwareness, contextRetention] = await Promise.all([
+    loadContentFile("context/context-awareness-rules.md", baseDir),
+    loadContentFile("context/context-retention-rules.md", baseDir),
+  ]);
 
-    console.log(`📚 [MODULAR] Also loaded context rules for user ${senderId}`);
-  }
+  console.log(`📚 [MAIN] Loaded all content files for user ${senderId}`);
 
   return {
-    instructions: useModular ?
-      `${instructions}\n\n${contextRetention}\n\n${contextAwareness}` :
-      instructions,
+    instructions: `${instructions}\n\n${contextRetention}\n\n${contextAwareness}`,
     services,
     faqs,
     delivery,
