@@ -4,13 +4,12 @@
  * ✅ COMPLETELY ISOLATED FROM PRODUCTION
  *
  * What this endpoint does:
- * - Receives messages from test-bot/simulator/index.html
- * - Uses ONLY test-bot/data/content/ instructions (never touches production)
+ * - Receives messages for testing bot responses
+ * - Uses main/data/content/ instructions (same as production)
  * - Returns bot responses for testing
  * - NO impact on production bot, users, or data
  *
  * Isolation guarantees:
- * - Different instruction path: test-bot/data/content/ (NOT data/content/)
  * - Different route: /api/test-simulator (NOT /api/messenger)
  * - No database writes
  * - No order emails
@@ -34,12 +33,11 @@ const openai = new OpenAI({
 });
 
 /**
- * Load test instructions from test-bot folder
- * ✅ NEVER touches data/content/ (production)
- * ✅ ONLY reads from test-bot/data/content/
+ * Load test instructions from main folder
+ * ✅ Uses same instructions as production bot
  */
 async function loadTestInstructions() {
-  const basePath = path.join(process.cwd(), 'test-bot/data/content');
+  const basePath = path.join(process.cwd(), 'main/data/content');
   const mainFile = 'bot-instructions-modular.md';
 
   try {
@@ -95,18 +93,14 @@ async function loadTestInstructions() {
 
 /**
  * Load product catalog
- * ✅ Uses test-bot's own catalog (completely isolated)
+ * Note: Test simulator doesn't load products from file -
+ * production bot uses Firestore directly
  */
 async function loadProductCatalog() {
-  try {
-    const catalogPath = path.join(process.cwd(), 'test-bot/data/products.json');
-    const catalogContent = await fs.readFile(catalogPath, 'utf8');
-    console.log('[TEST SIMULATOR] Loaded product catalog from test-bot/data/');
-    return JSON.parse(catalogContent);
-  } catch (error) {
-    console.warn('[TEST SIMULATOR] Could not load product catalog:', error);
-    return null;
-  }
+  // Products are loaded from Firestore in production
+  // Test simulator focuses on instruction testing
+  console.log('[TEST SIMULATOR] Product catalog not loaded - Firestore is the source');
+  return null;
 }
 
 /**
@@ -236,7 +230,7 @@ export async function POST(request: NextRequest) {
       testMode: true,
       debug: debugMode ? {
         userId,
-        instructionsPath: 'test-bot/data/content/',
+        instructionsPath: 'main/data/content/',
         systemPromptLength: systemPrompt.length,
         modulesLoaded: Object.keys(instructions.modules || {}).length,
         historyLength: conversationHistory?.length || 0,
@@ -264,8 +258,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     status: 'Test Simulator API Active',
     mode: 'test',
-    instructionsPath: 'test-bot/data/content/',
-    productionPath: 'data/content/ (NOT USED)',
+    instructionsPath: 'main/data/content/',
     isolation: 'Complete - No production impact',
     timestamp: new Date().toISOString()
   });

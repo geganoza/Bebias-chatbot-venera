@@ -8,12 +8,12 @@ export async function GET() {
 
     // Test if data files are accessible
     const filesToTest = [
-      "data/products.json",
-      "data/content/bot-instructions.md",
-      "data/content/services.md",
-      "data/content/faqs.md",
-      "data/content/delivery-info.md",
-      "data/content/payment-info.md"
+      "main/data/content/bot-instructions-modular.md",
+      "main/data/content/services.md",
+      "main/data/content/faqs.md",
+      "main/data/content/delivery-info.md",
+      "main/data/content/payment-info.md",
+      "main/data/content/tone-style.md"
     ];
 
     for (const file of filesToTest) {
