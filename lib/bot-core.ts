@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { db } from "./firestore";
 import fs from "fs";
 import path from "path";
+import { notifyManagerTelegram, parseEscalationCommand, cleanEscalationFromResponse } from "./telegramNotify";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
@@ -260,15 +261,16 @@ export async function loadAllContent(senderId?: string) {
   ]);
 
   // Load additional context files
-  const [contextAwareness, contextRetention] = await Promise.all([
+  const [contextAwareness, contextRetention, honestyEscalation] = await Promise.all([
     loadContentFile("context/context-awareness-rules.md", baseDir),
     loadContentFile("context/context-retention-rules.md", baseDir),
+    loadContentFile("core/honesty-escalation.md", baseDir),
   ]);
 
   console.log(`📚 [${useMain ? 'MAIN' : 'TEST'}] Loaded all content files for user ${senderId} from ${baseDir}`);
 
   return {
-    instructions: `${instructions}\n\n${contextRetention}\n\n${contextAwareness}`,
+    instructions: `${honestyEscalation}\n\n${instructions}\n\n${contextRetention}\n\n${contextAwareness}`,
     services,
     faqs,
     delivery,
@@ -662,7 +664,29 @@ Respond in English, concisely and clearly (max 200 words).`;
       max_tokens: 1000,
     });
 
-    return completion.choices[0]?.message?.content || (isKa ? "ბოდიში, ვერ გავიგე." : "Sorry, I didn't understand that.");
+    let response = completion.choices[0]?.message?.content || (isKa ? "ბოდიში, ვერ გავიგე." : "Sorry, I didn't understand that.");
+
+    // Check for ESCALATE_TO_MANAGER command
+    const escalationReason = parseEscalationCommand(response);
+    if (escalationReason) {
+      console.log(`🚨 [ESCALATION] Triggered for user ${senderId}: ${escalationReason}`);
+
+      // Send Telegram notification to manager
+      await notifyManagerTelegram({
+        senderId: senderId || 'unknown',
+        reason: escalationReason,
+        customerMessage: userText,
+        conversationHistory: history.slice(-5).map(m => ({
+          role: m.role,
+          content: typeof m.content === 'string' ? m.content : '[complex content]'
+        })),
+      });
+
+      // Clean the ESCALATE command from response before sending to customer
+      response = cleanEscalationFromResponse(response);
+    }
+
+    return response;
   } catch (err: any) {
     console.error("❌ OpenAI API error:", err);
 
