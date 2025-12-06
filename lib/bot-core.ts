@@ -204,31 +204,47 @@ export async function loadContentFile(filename: string, baseDir: string = "data/
 /**
  * Path selector for instructions
  *
- * UPDATE December 4, 2025: Paths completely separated into main/ and backup/
- * - main/data/content/ = Primary path for ALL users
- * - backup/data/content/ = Backup path (not used, kept for safety)
- * Deleting one folder will NOT affect the other.
+ * UPDATE December 6, 2025: Test users routed to test-bot/ for testing
+ * - main/data/content/ = Production path for regular users
+ * - test-bot/data/content/ = Test path for test users (copy of main)
+ *
+ * Workflow: Edit test-bot/ → test → promote to main/
  */
 function shouldUseMainPath(senderId?: string): boolean {
-  // ═══════════════════════════════════════════════════════════════════
-  // MAIN PATH IS DEFAULT FOR ALL USERS
-  // Path: main/data/content/
-  // ═══════════════════════════════════════════════════════════════════
-  console.log(`📚 [MAIN] User ${senderId || 'unknown'} will receive instructions from main/`);
+  // Check if user is a test user from config/test-users.json
+  if (senderId) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const configPath = path.join(process.cwd(), 'config', 'test-users.json');
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+      if (config.testMode?.enabled) {
+        const testUserIds = config.testUsers?.facebook?.map((u: any) => u.userId) || [];
+        if (testUserIds.includes(senderId)) {
+          console.log(`🧪 [TEST] User ${senderId} is a TEST USER → using test-bot/`);
+          return false; // Use test-bot path
+        }
+      }
+    } catch (error) {
+      console.error('Error checking test users:', error);
+    }
+  }
+
+  console.log(`📚 [MAIN] User ${senderId || 'unknown'} → using main/`);
   return true;
 }
 
 /**
- * Load all content from main/ folder
+ * Load all content from appropriate folder
  *
- * Paths are now completely separated:
- * - main/data/content/ = Used by bot
- * - backup/data/content/ = Not used, kept for safety
+ * Path routing:
+ * - Test users → test-bot/data/content/ (for testing upgrades)
+ * - Regular users → main/data/content/ (production)
  */
 export async function loadAllContent(senderId?: string) {
-  // Always use main path
   const useMain = shouldUseMainPath(senderId);
-  const baseDir = 'main/data/content';
+  const baseDir = useMain ? 'main/data/content' : 'test-bot/data/content';
   const instructionFile = 'bot-instructions-modular.md';
 
   console.log(`📚 Loading instructions from: ${baseDir}/${instructionFile}`);
@@ -249,7 +265,7 @@ export async function loadAllContent(senderId?: string) {
     loadContentFile("context/context-retention-rules.md", baseDir),
   ]);
 
-  console.log(`📚 [MAIN] Loaded all content files for user ${senderId}`);
+  console.log(`📚 [${useMain ? 'MAIN' : 'TEST'}] Loaded all content files for user ${senderId} from ${baseDir}`);
 
   return {
     instructions: `${instructions}\n\n${contextRetention}\n\n${contextAwareness}`,
