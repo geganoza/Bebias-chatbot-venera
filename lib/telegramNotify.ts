@@ -85,8 +85,13 @@ function formatTelegramMessage(context: EscalationContext): string {
     }
   }
 
-  // Add link to Facebook conversation
+  // Manual mode notification
+  message += `\n⚠️ <b>ბოტი გაჩერებულია!</b> მომხმარებელი ელოდება თქვენ პასუხს.\n`;
+  message += `ავტო-რეჟიმის ჩასართავად გამოიყენეთ Control Panel.\n`;
+
+  // Add links
   message += `\n🔗 <a href="https://www.facebook.com/messages/t/${context.senderId}">Facebook Chat</a>`;
+  message += ` | <a href="https://bebias-venera-chatbot.vercel.app/control-panel">Control Panel</a>`;
 
   return message;
 }

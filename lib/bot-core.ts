@@ -666,14 +666,33 @@ Respond in English, concisely and clearly (max 200 words).`;
 
     let response = completion.choices[0]?.message?.content || (isKa ? "ბოდიში, ვერ გავიგე." : "Sorry, I didn't understand that.");
 
+    // ═══════════════════════════════════════════════════════
+    // AUTO-ESCALATION CHECK
+    // ═══════════════════════════════════════════════════════
+    console.log(`🔍 [ESCALATION CHECK] Response length: ${response.length}, senderId: ${senderId}`);
+    console.log(`🔍 [ESCALATION CHECK] Contains მენეჯერ: ${response.includes('მენეჯერ')}`);
+
     // Check for ESCALATE_TO_MANAGER command
-    const escalationReason = parseEscalationCommand(response);
-    if (escalationReason) {
+    let escalationReason = parseEscalationCommand(response);
+    console.log(`🔍 [ESCALATION CHECK] Explicit ESCALATE command: ${escalationReason || 'none'}`);
+
+    // SAFETY CHECK: If bot mentions "მენეჯერ" (manager) but forgot to include ESCALATE command, auto-escalate
+    // This catches cases where GPT ignores the escalation rule
+    if (!escalationReason && senderId) {
+      const mentionsManager = response.includes('მენეჯერ') || response.toLowerCase().includes('manager');
+      console.log(`🔍 [ESCALATION CHECK] mentionsManager: ${mentionsManager}`);
+      if (mentionsManager) {
+        console.log(`⚠️ [AUTO-ESCALATE] Bot mentioned manager but forgot ESCALATE command!`);
+        escalationReason = 'Bot mentioned manager - auto-escalation triggered';
+      }
+    }
+
+    if (escalationReason && senderId) {
       console.log(`🚨 [ESCALATION] Triggered for user ${senderId}: ${escalationReason}`);
 
       // Send Telegram notification to manager
       await notifyManagerTelegram({
-        senderId: senderId || 'unknown',
+        senderId: senderId,
         reason: escalationReason,
         customerMessage: userText,
         conversationHistory: history.slice(-5).map(m => ({
@@ -681,6 +700,9 @@ Respond in English, concisely and clearly (max 200 words).`;
           content: typeof m.content === 'string' ? m.content : '[complex content]'
         })),
       });
+
+      // Enable manual mode for this user - bot will stop responding until manager disables it
+      await enableManualMode(senderId, escalationReason);
 
       // Clean the ESCALATE command from response before sending to customer
       response = cleanEscalationFromResponse(response);
@@ -695,4 +717,87 @@ Respond in English, concisely and clearly (max 200 words).`;
       ? "ბოდიში, შეცდომა მოხდა თქვენი მოთხოვნის დამუშავებისას. გთხოვთ, სცადოთ ხელახლა."
       : "Sorry, there was an error processing your request. Please try again.";
   }
-}// Trigger rebuild Mon Dec  1 15:19:59 +04 2025
+}
+
+/**
+ * Enable manual mode for a user - bot will stop auto-responding until manager disables it
+ * Called automatically when ESCALATE_TO_MANAGER command is triggered
+ *
+ * CRITICAL: This function now VERIFIES the write succeeded. If Firestore fails,
+ * we retry once. If it still fails, we throw to ensure the caller knows.
+ */
+export async function enableManualMode(senderId: string, escalationReason: string): Promise<void> {
+  const docRef = db.collection('conversations').doc(senderId);
+  const timestamp = new Date().toISOString();
+
+  const updateData = {
+    manualMode: true,
+    manualModeEnabledAt: timestamp,
+    escalatedAt: timestamp,
+    escalationReason: escalationReason,
+    needsAttention: true,
+  };
+
+  // Attempt to write with verification
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      console.log(`🎮 [MANUAL MODE] Attempt ${attempt}: Setting manualMode=true for ${senderId}`);
+
+      // Write to Firestore
+      await docRef.set(updateData, { merge: true });
+
+      // VERIFY the write succeeded by reading it back
+      const verifyDoc = await docRef.get();
+      const verifyData = verifyDoc.data();
+
+      if (verifyData?.manualMode === true) {
+        console.log(`✅ [MANUAL MODE] VERIFIED: manualMode=true for ${senderId}`);
+        console.log(`   Reason: ${escalationReason}`);
+        console.log(`   Bot will NOT auto-respond until manager disables manual mode`);
+        return; // Success!
+      } else {
+        console.error(`❌ [MANUAL MODE] Write verification FAILED for ${senderId}`);
+        console.error(`   Expected manualMode=true, got: ${verifyData?.manualMode}`);
+
+        if (attempt < 2) {
+          console.log(`🔄 [MANUAL MODE] Retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+        }
+      }
+    } catch (error) {
+      console.error(`❌ [MANUAL MODE] Firestore error on attempt ${attempt} for ${senderId}:`, error);
+
+      if (attempt < 2) {
+        console.log(`🔄 [MANUAL MODE] Retrying after error...`);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+      }
+    }
+  }
+
+  // If we get here, both attempts failed
+  console.error(`🚨 [MANUAL MODE] CRITICAL: Failed to enable manual mode for ${senderId} after 2 attempts!`);
+  console.error(`   Escalation was triggered but manual mode NOT set - bot may continue responding!`);
+  // Don't throw - we still want the escalation flow to complete
+}
+
+/**
+ * Disable manual mode for a user - bot will resume auto-responding
+ * Called by manager via Control Panel
+ */
+export async function disableManualMode(senderId: string): Promise<void> {
+  try {
+    const docRef = db.collection('conversations').doc(senderId);
+    const timestamp = new Date().toISOString();
+
+    // Update conversation with manual mode disabled
+    await docRef.set({
+      manualMode: false,
+      manualModeDisabledAt: timestamp,
+      needsAttention: false,
+    }, { merge: true });
+
+    console.log(`🎮 [MANUAL MODE] Disabled for user ${senderId} - Bot will resume auto-responding`);
+  } catch (error) {
+    console.error(`❌ Error disabling manual mode for ${senderId}:`, error);
+  }
+}

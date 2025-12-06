@@ -131,26 +131,52 @@ async function handler(req: Request) {
     const redis = new Redis({ url, token });
 
     // ⛔ CHECK CONVERSATION MODE - If conversation is in manual mode, silently drop messages
-    try {
-      const conversationDoc = await db.collection('conversations').doc(senderId).get();
-      if (conversationDoc.exists) {
-        const conversationData = conversationDoc.data();
-        if (conversationData?.manualMode === true) {
-          console.log(`👤 [REDIS BATCH] Conversation in MANUAL mode - manager handling ${senderId}`);
-          console.log(`👤 Manual mode enabled at: ${conversationData.manualModeEnabledAt || 'Unknown'}`);
+    // CRITICAL: This check MUST succeed. If Firestore fails, we wait and retry rather than proceeding.
+    let manualModeActive = false;
+    for (let checkAttempt = 1; checkAttempt <= 2; checkAttempt++) {
+      try {
+        console.log(`🔍 [REDIS BATCH] Manual mode check attempt ${checkAttempt} for ${senderId}`);
+        const conversationDoc = await db.collection('conversations').doc(senderId).get();
 
-          // Clear messages from Redis to prevent buildup
-          await clearMessageBatch(senderId);
+        if (conversationDoc.exists) {
+          const conversationData = conversationDoc.data();
+          console.log(`🔍 [REDIS BATCH] Conversation data: manualMode=${conversationData?.manualMode}, enabledAt=${conversationData?.manualModeEnabledAt || 'N/A'}`);
 
-          return NextResponse.json({
-            status: 'manual_mode',
-            message: 'Manager is handling this conversation'
-          });
+          if (conversationData?.manualMode === true) {
+            console.log(`👤 [REDIS BATCH] Conversation in MANUAL mode - manager handling ${senderId}`);
+            console.log(`👤 Escalation reason: ${conversationData.escalationReason || 'Not specified'}`);
+            console.log(`👤 Manual mode enabled at: ${conversationData.manualModeEnabledAt || 'Unknown'}`);
+
+            manualModeActive = true;
+            break; // Exit loop - we confirmed manual mode
+          } else {
+            console.log(`🟢 [REDIS BATCH] Manual mode is OFF for ${senderId} - proceeding with AI response`);
+            break; // Exit loop - confirmed not in manual mode
+          }
+        } else {
+          console.log(`ℹ️ [REDIS BATCH] No conversation document for ${senderId} - new user, proceeding`);
+          break; // Exit loop - new user
+        }
+      } catch (conversationModeError) {
+        console.error(`⚠️ [REDIS BATCH] Error checking conversation mode (attempt ${checkAttempt}):`, conversationModeError);
+        if (checkAttempt < 2) {
+          console.log(`🔄 [REDIS BATCH] Retrying manual mode check...`);
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          // After 2 failures, fail-safe: assume NOT in manual mode but log warning
+          console.error(`🚨 [REDIS BATCH] Manual mode check failed after 2 attempts - proceeding with caution`);
         }
       }
-    } catch (conversationModeError) {
-      console.error(`⚠️ [REDIS BATCH] Error checking conversation mode:`, conversationModeError);
-      // Continue processing if check fails (fail-open for availability)
+    }
+
+    if (manualModeActive) {
+      // Clear messages from Redis to prevent buildup
+      await clearMessageBatch(senderId);
+
+      return NextResponse.json({
+        status: 'manual_mode',
+        message: 'Manager is handling this conversation'
+      });
     }
 
     // ⛔ CHECK GLOBAL KILL SWITCH - If bot is globally paused, silently drop all messages
@@ -240,6 +266,18 @@ async function handler(req: Request) {
     // Load conversation from Firestore
     const conversationData = await loadConversation(senderId);
 
+    // ═══════════════════════════════════════════════════════
+    // MANUAL MODE CHECK (SECONDARY): Safety net check after loading conversation
+    // This is redundant with the earlier check but provides extra safety
+    // ═══════════════════════════════════════════════════════
+    if (conversationData.manualMode === true) {
+      console.log(`🎮 [MANUAL MODE] (Secondary check) Active for ${senderId} - skipping AI response`);
+      console.log(`   Reason: ${conversationData.escalationReason || 'Not specified'}`);
+      console.log(`   Enabled at: ${conversationData.manualModeEnabledAt || 'Unknown'}`);
+      await clearMessageBatch(senderId);
+      return NextResponse.json({ status: 'manual_mode_active', skipped: true });
+    }
+
     // Build the combined message content
     let userContent: MessageContent = "";
     const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
@@ -295,7 +333,7 @@ async function handler(req: Request) {
     console.log(`📝 [REDIS BATCH] Individual messages:`, messages.map(m => m.text));
 
     // Process with actual AI logic using the bot-core functions
-    const response = await getAIResponse(
+    let response = await getAIResponse(
       userContent,
       conversationData.history,
       conversationData.orders || [],
@@ -303,6 +341,61 @@ async function handler(req: Request) {
       conversationData.operatorInstruction,
       senderId  // Pass senderId for dynamic instruction loading
     );
+
+    // ═══════════════════════════════════════════════════════
+    // EXPLICIT AUTO-ESCALATION CHECK (Belt and Suspenders)
+    // If bot mentions manager, enable manual mode immediately
+    // This is a safety check in case bot-core escalation didn't fire
+    // ═══════════════════════════════════════════════════════
+    const mentionsManagerExplicit = response.includes('მენეჯერ') || response.toLowerCase().includes('manager');
+    console.log(`🔍 [REDIS BATCH ESCALATION] Response mentions manager: ${mentionsManagerExplicit}`);
+    console.log(`🔍 [REDIS BATCH ESCALATION] Current manualMode: ${conversationData.manualMode}`);
+
+    if (mentionsManagerExplicit && !conversationData.manualMode) {
+      console.log(`⚠️ [REDIS BATCH] AUTO-ESCALATION TRIGGERED - Bot mentioned manager!`);
+
+      try {
+        const { enableManualMode } = await import('@/lib/bot-core');
+        const { notifyManagerTelegram, parseEscalationCommand, cleanEscalationFromResponse } = await import('@/lib/telegramNotify');
+
+        // Determine escalation reason
+        let escalationReason = parseEscalationCommand(response);
+        if (!escalationReason) {
+          escalationReason = 'Bot mentioned manager - auto-escalation triggered';
+        }
+
+        console.log(`🚨 [REDIS BATCH] Sending Telegram notification...`);
+
+        // Send Telegram notification
+        await notifyManagerTelegram({
+          senderId: senderId,
+          reason: escalationReason,
+          customerMessage: combinedText,
+          conversationHistory: conversationData.history.slice(-5).map(m => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content : '[complex content]'
+          })),
+        });
+
+        console.log(`✅ [REDIS BATCH] Telegram sent, now enabling manual mode...`);
+
+        // Enable manual mode
+        await enableManualMode(senderId, escalationReason);
+
+        // Update local data to reflect manual mode
+        conversationData.manualMode = true;
+        conversationData.escalatedAt = new Date().toISOString();
+        conversationData.escalationReason = escalationReason;
+        conversationData.needsAttention = true;
+
+        // Clean ESCALATE command from response
+        response = cleanEscalationFromResponse(response);
+
+        console.log(`🚨 [REDIS BATCH] ESCALATION COMPLETE - manualMode enabled for ${senderId}`);
+      } catch (escalationError) {
+        console.error(`❌ [REDIS BATCH] Escalation error:`, escalationError);
+      }
+    }
 
     // Parse and handle SEND_IMAGE commands
     const imageRegex = /SEND_IMAGE:\s*(.+?)(?:\n|$)/gi;

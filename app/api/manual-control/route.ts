@@ -296,9 +296,9 @@ export async function POST(req: Request) {
     switch (action) {
       case "enable_manual_mode":
         // Enable manual mode - bot will not auto-respond
-        conversation.manualMode = true;
-        conversation.manualModeEnabledAt = new Date().toISOString();
-        await db.collection('conversations').doc(userId).set(conversation);
+        // Use centralized function from bot-core for consistency
+        const { enableManualMode } = await import('@/lib/bot-core');
+        await enableManualMode(userId, 'Manager enabled manual mode via Control Panel');
 
         // Clear any pending messages from Redis to prevent them from being processed
         try {
@@ -314,9 +314,9 @@ export async function POST(req: Request) {
 
       case "disable_manual_mode":
         // Disable manual mode - resume auto responses
-        conversation.manualMode = false;
-        conversation.manualModeDisabledAt = new Date().toISOString();
-        await db.collection('conversations').doc(userId).set(conversation);
+        // Use centralized function from bot-core for consistency
+        const { disableManualMode } = await import('@/lib/bot-core');
+        await disableManualMode(userId);
 
         console.log(`✅ Manual mode DISABLED for user ${userId}`);
         return NextResponse.json({ success: true, manualMode: false });
