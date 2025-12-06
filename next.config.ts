@@ -2,9 +2,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: { ignoreDuringBuilds: true },
-  // output: 'export', // disabled to allow dynamic app routes (runtime APIs)
-  // trailingSlash: true, // disabled - causes issues with API routes
+  // Note: eslint config moved to eslint.config.js in Next.js 16
   images: {
     unoptimized: true,
   },
