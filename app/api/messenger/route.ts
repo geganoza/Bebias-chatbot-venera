@@ -2021,7 +2021,45 @@ async function processMessagingEvent(event: any) {
       }
 
       // Get AI response with conversation context, order history, store visit count, and operator instruction
-      const response = await getAIResponse(userContent, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
+      let response = await getAIResponse(userContent, conversationData.history, conversationData.orders, conversationData.storeVisitRequests, operatorInstruction);
+
+      // ═══════════════════════════════════════════════════════
+      // AUTO-ESCALATION: If bot mentions "manager" enable manual mode
+      // This ensures manager is notified and bot stops responding
+      // ═══════════════════════════════════════════════════════
+      const mentionsManager = response.includes('მენეჯერ') || response.toLowerCase().includes('manager');
+      if (mentionsManager) {
+        console.log(`⚠️ [AUTO-ESCALATE] Bot mentioned manager - enabling manual mode`);
+
+        // Import and call notification + manual mode
+        const { enableManualMode } = await import('@/lib/bot-core');
+        const { notifyManagerTelegram, parseEscalationCommand, cleanEscalationFromResponse } = await import('@/lib/telegramNotify');
+
+        // Check if explicit ESCALATE command exists
+        let escalationReason = parseEscalationCommand(response);
+        if (!escalationReason) {
+          escalationReason = 'Bot mentioned manager - auto-escalation triggered';
+        }
+
+        // Send Telegram notification
+        await notifyManagerTelegram({
+          senderId: senderId,
+          reason: escalationReason,
+          customerMessage: typeof userContent === 'string' ? userContent : '[complex content]',
+          conversationHistory: conversationData.history.slice(-5).map(m => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content : '[complex content]'
+          })),
+        });
+
+        // Enable manual mode
+        await enableManualMode(senderId, escalationReason);
+
+        // Clean ESCALATE command from response before sending to customer
+        response = cleanEscalationFromResponse(response);
+
+        console.log(`🚨 [ESCALATION] Complete - Telegram sent, manual mode enabled for ${senderId}`);
+      }
 
       console.log(`🤖 AI Response length: ${response.length} chars`);
       console.log(`🤖 AI Response (first 500 chars):`, response.substring(0, 500));
@@ -2165,11 +2203,67 @@ export async function POST(req: Request) {
       }
 
       // ═══════════════════════════════════════════════════════
-      // SKIP ECHO MESSAGES - These are our own bot responses sent back by Facebook
+      // HANDLE ECHO MESSAGES - Detect manager vs bot messages
+      // - Echo WITH app_id = Bot sent the message → skip
+      // - Echo WITHOUT app_id = Human manager sent from Facebook inbox → enable manual mode
       // ═══════════════════════════════════════════════════════
       if (event.message?.is_echo) {
-        console.log(`⏭️ [WH:${webhookId}] ECHO message (our own response) - skipping`);
-        continue;
+        const echoAppId = event.message?.app_id;
+
+        if (echoAppId) {
+          // Bot sent this message - skip it
+          console.log(`⏭️ [WH:${webhookId}] ECHO from bot (app_id: ${echoAppId}) - skipping`);
+          continue;
+        } else {
+          // NO app_id = Human manager sent this message from Facebook Page inbox
+          // Enable manual mode for this conversation
+          console.log(`👨‍💼 [WH:${webhookId}] MANAGER MESSAGE DETECTED (no app_id in echo)`);
+          console.log(`   Recipient (customer): ${recipientId}`);
+          console.log(`   Message: ${event.message?.text?.substring(0, 100) || '[attachment]'}`);
+
+          try {
+            const { enableManualMode } = await import('@/lib/bot-core');
+            const { clearMessageBatch } = await import('@/lib/redis');
+
+            // Enable manual mode for the customer's conversation
+            // Note: In echo messages, recipientId is the customer
+            await enableManualMode(recipientId, 'Manager sent message via Facebook inbox');
+
+            // Clear any pending Redis messages to prevent bot responding
+            await clearMessageBatch(recipientId);
+
+            console.log(`✅ [WH:${webhookId}] MANUAL MODE ENABLED - Manager took over conversation ${recipientId}`);
+
+            // Also log the manager's message to metaMessages for the control panel
+            try {
+              const metaDocRef = db.collection('metaMessages').doc(recipientId);
+              const metaDoc = await metaDocRef.get();
+
+              const managerMessage = {
+                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                senderId: 'HUMAN_MANAGER',
+                senderType: 'human',
+                text: event.message?.text || '[attachment]',
+                timestamp: new Date().toISOString()
+              };
+
+              if (metaDoc.exists) {
+                const existing = metaDoc.data() as { userId: string; messages: any[] };
+                existing.messages.push(managerMessage);
+                await metaDocRef.set(existing);
+              } else {
+                await metaDocRef.set({ userId: recipientId, messages: [managerMessage] });
+              }
+              console.log(`📝 [WH:${webhookId}] Logged manager message to metaMessages`);
+            } catch (metaErr) {
+              console.error(`⚠️ [WH:${webhookId}] Error logging manager message:`, metaErr);
+            }
+          } catch (manualModeErr) {
+            console.error(`❌ [WH:${webhookId}] Error enabling manual mode:`, manualModeErr);
+          }
+
+          continue;
+        }
       }
 
 

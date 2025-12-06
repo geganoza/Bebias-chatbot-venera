@@ -1,5 +1,5 @@
 # BEBIAS CHATBOT VENERA - AI Development Runbook
-**Last Updated: December 4, 2025**
+**Last Updated: December 6, 2025**
 
 ---
 
@@ -115,10 +115,40 @@ vercel env add VARIABLE_NAME production
 - Batch processor (`/api/process-batch-redis`) handles ALL processing
 - Breaking this pattern will cause duplicate API calls
 
-### 8. Manual Mode / Kill Switch
-- When kill switch is active, messages must still be saved to history
-- Bot shouldn't respond but should record everything
-- Manager can take over conversations via manual mode
+### 8. Manual Mode / Kill Switch / Auto-Escalation
+**CRITICAL: This is how managers take control of conversations**
+
+#### Manual Mode
+- When `manualMode=true`, bot stops auto-responding
+- Messages still saved to history for context
+- Manager responds via Control Panel or Facebook directly
+
+#### Auto-Escalation (December 6, 2025 Fix)
+- When bot response contains "მენეჯერ" (manager in Georgian):
+  1. Telegram notification sent to manager
+  2. Manual mode auto-enabled
+  3. Bot stops responding immediately
+  4. Manager takes over via Control Panel
+
+**Key Files**:
+- `/lib/bot-core.ts` - `enableManualMode()` with verification (lines 729-781)
+- `/app/api/process-batch-redis/route.ts` - Explicit escalation check (lines 345-398)
+- `/lib/telegramNotify.ts` - Telegram notification system
+
+**How It Works**:
+```
+Bot mentions "მენეჯერ" in response
+    ↓
+process-batch-redis detects mention (line 345)
+    ↓
+notifyManagerTelegram() sends alert
+    ↓
+enableManualMode() sets manualMode=true with verification
+    ↓
+All subsequent messages blocked (manual mode check at line 133)
+    ↓
+Manager disables via Control Panel to resume bot
+```
 
 ### 9. DELIVERY DATE CALCULATION
 **Wrong delivery date = customer complaints**
@@ -253,6 +283,78 @@ vercel env add ENABLE_REDIS_BATCHING production
 - Webhook should ONLY save to Redis
 - All processing happens in batch processor
 
+### December 6, 2025 - AUTO-ESCALATION NOT WORKING (2-Hour Debug Session)
+**AI Assistant**: Claude (Opus 4.5)
+**Problem**: When bot mentioned "მენეჯერი" (manager), Telegram notification was sent but bot continued responding instead of stopping
+
+**Root Cause**:
+- **Two code paths exist**: Redis batching users vs non-Redis users have different processing paths
+- Test user `3282789748459241` uses Redis batching (100% rollout for test users)
+- Message flow: `/api/messenger` → Redis → QStash → `/api/process-batch-redis` → `getAIResponse()`
+- The escalation logic in `bot-core.ts` `getAIResponse()` wasn't being properly triggered
+- `enableManualMode()` had silent error handling without verification
+
+**Solution**:
+
+1. **Added explicit escalation check in `process-batch-redis/route.ts` (lines 345-398)**:
+```typescript
+// EXPLICIT AUTO-ESCALATION CHECK (Belt and Suspenders)
+const mentionsManagerExplicit = response.includes('მენეჯერ') || response.toLowerCase().includes('manager');
+if (mentionsManagerExplicit && !conversationData.manualMode) {
+  console.log(`⚠️ [REDIS BATCH] AUTO-ESCALATION TRIGGERED`);
+  await notifyManagerTelegram({...});
+  await enableManualMode(senderId, escalationReason);
+  conversationData.manualMode = true;
+  response = cleanEscalationFromResponse(response);
+}
+```
+
+2. **Updated `enableManualMode()` in `bot-core.ts` (lines 729-781)** with retry and verification:
+```typescript
+export async function enableManualMode(senderId: string, escalationReason: string): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await docRef.set(updateData, { merge: true });
+    // VERIFY the write succeeded by reading it back
+    const verifyDoc = await docRef.get();
+    if (verifyData?.manualMode === true) {
+      console.log(`✅ [MANUAL MODE] VERIFIED: manualMode=true`);
+      return;
+    }
+  }
+}
+```
+
+3. **Improved manual mode check in `process-batch-redis/route.ts` (lines 133-180)** with retry logic
+
+**Files Modified**:
+- `/app/api/process-batch-redis/route.ts` - Lines 133-180 (manual mode check), Lines 345-398 (explicit escalation)
+- `/lib/bot-core.ts` - Lines 729-781 (enableManualMode with verification)
+
+**Testing**:
+1. Send message to bot that triggers manager mention
+2. Verify Telegram notification received
+3. Verify bot stops responding immediately
+4. Check Firestore: `manualMode: true` for user
+5. Disable via Control Panel to resume bot
+
+**Key Log Messages to Monitor**:
+```
+🔍 [REDIS BATCH ESCALATION] Response mentions manager: true
+⚠️ [REDIS BATCH] AUTO-ESCALATION TRIGGERED
+🚨 [REDIS BATCH] Sending Telegram notification...
+✅ [REDIS BATCH] Telegram sent, now enabling manual mode...
+✅ [MANUAL MODE] VERIFIED: manualMode=true for [userId]
+🚨 [REDIS BATCH] ESCALATION COMPLETE
+```
+
+**Lessons Learned**:
+- Always verify Firestore writes by reading back
+- Add explicit checks at multiple levels ("belt and suspenders")
+- Silent error handling can hide critical failures
+- Test users go through Redis batching path - must test that specific path
+
+---
+
 ### December 3, 2025 - IMAGES NOT SENDING
 **AI Assistant**: Claude
 **Problem**: Bot wasn't sending product images despite code being present
@@ -335,6 +437,11 @@ const imageUrl = attachment.payload?.url;  // CORRECT
 - `/lib/orderLoggerWithFirestore.ts` - Order logging
 - `/lib/sendOrderEmail.ts` - Email notifications
 - `/lib/firestore.ts` - Firestore client
+- `/lib/telegramNotify.ts` - Telegram manager notifications & escalation parsing
+
+### Manager Control
+- `/app/api/manual-control/route.ts` - Enable/disable manual mode, send direct messages
+- `/app/control-panel/page.tsx` - Web interface for manager control
 
 ---
 
@@ -536,6 +643,32 @@ PRODUCT FILTERING:
 3. Check Redis is storing messages
 4. Verify batch processor is running
 
+### If Auto-Escalation Not Working
+1. Check logs for `[REDIS BATCH ESCALATION]` messages
+2. Verify response contains "მენეჯერ" or "manager"
+3. Check Telegram credentials (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
+4. Verify Firestore write: check `manualMode` field in conversation doc
+5. Check for errors in `enableManualMode()` function
+6. Look for verification failure: `Write verification FAILED`
+
+### If Bot Responds After Escalation
+1. Check `manualMode` flag in Firestore for user
+2. Verify manual mode check passes (lines 133-180 in process-batch-redis)
+3. Look for log: `Conversation in MANUAL mode - manager handling`
+4. If flag is false, escalation didn't complete - check error logs
+5. Test manual enable/disable via API:
+```bash
+# Enable manual mode
+curl -X POST https://bebias-venera-chatbot.vercel.app/api/manual-control \
+  -H "Content-Type: application/json" \
+  -d '{"action":"enable_manual_mode","userId":"USER_ID"}'
+
+# Disable manual mode
+curl -X POST https://bebias-venera-chatbot.vercel.app/api/manual-control \
+  -H "Content-Type: application/json" \
+  -d '{"action":"disable_manual_mode","userId":"USER_ID"}'
+```
+
 ---
 
 ## 📚 EXTERNAL DOCUMENTATION
@@ -556,8 +689,8 @@ PRODUCT FILTERING:
 
 ---
 
-**Document Version**: 1.1
+**Document Version**: 1.2
 **Created**: December 3, 2025
-**Last Updated**: December 4, 2025
+**Last Updated**: December 6, 2025
 **Primary Maintainer**: AI Assistants (Claude, GPT, etc.)
 **Repository**: https://github.com/geganoza/Bebias-chatbot-venera
