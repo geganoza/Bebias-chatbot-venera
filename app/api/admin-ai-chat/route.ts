@@ -10,16 +10,39 @@ async function loadProductsWithLinks(): Promise<any[]> {
     const productsRef = db.collection("products");
     const snapshot = await productsRef.get();
 
+    // First pass: build map of parent product names to their IDs
+    const parentProducts = new Map<string, string>();
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.type === 'variable') {
+        const parentName = data.name || doc.id;
+        parentProducts.set(parentName, data.id || doc.id);
+      }
+    });
+
+    // Second pass: map all products with correct links
     return snapshot.docs.map(doc => {
       const data = doc.data();
-      const wcId = data.id || doc.id; // WooCommerce ID stored as 'id' field
+      const wcId = data.id || doc.id;
+      const productName = data.name || doc.id;
+
+      // For variations, find parent product ID for the link
+      let linkId = wcId;
+      if (data.type === 'variation') {
+        // Extract parent name from variation name (e.g., "აგურისფერი სადა ქუდი - L" → "აგურისფერი სადა ქუდი")
+        const parentName = productName.replace(/\s*-\s*(L|M|S|XS|XXS|XXXS)\s*$/i, '').trim();
+        if (parentProducts.has(parentName)) {
+          linkId = parentProducts.get(parentName)!;
+        }
+      }
+
       return {
         id: wcId,
-        name: data.name || doc.id,
+        name: productName,
         price: data.price || data.sale_price || "0",
         stock: data.stock_qty ?? data.stock ?? 0,
         category: data.categories || data.category || "",
-        siteLink: `https://bebias.ge/?p=${wcId}` // Generate site link from WC ID
+        siteLink: `https://bebias.ge/?p=${linkId}` // Use parent ID for variations
       };
     });
   } catch (err) {
