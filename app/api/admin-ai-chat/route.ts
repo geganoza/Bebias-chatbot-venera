@@ -1,0 +1,299 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/firestore";
+import OpenAI from "openai";
+import fs from "fs/promises";
+import path from "path";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+
+// Helper to load products
+async function loadProducts(): Promise<any[]> {
+  try {
+    const file = path.join(process.cwd(), "data", "products.json");
+    const txt = await fs.readFile(file, "utf8");
+    return JSON.parse(txt);
+  } catch (err) {
+    console.error("Error loading products:", err);
+    return [];
+  }
+}
+
+// Get recent orders from Firestore
+async function getRecentOrders(limit: number = 20): Promise<any[]> {
+  try {
+    const ordersRef = db.collection("orders");
+    const snapshot = await ordersRef
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+    return [];
+  }
+}
+
+// Get order statistics
+async function getOrderStats(): Promise<any> {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+    const monthStart = new Date(todayStart);
+    monthStart.setDate(1);
+
+    const ordersRef = db.collection("orders");
+    const allOrdersSnapshot = await ordersRef.get();
+
+    let todayOrders = 0;
+    let weekOrders = 0;
+    let monthOrders = 0;
+    let totalRevenue = 0;
+    let todayRevenue = 0;
+    let statusCounts: Record<string, number> = {};
+
+    allOrdersSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const createdAt = data.createdAt?.toDate?.() || new Date(data.createdAt);
+      const total = parseFloat(data.total) || 0;
+
+      totalRevenue += total;
+
+      if (createdAt >= todayStart) {
+        todayOrders++;
+        todayRevenue += total;
+      }
+      if (createdAt >= weekStart) {
+        weekOrders++;
+      }
+      if (createdAt >= monthStart) {
+        monthOrders++;
+      }
+
+      const status = data.status || "unknown";
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    return {
+      totalOrders: allOrdersSnapshot.size,
+      todayOrders,
+      weekOrders,
+      monthOrders,
+      totalRevenue: totalRevenue.toFixed(2),
+      todayRevenue: todayRevenue.toFixed(2),
+      statusBreakdown: statusCounts
+    };
+  } catch (err) {
+    console.error("Error fetching order stats:", err);
+    return null;
+  }
+}
+
+// Get conversation stats
+async function getConversationStats(): Promise<any> {
+  try {
+    const conversationsRef = db.collection("conversations");
+    const snapshot = await conversationsRef.get();
+
+    let totalConversations = snapshot.size;
+    let manualModeCount = 0;
+    let needsAttentionCount = 0;
+    let totalMessages = 0;
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.manualMode) manualModeCount++;
+      if (data.needsAttention) needsAttentionCount++;
+      totalMessages += data.history?.length || 0;
+    });
+
+    return {
+      totalConversations,
+      manualModeCount,
+      needsAttentionCount,
+      totalMessages,
+      avgMessagesPerConversation: totalConversations > 0
+        ? (totalMessages / totalConversations).toFixed(1)
+        : 0
+    };
+  } catch (err) {
+    console.error("Error fetching conversation stats:", err);
+    return null;
+  }
+}
+
+// Search orders by various criteria
+async function searchOrders(query: string): Promise<any[]> {
+  try {
+    const ordersRef = db.collection("orders");
+    const snapshot = await ordersRef.limit(100).get();
+
+    const lowerQuery = query.toLowerCase();
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter((order: any) => {
+        const searchableText = [
+          order.orderNumber,
+          order.customerName,
+          order.telephone,
+          order.address,
+          order.products?.join(" "),
+          order.status
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        return searchableText.includes(lowerQuery);
+      });
+  } catch (err) {
+    console.error("Error searching orders:", err);
+    return [];
+  }
+}
+
+// POST /api/admin-ai-chat
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { message, chatHistory = [] } = body;
+
+    if (!message) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    }
+
+    console.log(`🤖 Admin AI Chat: "${message}"`);
+
+    // Gather context data based on the question
+    const [products, recentOrders, orderStats, conversationStats] = await Promise.all([
+      loadProducts(),
+      getRecentOrders(15),
+      getOrderStats(),
+      getConversationStats()
+    ]);
+
+    // Check if the question mentions searching for specific order/customer
+    const searchTerms = message.match(/order[:\s#]*(\w+)|customer[:\s]*([^\s,]+)|phone[:\s]*(\d+)/i);
+    let searchResults: any[] = [];
+    if (searchTerms) {
+      const searchQuery = searchTerms[1] || searchTerms[2] || searchTerms[3];
+      if (searchQuery) {
+        searchResults = await searchOrders(searchQuery);
+      }
+    }
+
+    // Build context for AI
+    const contextData = {
+      products: {
+        total: products.length,
+        list: products.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          stock: p.stock,
+          category: p.category
+        }))
+      },
+      recentOrders: recentOrders.map(o => ({
+        orderNumber: o.orderNumber,
+        customerName: o.customerName,
+        telephone: o.telephone,
+        products: o.products,
+        total: o.total,
+        status: o.status,
+        createdAt: o.createdAt?.toDate?.()?.toISOString() || o.createdAt
+      })),
+      orderStats,
+      conversationStats,
+      searchResults: searchResults.length > 0 ? searchResults.slice(0, 10) : null
+    };
+
+    const systemPrompt = `You are an AI assistant for the VENERA/BEBIAS e-commerce admin control panel. You help managers with questions about:
+- Product inventory and stock levels
+- Order status and history
+- Sales statistics and analytics
+- Customer conversations
+- Business operations
+
+You have access to real-time data from the system. Be concise, helpful, and format responses clearly.
+
+Current System Data:
+${JSON.stringify(contextData, null, 2)}
+
+Guidelines:
+- Answer in the same language as the question (Georgian or English)
+- Be specific with numbers and data
+- If asked about a specific order/customer, use the search results
+- Format prices in GEL (Georgian Lari)
+- Keep responses concise but informative
+- If data is not available, say so clearly`;
+
+    // Build messages with history
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt }
+    ];
+
+    // Add chat history (last 10 messages)
+    const recentHistory = chatHistory.slice(-10);
+    for (const msg of recentHistory) {
+      messages.push({
+        role: msg.role as "user" | "assistant",
+        content: msg.content
+      });
+    }
+
+    // Add current message
+    messages.push({ role: "user", content: message });
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages,
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    const response = completion.choices[0]?.message?.content || "Sorry, I couldn't process that question.";
+
+    return NextResponse.json({
+      success: true,
+      response,
+      context: {
+        productsCount: products.length,
+        ordersCount: orderStats?.totalOrders || 0
+      }
+    });
+
+  } catch (error: any) {
+    console.error("Admin AI Chat error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET /api/admin-ai-chat - Quick stats endpoint
+export async function GET() {
+  try {
+    const [orderStats, conversationStats] = await Promise.all([
+      getOrderStats(),
+      getConversationStats()
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      stats: {
+        orders: orderStats,
+        conversations: conversationStats
+      }
+    });
+  } catch (error: any) {
+    console.error("Admin AI Chat GET error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

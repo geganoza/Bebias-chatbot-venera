@@ -69,6 +69,13 @@ export default function ControlPanelDashboard() {
   const [manualOrderMessage, setManualOrderMessage] = useState('');
   const [createdOrders, setCreatedOrders] = useState<any[]>([]);
 
+  // Admin AI Chat states
+  const [showAdminChat, setShowAdminChat] = useState(false);
+  const [adminChatInput, setAdminChatInput] = useState('');
+  const [adminChatHistory, setAdminChatHistory] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
+  const [adminChatLoading, setAdminChatLoading] = useState(false);
+  const adminChatEndRef = useRef<HTMLDivElement>(null);
+
 
   const handleLogout = async () => {
     try {
@@ -233,6 +240,49 @@ export default function ControlPanelDashboard() {
       setManualOrderLoading(false);
     }
   };
+
+  // Send admin AI chat message
+  const sendAdminChatMessage = async () => {
+    if (!adminChatInput.trim() || adminChatLoading) return;
+
+    const userMessage = adminChatInput.trim();
+    setAdminChatInput('');
+    setAdminChatLoading(true);
+
+    // Add user message to history
+    const newHistory = [...adminChatHistory, { role: 'user' as const, content: userMessage }];
+    setAdminChatHistory(newHistory);
+
+    try {
+      const response = await fetch('/api/admin-ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          chatHistory: adminChatHistory
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAdminChatHistory([...newHistory, { role: 'assistant', content: result.response }]);
+      } else {
+        const error = await response.json();
+        setAdminChatHistory([...newHistory, { role: 'assistant', content: `Error: ${error.error || 'Failed to get response'}` }]);
+      }
+    } catch (error: any) {
+      setAdminChatHistory([...newHistory, { role: 'assistant', content: `Error: ${error.message}` }]);
+    } finally {
+      setAdminChatLoading(false);
+    }
+  };
+
+  // Auto-scroll admin chat
+  useEffect(() => {
+    if (adminChatEndRef.current) {
+      adminChatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [adminChatHistory]);
 
   // Fetch messages (now includes profiles and status in bulk - no N+1 queries!)
   const fetchMessages = async () => {
@@ -1153,6 +1203,38 @@ export default function ControlPanelDashboard() {
             </button>
 
             <button
+              onClick={() => setShowAdminChat(true)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '12px',
+                marginBottom: '10px',
+                backgroundColor: '#fff',
+                color: '#333',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f0ff';
+                e.currentTarget.style.borderColor = '#7c3aed';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#fff';
+                e.currentTarget.style.borderColor = '#ddd';
+              }}
+            >
+              <div style={{ fontSize: '24px' }}>🤖</div>
+              <div style={{ flex: 1, textAlign: 'left' }}>
+                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Admin AI Chat</div>
+                <div style={{ fontSize: '10px', color: '#666' }}>Ask about orders, stock, stats</div>
+              </div>
+            </button>
+
+            <button
               disabled
               style={{
                 width: '100%',
@@ -1524,6 +1606,218 @@ export default function ControlPanelDashboard() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Admin AI Chat Modal */}
+        {showAdminChat && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '600px',
+              height: isMobile ? '90vh' : '70vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #e0e0e0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: '#7c3aed',
+                color: 'white'
+              }}>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>Admin AI Assistant</h3>
+                  <p style={{ fontSize: '12px', margin: '4px 0 0 0', opacity: 0.9 }}>Ask about orders, stock, statistics</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAdminChat(false);
+                    setAdminChatHistory([]);
+                    setAdminChatInput('');
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Chat Messages */}
+              <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '16px',
+                backgroundColor: '#f8f9fa'
+              }}>
+                {adminChatHistory.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#666', marginTop: '40px' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
+                    <p style={{ fontSize: '14px', margin: '0 0 20px 0' }}>
+                      Ask me anything about your business!
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                      {[
+                        'How many orders today?',
+                        'Show recent orders',
+                        'What products are in stock?',
+                        'Total revenue this week?'
+                      ].map((suggestion, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setAdminChatInput(suggestion);
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                            backgroundColor: 'white',
+                            border: '1px solid #ddd',
+                            borderRadius: '16px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f0f0f0';
+                            e.currentTarget.style.borderColor = '#7c3aed';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                            e.currentTarget.style.borderColor = '#ddd';
+                          }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {adminChatHistory.map((msg, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                      marginBottom: '12px'
+                    }}
+                  >
+                    <div style={{
+                      maxWidth: '80%',
+                      padding: '10px 14px',
+                      borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      backgroundColor: msg.role === 'user' ? '#7c3aed' : 'white',
+                      color: msg.role === 'user' ? 'white' : '#333',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                      fontSize: '14px',
+                      lineHeight: '1.5'
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+
+                {adminChatLoading && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '18px 18px 18px 4px',
+                      backgroundColor: 'white',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      fontSize: '14px',
+                      color: '#666'
+                    }}>
+                      <span style={{ animation: 'pulse 1s infinite' }}>Thinking...</span>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={adminChatEndRef} />
+              </div>
+
+              {/* Input Area */}
+              <div style={{
+                padding: '12px 16px',
+                borderTop: '1px solid #e0e0e0',
+                backgroundColor: 'white'
+              }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    type="text"
+                    value={adminChatInput}
+                    onChange={(e) => setAdminChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendAdminChatMessage();
+                      }
+                    }}
+                    placeholder="Ask about orders, stock, stats..."
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '24px',
+                      border: '1px solid #ddd',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                    disabled={adminChatLoading}
+                  />
+                  <button
+                    onClick={sendAdminChatMessage}
+                    disabled={adminChatLoading || !adminChatInput.trim()}
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: '24px',
+                      border: 'none',
+                      backgroundColor: '#7c3aed',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: adminChatLoading || !adminChatInput.trim() ? 'not-allowed' : 'pointer',
+                      opacity: adminChatLoading || !adminChatInput.trim() ? 0.5 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {adminChatLoading ? '...' : 'Send'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
