@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firestore";
-import { loadProducts } from "@/lib/bot-core";
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+
+// Load products directly from Firestore with all fields including WooCommerce ID for site links
+async function loadProductsWithLinks(): Promise<any[]> {
+  try {
+    const productsRef = db.collection("products");
+    const snapshot = await productsRef.get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      const wcId = data.id || doc.id; // WooCommerce ID stored as 'id' field
+      return {
+        id: wcId,
+        name: data.name || doc.id,
+        price: data.price || data.sale_price || "0",
+        stock: data.stock_qty ?? data.stock ?? 0,
+        category: data.categories || data.category || "",
+        siteLink: `https://bebias.ge/?p=${wcId}` // Generate site link from WC ID
+      };
+    });
+  } catch (err) {
+    console.error("Error loading products with links:", err);
+    return [];
+  }
+}
 
 // Get recent orders from Firestore
 async function getRecentOrders(limit: number = 20): Promise<any[]> {
@@ -155,7 +178,7 @@ export async function POST(req: Request) {
 
     // Gather context data based on the question
     const [products, recentOrders, orderStats, conversationStats] = await Promise.all([
-      loadProducts(),
+      loadProductsWithLinks(),
       getRecentOrders(15),
       getOrderStats(),
       getConversationStats()
@@ -180,7 +203,8 @@ export async function POST(req: Request) {
           name: p.name,
           price: p.price,
           stock: p.stock,
-          category: p.category
+          category: p.category,
+          siteLink: p.siteLink
         }))
       },
       recentOrders: recentOrders.map(o => ({
@@ -215,7 +239,9 @@ Guidelines:
 - If asked about a specific order/customer, use the search results
 - Format prices in GEL (Georgian Lari)
 - Keep responses concise but informative
-- If data is not available, say so clearly`;
+- If data is not available, say so clearly
+- When listing products, ALWAYS include the siteLink as a clickable link
+- Format product links as markdown: [product name](siteLink)`;
 
     // Build messages with history
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
