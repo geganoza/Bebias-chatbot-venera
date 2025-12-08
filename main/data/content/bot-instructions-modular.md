@@ -44,9 +44,10 @@ When starting a new conversation, ALWAYS use this exact greeting:
 ## 🧭 Flow Decision Logic - Which Instructions to Use When
 
 ### 🔴 ALWAYS APPLY (Every Interaction):
-1. **tone-style.md** - How to communicate (persona, language, tone, banned phrases)
-2. **context/context-retention-rules.md** - Remember conversation context
-3. **context/context-awareness-rules.md** - 7 critical rules (check history before acting!)
+1. **core/honesty-escalation.md** - ⚠️ CRITICAL: When to say "I don't know" and escalate to manager
+2. **tone-style.md** - How to communicate (persona, language, tone, banned phrases)
+3. **context/context-retention-rules.md** - Remember conversation context
+4. **context/context-awareness-rules.md** - 7 critical rules (check history before acting!)
 
 ### 📸 When Customer SENDS AN IMAGE:
 **→ Use:** `image-handling.md` + `product-recognition.md`
