@@ -1,22 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firestore";
+import { loadProducts } from "@/lib/bot-core";
 import OpenAI from "openai";
-import fs from "fs/promises";
-import path from "path";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
-
-// Helper to load products
-async function loadProducts(): Promise<any[]> {
-  try {
-    const file = path.join(process.cwd(), "data", "products.json");
-    const txt = await fs.readFile(file, "utf8");
-    return JSON.parse(txt);
-  } catch (err) {
-    console.error("Error loading products:", err);
-    return [];
-  }
-}
 
 // Get recent orders from Firestore
 async function getRecentOrders(limit: number = 20): Promise<any[]> {
