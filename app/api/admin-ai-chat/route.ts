@@ -20,31 +20,37 @@ async function loadProductsWithLinks(): Promise<any[]> {
       }
     });
 
-    // Second pass: map all products with correct links
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      const wcId = data.id || doc.id;
-      const productName = data.name || doc.id;
+    // Second pass: map only variations and simple products (NOT parent/variable products)
+    return snapshot.docs
+      .filter(doc => {
+        const data = doc.data();
+        // Exclude parent products (type: variable) - they don't have real stock
+        return data.type !== 'variable';
+      })
+      .map(doc => {
+        const data = doc.data();
+        const wcId = data.id || doc.id;
+        const productName = data.name || doc.id;
 
-      // For variations, find parent product ID for the link
-      let linkId = wcId;
-      if (data.type === 'variation') {
-        // Extract parent name from variation name (e.g., "აგურისფერი სადა ქუდი - L" → "აგურისფერი სადა ქუდი")
-        const parentName = productName.replace(/\s*-\s*(L|M|S|XS|XXS|XXXS)\s*$/i, '').trim();
-        if (parentProducts.has(parentName)) {
-          linkId = parentProducts.get(parentName)!;
+        // For variations, find parent product ID for the link
+        let linkId = wcId;
+        if (data.type === 'variation') {
+          // Extract parent name from variation name (e.g., "აგურისფერი სადა ქუდი - L" → "აგურისფერი სადა ქუდი")
+          const parentName = productName.replace(/\s*-\s*(L|M|S|XS|XXS|XXXS)\s*$/i, '').trim();
+          if (parentProducts.has(parentName)) {
+            linkId = parentProducts.get(parentName)!;
+          }
         }
-      }
 
-      return {
-        id: wcId,
-        name: productName,
-        price: data.price || data.sale_price || "0",
-        stock: data.stock_qty ?? data.stock ?? 0,
-        category: data.categories || data.category || "",
-        siteLink: `https://bebias.ge/?p=${linkId}` // Use parent ID for variations
-      };
-    });
+        return {
+          id: wcId,
+          name: productName,
+          price: data.price || data.sale_price || "0",
+          stock: data.stock_qty ?? data.stock ?? 0,
+          category: data.categories || data.category || "",
+          siteLink: `https://bebias.ge/?p=${linkId}` // Use parent ID for variations
+        };
+      });
   } catch (err) {
     console.error("Error loading products with links:", err);
     return [];
@@ -264,7 +270,9 @@ Guidelines:
 - Keep responses concise but informative
 - If data is not available, say so clearly
 - When listing products, ALWAYS include the siteLink as a clickable link
-- Format product links as markdown: [product name](siteLink)`;
+- Format product links as markdown: [product name](siteLink)
+- IMPORTANT: When asked "რა გვაქვს" or "რომელი გვაქვს" (what do we have), ONLY show products with stock > 0
+- Products with stock = 0 are OUT OF STOCK - don't include them in availability lists unless specifically asked about all products`;
 
     // Build messages with history
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
