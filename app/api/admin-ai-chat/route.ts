@@ -272,7 +272,9 @@ Guidelines:
 - When listing products, ALWAYS include the siteLink as a clickable link
 - Format product links as markdown: [product name](siteLink)
 - IMPORTANT: When asked "რა გვაქვს" or "რომელი გვაქვს" (what do we have), ONLY show products with stock > 0
-- Products with stock = 0 are OUT OF STOCK - don't include them in availability lists unless specifically asked about all products`;
+- Products with stock = 0 are OUT OF STOCK - don't include them in availability lists unless specifically asked about all products
+- CRITICAL: When user asks for a specific size (L, M, S, XS, etc.), ONLY show products that END with that exact size suffix (e.g., "- L" for L size). Do NOT include other sizes!
+- Size is indicated at the end of product name after " - " (e.g., "ქუდი - L" is L size, "ქუდი - M" is M size)`;
 
     // Build messages with history
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
