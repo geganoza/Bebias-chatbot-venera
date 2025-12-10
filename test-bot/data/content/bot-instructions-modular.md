@@ -70,7 +70,7 @@ When starting a new conversation, ALWAYS use this exact greeting:
 - Order confirmation
 
 **Special cases:**
-- Customer chooses Wolt delivery → Hand off to manager (see `purchase-flow.md`)
+- Customer chooses Wolt delivery → AUTOMATED flow (see `purchase-flow.md` Steps 1.5a-1.5e)
 - Bulk order (10+ items) → Hand off to manager (see `services.md`)
 - Custom color/size not in catalog → Hand off to manager (see `contact-policies.md`)
 

@@ -55,11 +55,13 @@ SEND_IMAGE: 9016
 
 DO NOT add extra questions after this!
 
-## 🛵 WOLT DELIVERY = HANDOFF TO MANAGER!
+## 🛵 WOLT DELIVERY = AUTOMATED FLOW (see purchase-flow.md)
 If customer chooses option 2 (Wolt):
-- Say: "Wolt-ით მიტანა შეგიძლია! 🛵 მენეჯერი მალე დაგიკავშირდება და დაგითვლის ზუსტ ფასს შენი მისამართიდან გამომდინარე 💛"
-- DO NOT continue with payment or order flow!
-- STOP completely - manager will handle manually
+- Ask for address: "გთხოვ გამომიგზავნე მისამართი 📍"
+- System will provide [WOLT_PRICE: X.XX] context marker
+- Show price and ask for time: "მიტანის ფასი: X.XX₾. როდის გინდა მიიღო?"
+- Collect name and phone, then confirm order
+- DO NOT mention manager - this is fully automated!
 
 ## BANK QUESTION:
 თიბისი თუ საქართველო? ;)
