@@ -6,6 +6,7 @@ export interface OrderData {
   clientName: string;
   telephone: string;
   address: string;
+  city?: string;  // Separate city field for shipping
   total: string;
   deliveryType?: 'express' | 'standard';
   deliveryCompany?: string;
@@ -60,6 +61,12 @@ export async function sendOrderEmail(orderData: OrderData, orderNumber?: string)
                 <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">მისამართი:</td>
                 <td style="padding: 8px 0;">${orderData.address}</td>
               </tr>
+              ${orderData.city ? `
+              <tr>
+                <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">ქალაქი:</td>
+                <td style="padding: 8px 0; ${orderData.city !== 'თბილისი' ? 'color: #d97706; font-weight: bold;' : ''}">${orderData.city}${orderData.city !== 'თბილისი' ? ' (რეგიონი)' : ''}</td>
+              </tr>
+              ` : ''}
               <tr>
                 <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">ჯამი:</td>
                 <td style="padding: 8px 0; font-size: 18px; color: #2b6cb0; font-weight: bold;">${orderData.total}</td>
@@ -97,6 +104,7 @@ ${orderNumber ? `\nშეკვეთის ნომერი: #${orderNumber}`
 კლიენტის სახელი: ${orderData.clientName}
 ტელეფონი: ${orderData.telephone}
 მისამართი: ${orderData.address}
+${orderData.city ? `ქალაქი: ${orderData.city}${orderData.city !== 'თბილისი' ? ' (რეგიონი)' : ''}` : ''}
 ჯამი: ${orderData.total}
 ${orderData.deliveryType ? `მიწოდების ტიპი: ${orderData.deliveryType === 'express' ? 'ექსპრეს' : 'სტანდარტული'}` : ''}
 ${orderData.deliveryCompany ? `მიწოდების კომპანია: ${orderData.deliveryCompany}` : ''}

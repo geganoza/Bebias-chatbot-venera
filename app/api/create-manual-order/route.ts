@@ -30,7 +30,7 @@ async function loadProducts(): Promise<FirestoreProduct[]> {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { products, customerName, telephone, address, notes, deliveryType, deliveryCompany } = body;
+    const { products, customerName, telephone, address, city, notes, deliveryType, deliveryCompany } = body;
 
     // Validate required fields
     if (!products || products.length === 0) {
@@ -115,6 +115,7 @@ export async function POST(req: Request) {
 
     console.log(`📦 Creating single order for: ${combinedProducts}`);
     console.log(`💰 Total amount: ${totalAmount} ლარი`);
+    console.log(`📍 City: ${city || 'თბილისი'}`);
     console.log(`🚚 Delivery: ${deliveryType || 'standard'} via ${deliveryCompany || 'trackings.ge'}`);
 
     const orderData: OrderData = {
@@ -123,6 +124,7 @@ export async function POST(req: Request) {
       clientName: customerName,
       telephone: telephone,
       address: address,
+      city: city || 'თბილისი',  // Separate city field for shipping
       total: `${totalAmount} ლარი`,
       deliveryType: deliveryType || 'standard',
       deliveryCompany: deliveryCompany || (deliveryType === 'express' ? 'wolt' : 'trackings.ge'),

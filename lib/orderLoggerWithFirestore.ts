@@ -18,12 +18,13 @@ const WAREHOUSE_WEBHOOK_URL = process.env.WAREHOUSE_WEBHOOK_URL || 'https://orde
 async function pushToWarehouse(order: OrderLog): Promise<void> {
     try {
         // Map our order format to warehouse webhook format
+        // Use city field if provided, otherwise extract from address
         const warehousePayload = {
             externalId: order.orderNumber,
             customerName: order.clientName,
             customerPhone: order.telephone,
             customerAddress: order.address,
-            city: extractCity(order.address),
+            city: order.city || extractCity(order.address),
             productName: order.product,
             quantity: parseInt(order.quantity) || 1
         };

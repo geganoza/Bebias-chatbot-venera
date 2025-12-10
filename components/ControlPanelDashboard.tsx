@@ -73,8 +73,23 @@ export default function ControlPanelDashboard() {
   const [deliveryType, setDeliveryType] = useState<'express' | 'standard'>('standard');
   const [deliveryCompany, setDeliveryCompany] = useState<string>('trackings.ge');
   const [isRegion, setIsRegion] = useState<boolean>(false);
+  const [city, setCity] = useState<string>('თბილისი'); // Default city
 
-  // Region cities for auto-detection
+  // Full list of Georgian cities for city dropdown (must match trackings.ge city names)
+  const GEORGIAN_CITIES = [
+    'თბილისი', 'ბათუმი', 'ქუთაისი', 'რუსთავი', 'გორი', 'ზუგდიდი', 'ფოთი', 'სამტრედია',
+    'ხაშური', 'სენაკი', 'ზესტაფონი', 'მარნეული', 'თელავი', 'ახალციხე', 'ქობულეთი',
+    'ოზურგეთი', 'კასპი', 'ჭიათურა', 'წყალტუბო', 'საგარეჯო', 'გარდაბანი', 'ბორჯომი',
+    'ხონი', 'ბოლნისი', 'ტყიბული', 'ახალქალაქი', 'მცხეთა', 'ყვარელი', 'გურჯაანი',
+    'ქარელი', 'ლანჩხუთი', 'ახმეტა', 'დუშეთი', 'ხელვაჩაური', 'საჩხერე',
+    'დედოფლისწყარო', 'ლაგოდეხი', 'ნინოწმინდა', 'თერჯოლა', 'ხობი', 'მარტვილი',
+    'ვანი', 'ბაღდათი', 'წალენჯიხა', 'ჩხოროწყუ', 'წალკა', 'თეთრიწყარო', 'ასპინძა',
+    'დმანისი', 'ონი', 'თიანეთი', 'ამბროლაური', 'მესტია', 'ხარაგაული', 'ჩოხატაური',
+    'აბაშა', 'ქედა', 'სიღნაღი', 'სტეფანწმინდა', 'წაგერი', 'ლენტეხი', 'ხულო',
+    'შუახევი', 'ადიგენი'
+  ];
+
+  // Region cities for auto-detection (partial names for matching)
   const REGION_CITIES = [
     'ბათუმ', 'ქუთაის', 'რუსთავ', 'გორ', 'ზუგდიდ', 'ფოთ', 'ხაშურ', 'სამტრედ',
     'სენაკ', 'ზესტაფონ', 'მარნეულ', 'თელავ', 'ახალციხ', 'ქობულეთ', 'ოზურგეთ',
@@ -82,14 +97,32 @@ export default function ControlPanelDashboard() {
     'ყვარელ', 'გურჯაან', 'ლაგოდეხ', 'სიღნაღ', 'ახმეტ', 'დუშეთ', 'სტეფანწმინდ', 'ყაზბეგ'
   ];
 
-  // Check if address is in a region (not Tbilisi)
+  // Check if address is in a region (not Tbilisi) and detect city
   const detectRegion = (address: string): boolean => {
     if (!address) return false;
     const addressLower = address.toLowerCase();
     // If Tbilisi is mentioned, it's not region
     if (addressLower.includes('თბილის')) return false;
     // Check for region cities
-    return REGION_CITIES.some(city => addressLower.includes(city.toLowerCase()));
+    return REGION_CITIES.some(c => addressLower.includes(c.toLowerCase()));
+  };
+
+  // Detect city from address and return the full city name
+  const detectCityFromAddress = (address: string): string => {
+    if (!address) return 'თბილისი';
+    const addressLower = address.toLowerCase();
+
+    // Check each Georgian city in order of specificity
+    for (const cityName of GEORGIAN_CITIES) {
+      const cityLower = cityName.toLowerCase();
+      // Check for partial match (city name appears in address)
+      if (addressLower.includes(cityLower.slice(0, -1))) { // Remove last char for flexible matching
+        return cityName;
+      }
+    }
+
+    // Default to Tbilisi
+    return 'თბილისი';
   };
 
   // Admin AI Chat states
@@ -198,8 +231,12 @@ export default function ControlPanelDashboard() {
         const result = await response.json();
         setAnalyzedData(result.data);
 
-        // Detect if address is in a region
-        const addressIsRegion = detectRegion(result.data.address || '');
+        // Detect city from address or use AI-detected city
+        const detectedCity = result.data.city || detectCityFromAddress(result.data.address || '');
+        setCity(detectedCity);
+
+        // Detect if address is in a region (not Tbilisi)
+        const addressIsRegion = detectedCity !== 'თბილისი';
         setIsRegion(addressIsRegion);
 
         // Set delivery type/company from AI analysis or auto-detect from address
@@ -213,7 +250,7 @@ export default function ControlPanelDashboard() {
 
         // Show region notification if detected
         if (addressIsRegion) {
-          setManualOrderMessage('✅ Analyzed! 📍 Region address detected - shipping will be set to region delivery');
+          setManualOrderMessage(`✅ Analyzed! 📍 Region detected: ${detectedCity} - shipping will be set to region delivery`);
         } else {
           setManualOrderMessage('Conversation analyzed successfully!');
         }
@@ -246,6 +283,7 @@ export default function ControlPanelDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...analyzedData,
+          city,
           deliveryType,
           deliveryCompany,
           isRegion
@@ -286,6 +324,7 @@ export default function ControlPanelDashboard() {
           setDeliveryType('standard');
           setDeliveryCompany('trackings.ge');
           setIsRegion(false);
+          setCity('თბილისი');
         }, 5000);
       } else {
         const error = await response.json();
@@ -1377,6 +1416,7 @@ export default function ControlPanelDashboard() {
                     setDeliveryType('standard');
                     setDeliveryCompany('trackings.ge');
                     setIsRegion(false);
+                    setCity('თბილისი');
                   }}
                   style={{
                     background: '#f0f0f0',
@@ -1582,8 +1622,10 @@ export default function ControlPanelDashboard() {
                         onChange={(e) => {
                           const newAddress = e.target.value;
                           setAnalyzedData({ ...analyzedData, address: newAddress });
-                          // Re-detect region when address changes
-                          setIsRegion(detectRegion(newAddress));
+                          // Re-detect city and region when address changes
+                          const detectedCity = detectCityFromAddress(newAddress);
+                          setCity(detectedCity);
+                          setIsRegion(detectedCity !== 'თბილისი');
                         }}
                         style={{
                           width: '100%',
@@ -1596,6 +1638,51 @@ export default function ControlPanelDashboard() {
                           backgroundColor: isRegion ? '#fffbeb' : '#fff'
                         }}
                       />
+                    </div>
+
+                    {/* City */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        City / ქალაქი
+                        {isRegion && (
+                          <span style={{
+                            backgroundColor: '#f59e0b',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold'
+                          }}>
+                            📍 Region
+                          </span>
+                        )}
+                      </label>
+                      <select
+                        value={city}
+                        onChange={(e) => {
+                          const newCity = e.target.value;
+                          setCity(newCity);
+                          setIsRegion(newCity !== 'თბილისი');
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: isRegion ? '2px solid #f59e0b' : '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          backgroundColor: isRegion ? '#fffbeb' : '#fff',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {GEORGIAN_CITIES.map((cityName) => (
+                          <option key={cityName} value={cityName}>
+                            {cityName}
+                          </option>
+                        ))}
+                      </select>
+                      <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                        {isRegion ? 'Region delivery charges apply' : 'Tbilisi - standard delivery'}
+                      </div>
                     </div>
 
                     {/* Notes */}

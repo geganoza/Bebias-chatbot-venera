@@ -46,11 +46,28 @@ export async function POST(req: Request) {
       .map((p) => `${p.name} - ${p.price} ლარი (მარაგში: ${p.stock_qty})`)
       .join('\n');
 
+    // Georgian cities list for city extraction
+    const GEORGIAN_CITIES = [
+      'თბილისი', 'ბათუმი', 'ქუთაისი', 'რუსთავი', 'გორი', 'ზუგდიდი', 'ფოთი', 'სამტრედია',
+      'ხაშური', 'სენაკი', 'ზესტაფონი', 'მარნეული', 'თელავი', 'ახალციხე', 'ქობულეთი',
+      'ოზურგეთი', 'კასპი', 'ჭიათურა', 'წყალტუბო', 'საგარეჯო', 'გარდაბანი', 'ბორჯომი',
+      'ხონი', 'ბოლნისი', 'ტყიბული', 'ახალქალაქი', 'მცხეთა', 'ყვარელი', 'გურჯაანი',
+      'ქარელი', 'ლანჩხუთი', 'ახმეტა', 'დუშეთი', 'ხელვაჩაური', 'საჩხერე',
+      'დედოფლისწყარო', 'ლაგოდეხი', 'ნინოწმინდა', 'თერჯოლა', 'ხობი', 'მარტვილი',
+      'ვანი', 'ბაღდათი', 'წალენჯიხა', 'ჩხოროწყუ', 'წალკა', 'თეთრიწყარო', 'ასპინძა',
+      'დმანისი', 'ონი', 'თიანეთი', 'ამბროლაური', 'მესტია', 'ხარაგაული', 'ჩოხატაური',
+      'აბაშა', 'ქედა', 'სიღნაღი', 'სტეფანწმინდა', 'წაგერი', 'ლენტეხი', 'ხულო',
+      'შუახევი', 'ადიგენი'
+    ];
+
     // AI prompt to extract order details
     const systemPrompt = `You are an AI assistant that extracts order information from customer conversations in Georgian language.
 
 # Available Products (from catalog):
 ${productContext}
+
+# Available Cities (Georgian city names - use EXACTLY as listed):
+${GEORGIAN_CITIES.join(', ')}
 
 # Your Task:
 Analyze the conversation and extract ALL order details. Return a JSON object with this EXACT structure:
@@ -64,7 +81,8 @@ Analyze the conversation and extract ALL order details. Return a JSON object wit
   ],
   "customerName": "customer's full name",
   "telephone": "phone number",
-  "address": "full delivery address",
+  "address": "street address ONLY (without city name)",
+  "city": "city name from the cities list above",
   "notes": "any additional notes or special requests (NOT delivery method)",
   "deliveryType": "express" or "standard",
   "deliveryCompany": "wolt" or "trackings.ge"
@@ -74,6 +92,15 @@ Analyze the conversation and extract ALL order details. Return a JSON object wit
 - If customer mentions "ვოლტი", "wolt", "ექსპრესი", "express", "იმავე დღეს", "სწრაფი მიწოდება", "დღესვე" → deliveryType: "express", deliveryCompany: "wolt"
 - If customer mentions "სტანდარტული", "trackings", "1-3 დღე", or doesn't specify → deliveryType: "standard", deliveryCompany: "trackings.ge"
 - Default to "standard" and "trackings.ge" if no delivery preference mentioned
+
+# City Extraction Rules:
+1. IMPORTANT: Extract the city name SEPARATELY from the address
+2. The city field should contain ONLY the city name from the cities list above (e.g., "ხაშური", "ბათუმი", "თბილისი")
+3. The address field should contain ONLY the street address WITHOUT the city name (e.g., "კოსტავას 1", "ვაჟა-ფშაველას 15")
+4. If the customer mentions a city like "ხაშური კოსტავას 1":
+   - city: "ხაშური"
+   - address: "კოსტავას 1"
+5. If no city is mentioned, default to "თბილისი"
 
 # Important Rules:
 1. IMPORTANT: Match product names EXACTLY to the catalog above. Use the full product name from the catalog.
@@ -85,7 +112,7 @@ Analyze the conversation and extract ALL order details. Return a JSON object wit
 4. Extract phone number in any format (remove spaces/dashes if needed)
 5. If any field is missing, use empty string "" or empty array []
 6. For quantity, if not specified, assume 1
-7. Address should be complete with street, building, apartment if mentioned
+7. Address should contain ONLY street details (without city name)
 8. Do NOT put delivery method info in "notes" - use deliveryType and deliveryCompany fields instead
 9. Return ONLY valid JSON, no other text`;
 
