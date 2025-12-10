@@ -73,12 +73,17 @@ function extractCity(address: string): string {
 export interface OrderLog extends OrderData {
     orderNumber: string;
     timestamp: string;
-    source: 'messenger' | 'chat';
+    source: 'messenger' | 'chat' | 'chatbot';
     paymentMethod?: 'bank_transfer' | 'cash_on_delivery' | 'confirmed';
     paymentStatus?: 'pending' | 'confirmed' | 'failed';
     firestoreUpdated?: boolean;
     productSku?: string;     // Document ID = product name (for stock updates)
     productId?: string;      // WooCommerce ID (for syncing with WC)
+    // Wolt-specific fields (for Shipping Manager integration)
+    shippingStatus?: 'pending' | 'ready' | 'shipped' | 'delivered';
+    orderStatus?: string;    // WooCommerce status
+    createdAt?: any;         // Firestore timestamp
+    updatedAt?: any;
 }
 
 // Generate order number based on source using Firestore counter
@@ -297,6 +302,38 @@ export async function logOrder(
         }
         if (productId) {
             orderLog.productId = productId;
+        }
+
+        // Handle Wolt orders specially
+        if (orderData.isWoltOrder || orderData.deliveryMethod === 'wolt') {
+            console.log(`🚚 [logOrder] Processing as WOLT ORDER`);
+
+            // Wolt orders are Cash on Delivery
+            orderLog.paymentMethod = 'cash_on_delivery';
+            orderLog.paymentStatus = 'pending';
+            orderLog.deliveryMethod = 'wolt';
+            orderLog.deliveryCompany = 'wolt';
+            orderLog.shippingStatus = 'pending';
+            orderLog.orderStatus = 'processing';
+
+            // Format phone number with +995 prefix
+            let phone = orderData.telephone.replace(/\D/g, '');
+            if (phone.length === 9 && !phone.startsWith('995')) {
+                phone = '+995' + phone;
+            } else if (!phone.startsWith('+')) {
+                phone = '+' + phone;
+            }
+            orderLog.telephone = phone;
+
+            // Include Wolt-specific fields if provided
+            if (orderData.deliveryPrice) {
+                orderLog.deliveryPrice = orderData.deliveryPrice;
+            }
+            if (orderData.woltScheduledTime) {
+                orderLog.woltScheduledTime = orderData.woltScheduledTime;
+            }
+
+            console.log(`🚚 [logOrder] Wolt order details: phone=${orderLog.telephone}, deliveryPrice=${orderLog.deliveryPrice}, scheduledTime=${orderLog.woltScheduledTime}`);
         }
 
         // Save to Firestore orders collection

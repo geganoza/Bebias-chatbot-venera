@@ -14,11 +14,209 @@ import { logOrder } from "@/lib/orderLoggerWithFirestore";
 import { sendOrderEmail } from "@/lib/sendOrderEmail";
 import { db } from "@/lib/firestore";
 
+// ==================== WOLT API INTEGRATION ====================
+const SHIPPING_MANAGER_URL = "https://shipping-manager-standalone.vercel.app";
+
+interface WoltEstimateResponse {
+  available: boolean;
+  price?: number;
+  currency?: string;
+  eta_minutes?: number;
+  provider?: string;
+  formatted_address?: string;
+  error?: string;
+  error_code?: string;
+}
+
+interface WoltValidateResponse {
+  valid: boolean;
+  scheduledTime?: string;
+  displayTime?: string;
+  error?: string;
+  error_code?: string;
+}
+
+/**
+ * Call Wolt estimate API to get delivery price
+ */
+async function getWoltEstimate(address: string, city: string = "თბილისი"): Promise<WoltEstimateResponse> {
+  try {
+    console.log(`🚚 [WOLT] Getting estimate for address: ${address}`);
+    const response = await fetch(`${SHIPPING_MANAGER_URL}/api/wolt/estimate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, city }),
+    });
+
+    const data = await response.json();
+    console.log(`🚚 [WOLT] Estimate response:`, data);
+    return data;
+  } catch (error: any) {
+    console.error(`❌ [WOLT] Estimate error:`, error);
+    return { available: false, error: "API error", error_code: "API_ERROR" };
+  }
+}
+
+/**
+ * Call Wolt validate-schedule API to check delivery time
+ */
+async function validateWoltSchedule(scheduledTime: string): Promise<WoltValidateResponse> {
+  try {
+    console.log(`🕐 [WOLT] Validating schedule: ${scheduledTime}`);
+    const response = await fetch(`${SHIPPING_MANAGER_URL}/api/wolt/validate-schedule`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduledTime }),
+    });
+
+    const data = await response.json();
+    console.log(`🕐 [WOLT] Validate response:`, data);
+    return data;
+  } catch (error: any) {
+    console.error(`❌ [WOLT] Validate error:`, error);
+    return { valid: false, error: "API error", error_code: "API_ERROR" };
+  }
+}
+
+/**
+ * Detect Wolt flow state from conversation history
+ * Returns context to inject into the AI prompt
+ */
+async function detectWoltFlowAndGetContext(
+  history: Array<{ role: string; content: any }>,
+  currentMessage: string
+): Promise<string | null> {
+  // Look for Wolt selection in recent history (last 10 messages)
+  const recentHistory = history.slice(-10);
+
+  // Check if user selected Wolt (option 2) in recent messages
+  let woltSelected = false;
+  let woltAddressProvided = false;
+  let woltAddress = "";
+  let woltPriceShown = false;
+  let woltTimeRequested = false;
+
+  for (const msg of recentHistory) {
+    const content = typeof msg.content === "string" ? msg.content :
+      (Array.isArray(msg.content) ? msg.content.find((c: any) => c.type === "text")?.text || "" : "");
+
+    // Check if bot offered Wolt option
+    if (msg.role === "assistant" && content.includes("Wolt იმავე დღეს")) {
+      woltSelected = false; // Reset - waiting for selection
+    }
+
+    // Check if user selected option 2 (Wolt)
+    if (msg.role === "user" && /^2$|ვოლთ|wolt/i.test(content.trim())) {
+      woltSelected = true;
+    }
+
+    // Check if bot asked for address
+    if (msg.role === "assistant" && woltSelected && content.includes("მისამართი")) {
+      woltAddressProvided = false; // Waiting for address
+    }
+
+    // Check if bot showed price (means address was already provided)
+    if (msg.role === "assistant" && content.includes("მიტანის ფასი:") && content.includes("₾")) {
+      woltPriceShown = true;
+    }
+
+    // Check if bot asked for time
+    if (msg.role === "assistant" && content.includes("როდის გინდა მიიღო")) {
+      woltTimeRequested = true;
+    }
+  }
+
+  // Now analyze current message in context
+  if (!woltSelected) {
+    // Check if current message is selecting Wolt
+    if (/^2$|ვოლთ|wolt/i.test(currentMessage.trim())) {
+      console.log(`🚚 [WOLT FLOW] User selected Wolt delivery`);
+      // No context needed - bot will ask for address
+      return null;
+    }
+    return null;
+  }
+
+  // Wolt is selected - check what step we're at
+
+  // Step 1: User might be providing address
+  if (!woltPriceShown) {
+    // Current message might be the address
+    const possibleAddress = currentMessage.trim();
+
+    // Skip if it looks like a number selection or very short
+    if (possibleAddress.length >= 5 && !/^[0-9]$/.test(possibleAddress)) {
+      console.log(`🚚 [WOLT FLOW] Detected possible address: ${possibleAddress}`);
+
+      // Call Wolt estimate API
+      const estimate = await getWoltEstimate(possibleAddress);
+
+      if (estimate.available && estimate.price) {
+        // Store the estimate in context for the bot
+        return `[WOLT_PRICE: ${estimate.price}]\n[WOLT_ADDRESS: ${estimate.formatted_address || possibleAddress}]`;
+      } else {
+        return `[WOLT_UNAVAILABLE]\n[WOLT_ERROR: ${estimate.error || "მისამართი არ არის ხელმისაწვდომი"}]`;
+      }
+    }
+  }
+
+  // Step 2: User might be providing delivery time
+  if (woltPriceShown && woltTimeRequested) {
+    const possibleTime = currentMessage.trim().toLowerCase();
+
+    // Parse time from Georgian/English
+    let scheduledTime = "now";
+
+    if (possibleTime === "ახლა" || possibleTime === "now" || possibleTime === "ახლავე") {
+      scheduledTime = "now";
+    } else {
+      // Try to parse time like "ხვალ 15:00", "დღეს 16:00", "15:00", etc.
+      const timeMatch = possibleTime.match(/(\d{1,2})[:\s]?(\d{2})?/);
+      if (timeMatch) {
+        const hour = parseInt(timeMatch[1]);
+        const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+
+        // Determine date
+        const now = new Date();
+        const tbilisiOffset = 4 * 60; // GMT+4
+        const localOffset = now.getTimezoneOffset();
+        const tbilisiTime = new Date(now.getTime() + (tbilisiOffset + localOffset) * 60000);
+
+        let targetDate = new Date(tbilisiTime);
+
+        if (possibleTime.includes("ხვალ") || possibleTime.includes("tomorrow")) {
+          targetDate.setDate(targetDate.getDate() + 1);
+        }
+
+        targetDate.setHours(hour, minute, 0, 0);
+
+        // Format as ISO with Tbilisi timezone
+        scheduledTime = targetDate.toISOString().replace("Z", "+04:00");
+      }
+    }
+
+    console.log(`🕐 [WOLT FLOW] Validating time: ${scheduledTime}`);
+
+    const validation = await validateWoltSchedule(scheduledTime);
+
+    if (validation.valid) {
+      return `[WOLT_TIME_VALID: ${validation.displayTime}]\n[WOLT_SCHEDULED: ${validation.scheduledTime}]`;
+    } else {
+      return `[WOLT_TIME_INVALID: ${validation.error || "არასწორი დრო"}]`;
+    }
+  }
+
+  return null;
+}
+
+// ==================== END WOLT INTEGRATION ====================
+
 /**
  * Parse order confirmation from Georgian format
  * Detects order confirmations by looking for:
  * - "შეკვეთა მიღებულია" + order number placeholder
  * - Emoji-prefixed fields: 👤, 📞, 📍, 📦, 💰
+ * - Wolt-specific fields: 🚚 (delivery), ⏰ (time), WOLT_ORDER: true
  */
 function parseGeorgianOrderConfirmation(text: string): {
   product: string;
@@ -28,6 +226,11 @@ function parseGeorgianOrderConfirmation(text: string): {
   address: string;
   total: string;
   needsOrderNumber: boolean;
+  // Wolt-specific fields (match OrderData interface)
+  isWoltOrder?: boolean;
+  deliveryPrice?: number;
+  woltScheduledTime?: string;
+  deliveryMethod?: 'wolt' | 'trackings_ge' | 'standard' | 'pickup';
 } | null {
   console.log(`🔍 [REDIS BATCH] parseGeorgianOrderConfirmation called, text length: ${text.length}`);
   console.log(`🔍 [REDIS BATCH] Text preview: ${text.substring(0, 200)}`);
@@ -53,12 +256,43 @@ function parseGeorgianOrderConfirmation(text: string): {
 
   console.log('✅ [REDIS BATCH] Order confirmation pattern detected');
 
+  // Check if this is a Wolt order
+  const isWoltOrder = text.includes('WOLT_ORDER: true') ||
+                      text.includes('WOLT_ORDER:true') ||
+                      (text.includes('🚚') && text.toLowerCase().includes('wolt'));
+
+  console.log(`🚚 [REDIS BATCH] Is Wolt order: ${isWoltOrder}`);
+
   // Extract fields using emoji prefixes
-  const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?=[\r\n]|📞|📍|📦|💰|🎫|$)/);
-  const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?=[\r\n]|👤|📍|📦|💰|🎫|$)/);
-  const addressMatch = text.match(/📍[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📦|💰|🎫|$)/);
-  const productMatch = text.match(/📦[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|💰|🎫|$)/);
-  const totalMatch = text.match(/💰[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|📦|🎫|$)/);
+  const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?=[\r\n]|📞|📍|📦|💰|🎫|🚚|⏰|$)/);
+  const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?=[\r\n]|👤|📍|📦|💰|🎫|🚚|⏰|$)/);
+  const addressMatch = text.match(/📍[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📦|💰|🎫|🚚|⏰|$)/);
+  const productMatch = text.match(/📦[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|💰|🎫|🚚|⏰|$)/);
+  const totalMatch = text.match(/💰[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|📦|🎫|🚚|⏰|WOLT_ORDER|$)/);
+
+  // Extract Wolt-specific fields
+  let woltDeliveryPrice: number | undefined;
+  let woltScheduledTime: string | undefined;
+
+  if (isWoltOrder) {
+    // Extract Wolt delivery price: "🚚 მიტანა: Wolt - 8.35₾" or "🚚 Wolt მიტანა: 8.35₾"
+    const woltPriceMatch = text.match(/🚚[^:]*:.*?(\d+(?:\.\d+)?)\s*₾/);
+    if (woltPriceMatch) {
+      woltDeliveryPrice = parseFloat(woltPriceMatch[1]);
+      console.log(`🚚 [REDIS BATCH] Wolt delivery price: ${woltDeliveryPrice}`);
+    }
+
+    // Extract scheduled time: "⏰ დრო: ხვალ, 15:00" or similar
+    const timeMatch = text.match(/⏰[^:]*:\s*(.+?)(?=[\r\n]|👤|📞|📍|📦|💰|🎫|🚚|WOLT_ORDER|$)/);
+    if (timeMatch) {
+      woltScheduledTime = timeMatch[1].trim();
+      // If it says "ახლა" or similar, set to "now"
+      if (/ახლა|now/i.test(woltScheduledTime)) {
+        woltScheduledTime = "now";
+      }
+      console.log(`⏰ [REDIS BATCH] Wolt scheduled time: ${woltScheduledTime}`);
+    }
+  }
 
   console.log(`🔍 [REDIS BATCH] Field extraction results:`);
   console.log(`   👤 Name: ${nameMatch ? 'FOUND - ' + nameMatch[1] : 'MISSING'}`);
@@ -76,8 +310,16 @@ function parseGeorgianOrderConfirmation(text: string): {
       address: addressMatch[1].trim(),
       total: totalMatch[1].trim(),
       needsOrderNumber: true,
+      // Wolt fields (field names match OrderData interface)
+      isWoltOrder,
+      deliveryPrice: woltDeliveryPrice,  // Maps to OrderData.deliveryPrice
+      woltScheduledTime,
+      deliveryMethod: isWoltOrder ? 'wolt' as const : undefined,
     };
     console.log('✅ [REDIS BATCH] Parsed Georgian order confirmation successfully');
+    if (isWoltOrder) {
+      console.log(`🚚 [REDIS BATCH] WOLT ORDER - Price: ${woltDeliveryPrice}, Time: ${woltScheduledTime}`);
+    }
     return result;
   }
 
@@ -332,13 +574,33 @@ async function handler(req: Request) {
     console.log(`🔍 [REDIS BATCH] Message count: ${messages.length}`);
     console.log(`📝 [REDIS BATCH] Individual messages:`, messages.map(m => m.text));
 
+    // ═══════════════════════════════════════════════════════
+    // WOLT FLOW DETECTION - Check if we need to call Wolt APIs
+    // and inject context for the bot
+    // ═══════════════════════════════════════════════════════
+    let woltContext: string | null = null;
+    try {
+      woltContext = await detectWoltFlowAndGetContext(conversationData.history, combinedText);
+      if (woltContext) {
+        console.log(`🚚 [WOLT FLOW] Injecting context: ${woltContext}`);
+      }
+    } catch (woltError: any) {
+      console.error(`⚠️ [WOLT FLOW] Error detecting Wolt flow:`, woltError);
+    }
+
+    // Combine operator instruction with Wolt context if available
+    let enhancedOperatorInstruction = conversationData.operatorInstruction || "";
+    if (woltContext) {
+      enhancedOperatorInstruction = `${enhancedOperatorInstruction}\n\n[WOLT SYSTEM CONTEXT - USE THIS INFO IN YOUR RESPONSE]\n${woltContext}`;
+    }
+
     // Process with actual AI logic using the bot-core functions
     let response = await getAIResponse(
       userContent,
       conversationData.history,
       conversationData.orders || [],
       conversationData.storeVisitCount || 0,
-      conversationData.operatorInstruction,
+      enhancedOperatorInstruction,
       senderId  // Pass senderId for dynamic instruction loading
     );
 

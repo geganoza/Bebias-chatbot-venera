@@ -11,6 +11,11 @@ export interface OrderData {
   deliveryType?: 'express' | 'standard';
   deliveryCompany?: string;
   notes?: string;
+  // Wolt delivery fields
+  deliveryMethod?: 'wolt' | 'trackings_ge' | 'standard' | 'pickup';
+  deliveryPrice?: number;
+  woltScheduledTime?: string;  // ISO string or "now"
+  isWoltOrder?: boolean;
 }
 
 export async function sendOrderEmail(orderData: OrderData, orderNumber?: string): Promise<boolean> {

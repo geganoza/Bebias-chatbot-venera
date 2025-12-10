@@ -5,12 +5,13 @@
  *
  * What this endpoint does:
  * - Receives messages for testing bot responses
- * - Uses main/data/content/ instructions (same as production)
+ * - Uses test-bot/data/content/ instructions (SEPARATE from production)
  * - Returns bot responses for testing
  * - NO impact on production bot, users, or data
  *
  * Isolation guarantees:
  * - Different route: /api/test-simulator (NOT /api/messenger)
+ * - Different content folder: test-bot/data/content/ (NOT main/data/content/)
  * - No database writes
  * - No order emails
  * - No production Redis keys
@@ -33,11 +34,11 @@ const openai = new OpenAI({
 });
 
 /**
- * Load test instructions from main folder
- * ✅ Uses same instructions as production bot
+ * Load test instructions from test-bot folder
+ * ✅ 100% ISOLATED from production - uses separate content folder
  */
 async function loadTestInstructions() {
-  const basePath = path.join(process.cwd(), 'main/data/content');
+  const basePath = path.join(process.cwd(), 'test-bot/data/content');
   const mainFile = 'bot-instructions-modular.md';
 
   try {
@@ -230,7 +231,7 @@ export async function POST(request: NextRequest) {
       testMode: true,
       debug: debugMode ? {
         userId,
-        instructionsPath: 'main/data/content/',
+        instructionsPath: 'test-bot/data/content/',
         systemPromptLength: systemPrompt.length,
         modulesLoaded: Object.keys(instructions.modules || {}).length,
         historyLength: conversationHistory?.length || 0,
@@ -258,8 +259,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     status: 'Test Simulator API Active',
     mode: 'test',
-    instructionsPath: 'main/data/content/',
-    isolation: 'Complete - No production impact',
+    instructionsPath: 'test-bot/data/content/',
+    isolation: 'Complete - 100% separate from production (different content folder)',
     timestamp: new Date().toISOString()
   });
 }
