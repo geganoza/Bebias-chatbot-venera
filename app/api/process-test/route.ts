@@ -155,25 +155,53 @@ async function getWoltContext(
   let woltPriceShown = false;
   let woltTimeRequested = false;
 
-  for (const msg of recentHistory) {
-    const content = typeof msg.content === "string" ? msg.content : "";
+  console.log(`[TEST WOLT] Checking ${recentHistory.length} messages for Wolt context`);
 
-    if (msg.role === "user" && /^2$|ვოლთ|wolt/i.test(content.trim())) {
-      woltSelected = true;
+  for (const msg of recentHistory) {
+    // Handle both string and array content formats
+    let content = "";
+    if (typeof msg.content === "string") {
+      content = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      content = msg.content
+        .filter((c: any) => c.type === "text")
+        .map((c: any) => c.text)
+        .join(" ");
     }
-    if (msg.role === "assistant" && content.includes("მიტანის ფასი:")) {
-      woltPriceShown = true;
+
+    // Check for Wolt selection: "2" or contains "ვოლთ" or "wolt"
+    if (msg.role === "user") {
+      const trimmed = content.trim();
+      if (trimmed === "2" || /ვოლთ|wolt/i.test(trimmed)) {
+        woltSelected = true;
+        console.log(`[TEST WOLT] ✅ Wolt selected in history: "${trimmed}"`);
+      }
     }
-    if (msg.role === "assistant" && content.includes("როდის გინდა")) {
-      woltTimeRequested = true;
+
+    if (msg.role === "assistant") {
+      if (content.includes("მიტანის ფასი:") && !content.includes("[X.XX]")) {
+        woltPriceShown = true;
+        console.log(`[TEST WOLT] ✅ Price already shown`);
+      }
+      if (content.includes("როდის გინდა") || content.includes("როდის გსურთ")) {
+        woltTimeRequested = true;
+        console.log(`[TEST WOLT] ✅ Time already requested`);
+      }
     }
   }
 
-  if (!woltSelected) return null;
+  if (!woltSelected) {
+    console.log(`[TEST WOLT] ❌ Wolt not selected in history`);
+    return null;
+  }
 
   // User providing address
+  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, msgLen=${currentMessage.length}, msg="${currentMessage.substring(0, 30)}"`);
+
   if (!woltPriceShown && currentMessage.length >= 5 && !/^[0-9]$/.test(currentMessage)) {
+    console.log(`[TEST WOLT] 📍 Calling Wolt API for address: "${currentMessage}"`);
     const estimate = await getWoltEstimate(currentMessage);
+    console.log(`[TEST WOLT] 📍 API response:`, JSON.stringify(estimate));
     if (estimate.available && estimate.price) {
       return `[WOLT_PRICE: ${estimate.price}]\n[WOLT_ADDRESS: ${estimate.formatted_address || currentMessage}]`;
     } else {
