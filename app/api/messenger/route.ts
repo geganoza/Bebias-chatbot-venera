@@ -431,8 +431,17 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       const batchWindow = Math.floor(Date.now() / 5000) * 5000;
       const conversationId = `batch_${senderId}_${batchWindow}`;
 
+      // Route test users to separate test processing endpoint (100% isolated)
+      const TEST_USER_IDS = ['3282789748459241']; // Giorgi's test account
+      const isTestUser = TEST_USER_IDS.includes(senderId);
+      const processingUrl = isTestUser
+        ? 'https://bebias-venera-chatbot.vercel.app/api/process-test'
+        : 'https://bebias-venera-chatbot.vercel.app/api/process-batch-redis';
+
+      console.log(`🔀 [ROUTING] User ${senderId} → ${isTestUser ? 'TEST' : 'PRODUCTION'} route`);
+
       await qstash.publishJSON({
-        url: 'https://bebias-venera-chatbot.vercel.app/api/process-batch-redis',
+        url: processingUrl,
         body: {
           senderId,
           batchKey: `msgbatch:${senderId}`,
