@@ -388,6 +388,25 @@ async function handler(req: Request) {
     const combinedText = messages.map(m => m.text).filter(Boolean).join(". ");
     console.log(`[TEST] Combined text: "${combinedText}"`);
 
+    // Handle "clear" command - reset conversation history
+    if (combinedText.toLowerCase().trim() === "clear") {
+      console.log(`[TEST] 🧹 Clear command received - resetting history`);
+
+      // Clear Firestore conversation
+      await db.collection("conversations").doc(senderId).set({
+        recipientId: senderId,
+        history: [],
+        orders: [],
+        lastActive: new Date().toISOString(),
+      });
+
+      await sendMessage(senderId, "✅ ისტორია წაიშალა! შეგიძლია თავიდან დაიწყო ტესტირება 🧹");
+      await clearMessageBatch(senderId);
+      await redis.del(lockKey);
+      console.log(`[TEST] 🔓 Lock released after clear`);
+      return NextResponse.json({ status: "cleared" });
+    }
+
     // Load ALL test content (including purchase-flow.md!)
     const systemContent = loadAllTestContent();
 
