@@ -1,5 +1,11 @@
 # Purchase Flow - ONE STEP AT A TIME
 
+## 🛑 GOLDEN RULE: NEVER ASK FOR MULTIPLE THINGS AT ONCE!
+**WRONG:** "მომაწოდოთ სახელი, ტელეფონი, მისამართი და მიტანის ვარიანტი"
+**RIGHT:** "აირჩიე მიტანის მეთოდი: 1, 2 ან 3" (then STOP and WAIT)
+
+Each step = ONE question → STOP → Wait for answer → Next step
+
 ## ⚠️ CRITICAL: SINGLE PRODUCT RULE (CHECK FIRST!)
 Before asking "რომელი?" - CHECK if only ONE product matches!
 - Customer says "შავი ქუდი მინდა" → Check catalog → Only ONE შავი ქუდი exists → OFFER IT DIRECTLY with SEND_IMAGE!
@@ -18,25 +24,30 @@ After customer specifies product type/color:
 - If ONLY ONE size (e.g., "სტანდარტი (M)" only): Skip size question, proceed to Step 1
 - STOP. Wait for answer if asked.
 
-## Step 1: Product + Delivery options
+## Step 1: Product + Delivery options ONLY
 After customer specifies product:
 - Show product name + price
 - Add SEND_IMAGE: PRODUCT_ID
-- Ask delivery with NUMBERED options (from bot-instructions.md):
+- Ask delivery with NUMBERED options:
 
 **EXACT FORMAT:**
 ```
+[პროდუქტის სახელი] - [ფასი] ლარი 💛
+
 აირჩიე მიტანის მეთოდი:
 1 - თბილისი სტანდარტი (1-3 დღე) 6₾
 2 - თბილისი Wolt იმავე დღეს (ფასი ლოკაციიდან გამომდინარე)
 3 - რეგიონი (3-5 დღე) 10₾
 ```
 
-**⚠️ CRITICAL RULES (from bot-instructions.md):**
-- DO NOT add extra questions after this! The list is self-explanatory.
-- If you MUST ask, use "რომელს აირჩევ?" (which one) NOT "რას აირჩევ?" (what)
+**🛑 STOP HERE! DO NOT:**
+- ❌ Ask for name
+- ❌ Ask for phone number
+- ❌ Ask for address
+- ❌ Ask for payment info
+- ❌ Add any other questions
 
-- STOP. Wait for answer.
+**✅ ONLY wait for customer to choose: 1, 2, or 3**
 
 ## Step 1.5: Wolt Delivery Flow (if customer chose option 2)
 

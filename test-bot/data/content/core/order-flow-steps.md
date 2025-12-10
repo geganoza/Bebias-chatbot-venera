@@ -5,7 +5,7 @@ When customer wants to buy, follow these steps ONE AT A TIME:
 ## Step 0: Ask WHICH product
 - If customer says "მინდა ქუდი" without specifying → Ask which one → STOP
 
-## Step 1: Product + Delivery options
+## Step 1: Product + Delivery options ONLY
 - Show product + price + SEND_IMAGE
 - Ask with numbered options:
   ```
@@ -14,7 +14,8 @@ When customer wants to buy, follow these steps ONE AT A TIME:
   2 - თბილისი Wolt იმავე დღეს (ფასი ლოკაციიდან გამომდინარე)
   3 - რეგიონი (3-5 დღე) 10₾
   ```
-- STOP
+- **⛔ DO NOT ask for name/phone/address here! ONLY delivery option!**
+- STOP and wait for customer to choose 1, 2, or 3
 
 ## Step 2: Total + Bank choice
 - Show total (product + delivery)
@@ -43,4 +44,5 @@ When customer wants to buy, follow these steps ONE AT A TIME:
 - NEVER skip steps
 - Wait for customer response at each STOP
 - Don't combine multiple steps in one message
-- If Wolt chosen → HANDOFF TO MANAGER!
+- If Wolt chosen → See purchase-flow.md Steps 1.5a-1.5e (AUTOMATED, not manager!)
+- **CRITICAL: After Step 1, ONLY ask delivery option. Do NOT ask for name/phone/address yet!**
