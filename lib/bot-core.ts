@@ -251,13 +251,14 @@ export async function loadAllContent(senderId?: string) {
   console.log(`📚 Loading instructions from: ${baseDir}/${instructionFile}`);
 
   // Load base files
-  const [instructions, services, faqs, delivery, payment, imageHandling] = await Promise.all([
+  const [instructions, services, faqs, delivery, payment, imageHandling, purchaseFlow] = await Promise.all([
     loadContentFile(instructionFile, baseDir),
     loadContentFile("services.md", baseDir),
     loadContentFile("faqs.md", baseDir),
     loadContentFile("delivery-info.md", baseDir),
     loadContentFile("payment-info.md", baseDir),
     loadContentFile("image-handling.md", baseDir),  // CRITICAL: Instructions for SEND_IMAGE command
+    loadContentFile("purchase-flow.md", baseDir),   // CRITICAL: Step-by-step order flow + Wolt automation
   ]);
 
   // Load additional context files
@@ -268,9 +269,10 @@ export async function loadAllContent(senderId?: string) {
   ]);
 
   console.log(`📚 [${useMain ? 'MAIN' : 'TEST'}] Loaded all content files for user ${senderId} from ${baseDir}`);
+  console.log(`📚 [${useMain ? 'MAIN' : 'TEST'}] purchase-flow.md loaded: ${purchaseFlow ? purchaseFlow.length + ' chars' : 'MISSING!'}`);
 
   return {
-    instructions: `${honestyEscalation}\n\n${instructions}\n\n${contextRetention}\n\n${contextAwareness}`,
+    instructions: `${honestyEscalation}\n\n${instructions}\n\n${purchaseFlow}\n\n${contextRetention}\n\n${contextAwareness}`,
     services,
     faqs,
     delivery,
