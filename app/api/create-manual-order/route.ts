@@ -14,16 +14,26 @@ interface FirestoreProduct {
 // Load products from Firestore to get prices and stock
 async function loadProducts(): Promise<FirestoreProduct[]> {
   try {
+    console.log('📦 Loading products from Firestore...');
     const snapshot = await db.collection('products').get();
-    return snapshot.docs.map(doc => ({
+    console.log(`📦 Got ${snapshot.docs.length} documents from Firestore`);
+
+    const products = snapshot.docs.map(doc => ({
       name: doc.id, // Document ID is the product name
       price: doc.data().price || 0,
       stock_qty: doc.data().stock_qty || 0,
       type: doc.data().type
     }));
-  } catch (err) {
-    console.error('❌ Error loading products from Firestore:', err);
-    return [];
+
+    // Log some sample products for debugging
+    const sample = products.slice(0, 3).map(p => `${p.name}: stock=${p.stock_qty}`);
+    console.log(`📦 Sample products: ${sample.join(', ')}`);
+
+    return products;
+  } catch (err: any) {
+    console.error('❌ Error loading products from Firestore:', err.message);
+    console.error('❌ Full error:', err);
+    throw new Error(`Failed to load products: ${err.message}`);
   }
 }
 
@@ -85,19 +95,21 @@ export async function POST(req: Request) {
         return matchCount >= Math.min(3, inputWords.length);
       });
 
-      // Sort to prefer variations (actual sellable products) over variable parents
+      // Sort to prefer products with stock and price (for accurate stock checking)
       matchingProducts.sort((a, b) => {
-        // Prefer products that are NOT 'variable' (parent products have no stock)
-        if (a.type === 'variable' && b.type !== 'variable') return 1;
-        if (b.type === 'variable' && a.type !== 'variable') return -1;
-        // Prefer products with stock > 0
+        // FIRST: Prefer products with stock > 0
         if (a.stock_qty > 0 && b.stock_qty === 0) return -1;
         if (b.stock_qty > 0 && a.stock_qty === 0) return 1;
-        // Prefer products with price > 0
+        // THEN: Prefer products with price > 0
         if (a.price > 0 && b.price === 0) return -1;
         if (b.price > 0 && a.price === 0) return 1;
+        // FINALLY: Prefer variations over variable parents (for WooCommerce compatibility)
+        if (a.type === 'variation' && b.type !== 'variation') return -1;
+        if (b.type === 'variation' && a.type !== 'variation') return 1;
         return 0;
       });
+
+      console.log(`🔍 Product "${product.name}" matched ${matchingProducts.length} products. Best match: "${matchingProducts[0]?.name}" (stock: ${matchingProducts[0]?.stock_qty}, type: ${matchingProducts[0]?.type})`);
 
       const catalogProduct = matchingProducts[0];
 
