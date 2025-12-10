@@ -149,65 +149,51 @@ async function getWoltContext(
   history: Array<{ role: string; content: any }>,
   currentMessage: string
 ): Promise<string | null> {
-  const recentHistory = history.slice(-10);
+  const recentHistory = history.slice(-6);
 
-  let woltSelected = false;
+  console.log(`[TEST WOLT] Checking ${recentHistory.length} messages, current: "${currentMessage.substring(0, 30)}"`);
+
+  // Get last assistant message
+  let lastAssistantMsg = "";
   let woltPriceShown = false;
   let woltTimeRequested = false;
 
-  console.log(`[TEST WOLT] Checking ${recentHistory.length} messages for Wolt context`);
-  console.log(`[TEST WOLT] Current message: "${currentMessage}"`);
-
-  // Log all history messages for debugging
-  recentHistory.forEach((msg, i) => {
-    const preview = typeof msg.content === "string"
-      ? msg.content.substring(0, 50)
-      : JSON.stringify(msg.content).substring(0, 50);
-    console.log(`[TEST WOLT] History[${i}] ${msg.role}: "${preview}..."`);
-  });
-
-  for (const msg of recentHistory) {
-    // Handle both string and array content formats
-    let content = "";
-    if (typeof msg.content === "string") {
-      content = msg.content;
-    } else if (Array.isArray(msg.content)) {
-      content = msg.content
-        .filter((c: any) => c.type === "text")
-        .map((c: any) => c.text)
-        .join(" ");
-    }
-
-    // Check for Wolt selection: "2" or contains "ვოლთ" or "wolt"
-    if (msg.role === "user") {
-      const trimmed = content.trim();
-      if (trimmed === "2" || /ვოლთ|wolt/i.test(trimmed)) {
-        woltSelected = true;
-        console.log(`[TEST WOLT] ✅ Wolt selected in history: "${trimmed}"`);
-      }
-    }
-
+  for (let i = recentHistory.length - 1; i >= 0; i--) {
+    const msg = recentHistory[i];
     if (msg.role === "assistant") {
-      if (content.includes("მიტანის ფასი:") && !content.includes("[X.XX]")) {
-        woltPriceShown = true;
-        console.log(`[TEST WOLT] ✅ Price already shown`);
-      }
-      if (content.includes("როდის გინდა") || content.includes("როდის გსურთ")) {
-        woltTimeRequested = true;
-        console.log(`[TEST WOLT] ✅ Time already requested`);
-      }
+      lastAssistantMsg = typeof msg.content === "string" ? msg.content : "";
+      break;
     }
   }
 
-  if (!woltSelected) {
-    console.log(`[TEST WOLT] ❌ Wolt not selected in history`);
-    return null;
+  console.log(`[TEST WOLT] Last bot message: "${lastAssistantMsg.substring(0, 60)}..."`);
+
+  // Check if bot asked for address (Wolt flow active)
+  const botAskedForAddress = lastAssistantMsg.includes("მისამართი") ||
+                              lastAssistantMsg.includes("Wolt") ||
+                              lastAssistantMsg.includes("wolt");
+
+  // Check if price already shown
+  if (lastAssistantMsg.includes("მიტანის ფასი:") && /\d+\.?\d*₾/.test(lastAssistantMsg)) {
+    woltPriceShown = true;
+    console.log(`[TEST WOLT] ✅ Price already shown`);
   }
 
-  // User providing address
-  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, msgLen=${currentMessage.length}, msg="${currentMessage.substring(0, 30)}"`);
+  // Check if time was requested
+  if (lastAssistantMsg.includes("როდის გინდა") || lastAssistantMsg.includes("როდის გსურთ")) {
+    woltTimeRequested = true;
+    console.log(`[TEST WOLT] ✅ Time already requested`);
+  }
 
-  if (!woltPriceShown && currentMessage.length >= 5 && !/^[0-9]$/.test(currentMessage)) {
+  // If bot asked for address and message looks like address (5+ chars, not a number)
+  const looksLikeAddress = currentMessage.length >= 3 &&
+                           !/^\d+$/.test(currentMessage.trim()) &&
+                           !currentMessage.toLowerCase().includes("clear");
+
+  console.log(`[TEST WOLT] botAskedForAddress=${botAskedForAddress}, looksLikeAddress=${looksLikeAddress}, priceShown=${woltPriceShown}`);
+
+  // CASE 1: Bot asked for address, user provided address, price not yet shown → Call API
+  if (botAskedForAddress && looksLikeAddress && !woltPriceShown) {
     console.log(`[TEST WOLT] 📍 Calling Wolt API for address: "${currentMessage}"`);
     const estimate = await getWoltEstimate(currentMessage);
     console.log(`[TEST WOLT] 📍 API response:`, JSON.stringify(estimate));
