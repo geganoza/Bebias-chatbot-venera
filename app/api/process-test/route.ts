@@ -367,6 +367,10 @@ async function handler(req: Request) {
 
     // Check manual mode
     const conversationData = await loadConversation(senderId);
+    console.log(`[TEST] 📜 Loaded history: ${conversationData.history?.length || 0} messages`);
+    if (conversationData.history?.length > 0) {
+      console.log(`[TEST] 📜 Last message role: ${conversationData.history[conversationData.history.length - 1]?.role}`);
+    }
     if (conversationData.manualMode) {
       console.log(`[TEST] Manual mode active - skipping`);
       await clearMessageBatch(senderId);
