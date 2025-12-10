@@ -156,6 +156,15 @@ async function getWoltContext(
   let woltTimeRequested = false;
 
   console.log(`[TEST WOLT] Checking ${recentHistory.length} messages for Wolt context`);
+  console.log(`[TEST WOLT] Current message: "${currentMessage}"`);
+
+  // Log all history messages for debugging
+  recentHistory.forEach((msg, i) => {
+    const preview = typeof msg.content === "string"
+      ? msg.content.substring(0, 50)
+      : JSON.stringify(msg.content).substring(0, 50);
+    console.log(`[TEST WOLT] History[${i}] ${msg.role}: "${preview}..."`);
+  });
 
   for (const msg of recentHistory) {
     // Handle both string and array content formats
