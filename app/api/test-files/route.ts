@@ -13,7 +13,12 @@ export async function GET() {
       "main/data/content/faqs.md",
       "main/data/content/delivery-info.md",
       "main/data/content/payment-info.md",
-      "main/data/content/tone-style.md"
+      "main/data/content/tone-style.md",
+      // Test-bot files
+      "test-bot/data/content/bot-instructions-modular.md",
+      "test-bot/data/content/purchase-flow.md",
+      "test-bot/data/content/services.md",
+      "test-bot/data/content/delivery-info.md"
     ];
 
     for (const file of filesToTest) {
