@@ -67,8 +67,8 @@ export async function POST(req: Request) {
       const quantity = product.quantity || 1;
       const inputName = product.name.toLowerCase().trim();
 
-      // Find product in catalog - flexible matching for Georgian names
-      const catalogProduct = productCatalog.find(p => {
+      // Find ALL matching products in catalog - flexible matching for Georgian names
+      const matchingProducts = productCatalog.filter(p => {
         const catalogName = p.name.toLowerCase().trim();
         // Exact match
         if (catalogName === inputName) return true;
@@ -84,6 +84,22 @@ export async function POST(req: Request) {
         ).length;
         return matchCount >= Math.min(3, inputWords.length);
       });
+
+      // Sort to prefer variations (actual sellable products) over variable parents
+      matchingProducts.sort((a, b) => {
+        // Prefer products that are NOT 'variable' (parent products have no stock)
+        if (a.type === 'variable' && b.type !== 'variable') return 1;
+        if (b.type === 'variable' && a.type !== 'variable') return -1;
+        // Prefer products with stock > 0
+        if (a.stock_qty > 0 && b.stock_qty === 0) return -1;
+        if (b.stock_qty > 0 && a.stock_qty === 0) return 1;
+        // Prefer products with price > 0
+        if (a.price > 0 && b.price === 0) return -1;
+        if (b.price > 0 && a.price === 0) return 1;
+        return 0;
+      });
+
+      const catalogProduct = matchingProducts[0];
 
       if (catalogProduct) {
         const price = catalogProduct.price || 0;
