@@ -426,9 +426,9 @@ async function saveMessageAndQueue(event: any): Promise<void> {
       const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
 
       // Use timestamp-based deduplication ID to allow separate batches
-      // while still preventing duplicate processing of the same message burst
-      // Round to nearest 15 seconds to group rapid messages together (was 5s, caused duplicates)
-      const batchWindow = Math.floor(Date.now() / 15000) * 15000;
+      // 3-second window: prevents duplicate webhook calls for same message
+      // Redis lock in process-test prevents duplicate responses even if QStash calls twice
+      const batchWindow = Math.floor(Date.now() / 3000) * 3000;
       const conversationId = `batch_${senderId}_${batchWindow}`;
 
       // Route test users to separate test processing endpoint (100% isolated)
