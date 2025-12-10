@@ -427,8 +427,8 @@ async function saveMessageAndQueue(event: any): Promise<void> {
 
       // Use timestamp-based deduplication ID to allow separate batches
       // while still preventing duplicate processing of the same message burst
-      // Round to nearest 5 seconds to group rapid messages together
-      const batchWindow = Math.floor(Date.now() / 5000) * 5000;
+      // Round to nearest 15 seconds to group rapid messages together (was 5s, caused duplicates)
+      const batchWindow = Math.floor(Date.now() / 15000) * 15000;
       const conversationId = `batch_${senderId}_${batchWindow}`;
 
       // Route test users to separate test processing endpoint (100% isolated)

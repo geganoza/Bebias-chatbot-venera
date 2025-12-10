@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { getMessageBatch, clearMessageBatch } from "@/lib/redis";
+import redis from "@/lib/redis";
 import { db } from "@/lib/firestore";
 import OpenAI from "openai";
 import * as fs from "fs";
@@ -309,18 +310,38 @@ async function handler(req: Request) {
   console.log(`[TEST] Processing message for TEST USER: ${senderId}`);
   console.log(`[TEST] ========================================`);
 
+  // Generate unique processing ID for logging
+  const processingId = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  const lockKey = `test_batch_processing_${senderId}`;
+
   try {
+    // CRITICAL: Acquire a processing lock to prevent duplicate responses
+    const lockAcquired = await redis.set(lockKey, processingId, {
+      nx: true,  // Only set if not exists
+      ex: 30,    // 30 second expiry
+    });
+
+    if (!lockAcquired) {
+      console.log(`[TEST] ⏭️ Lock exists - another processor handling this batch`);
+      return NextResponse.json({ status: "already_processing" });
+    }
+
+    console.log(`[TEST] 🔐 Lock acquired - Processing ID: ${processingId}`);
+
     // Check manual mode
     const conversationData = await loadConversation(senderId);
     if (conversationData.manualMode) {
       console.log(`[TEST] Manual mode active - skipping`);
       await clearMessageBatch(senderId);
+      await redis.del(lockKey);
       return NextResponse.json({ status: "manual_mode" });
     }
 
     // Get messages from Redis
     const messages = await getMessageBatch(senderId);
     if (messages.length === 0) {
+      await redis.del(lockKey);
+      console.log(`[TEST] 🔓 Lock released (no messages)`);
       return NextResponse.json({ status: "no_messages" });
     }
 
@@ -438,6 +459,10 @@ CURRENT TIME: ${new Date().toISOString()}
     await saveConversation(conversationData);
     await clearMessageBatch(senderId);
 
+    // Release the lock
+    await redis.del(lockKey);
+    console.log(`[TEST] 🔓 Lock released for ${senderId}`);
+
     console.log(`[TEST] ✅ Done processing for ${senderId}`);
 
     return NextResponse.json({ status: "processed", messageCount: messages.length });
@@ -445,6 +470,15 @@ CURRENT TIME: ${new Date().toISOString()}
   } catch (error: any) {
     console.error(`[TEST] ❌ Error:`, error);
     await clearMessageBatch(senderId);
+
+    // Release lock on error
+    try {
+      await redis.del(lockKey);
+      console.log(`[TEST] 🔓 Lock released after error for ${senderId}`);
+    } catch (lockErr) {
+      console.error(`[TEST] Failed to release lock:`, lockErr);
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
