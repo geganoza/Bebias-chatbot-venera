@@ -235,10 +235,14 @@ function parseGeorgianOrderConfirmation(text: string): {
   console.log(`🔍 [REDIS BATCH] parseGeorgianOrderConfirmation called, text length: ${text.length}`);
   console.log(`🔍 [REDIS BATCH] Text preview: ${text.substring(0, 200)}`);
 
-  // Check for order confirmation indicator
-  const hasOrderConfirmation = text.includes('შეკვეთა მიღებულია');
+  // Check for order confirmation indicator (multiple possible phrases)
+  const hasOrderConfirmation =
+    text.includes('შეკვეთა მიღებულია') ||
+    text.includes('შეკვეთა დადასტურებულია') ||
+    text.includes('შეკვეთა მიღებული') ||
+    text.includes('შეკვეთა დადასტურებული');
   if (!hasOrderConfirmation) {
-    console.log('❌ [REDIS BATCH] No "შეკვეთა მიღებულია" found');
+    console.log('❌ [REDIS BATCH] No order confirmation phrase found');
     return null;
   }
 
