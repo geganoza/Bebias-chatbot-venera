@@ -128,8 +128,12 @@ export async function POST(req: Request) {
       total: `${totalAmount} ლარი`,
       deliveryType: deliveryType || 'standard',
       deliveryCompany: deliveryCompany || (deliveryType === 'express' ? 'wolt' : 'trackings.ge'),
-      notes: notes || undefined
     };
+
+    // Only add notes if provided (Firestore doesn't accept undefined)
+    if (notes) {
+      orderData.notes = notes;
+    }
 
     try {
       // Create ONE order for all products combined
