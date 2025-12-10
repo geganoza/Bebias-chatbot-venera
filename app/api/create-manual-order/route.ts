@@ -25,9 +25,10 @@ async function loadProducts(): Promise<FirestoreProduct[]> {
       type: doc.data().type
     }));
 
-    // Log some sample products for debugging
-    const sample = products.slice(0, 3).map(p => `${p.name}: stock=${p.stock_qty}`);
-    console.log(`📦 Sample products: ${sample.join(', ')}`);
+    // Log black beanie products specifically for debugging
+    const blackBeanies = products.filter(p => p.name.includes('შავ') && p.name.includes('ქუდ'));
+    console.log(`📦 Black beanie products found: ${blackBeanies.length}`);
+    blackBeanies.forEach(p => console.log(`   - "${p.name}": stock=${p.stock_qty}, price=${p.price}, type=${p.type}`));
 
     return products;
   } catch (err: any) {
