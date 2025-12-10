@@ -260,21 +260,32 @@ interface ConversationData {
 
 async function loadConversation(senderId: string): Promise<ConversationData> {
   try {
+    console.log(`[TEST] 📥 LOADING conversation for ${senderId}`);
     const doc = await db.collection("conversations").doc(senderId).get();
     if (doc.exists) {
-      return doc.data() as ConversationData;
+      const data = doc.data() as ConversationData;
+      console.log(`[TEST] 📥 LOADED! History length: ${data.history?.length || 0}`);
+      if (data.history?.length > 0) {
+        const lastMsg = data.history[data.history.length - 1];
+        console.log(`[TEST] 📥 Last message role: ${lastMsg?.role}, preview: "${String(lastMsg?.content || '').substring(0, 40)}..."`);
+      }
+      return data;
+    } else {
+      console.log(`[TEST] 📥 No document found for ${senderId} - new conversation`);
     }
   } catch (error) {
-    console.error("[TEST] Error loading conversation:", error);
+    console.error("[TEST] ❌ Error loading conversation:", error);
   }
   return { recipientId: senderId, history: [] };
 }
 
 async function saveConversation(data: ConversationData): Promise<void> {
   try {
+    console.log(`[TEST] 💾 SAVING conversation for ${data.recipientId}, history length: ${data.history?.length || 0}`);
     await db.collection("conversations").doc(data.recipientId).set(data, { merge: true });
+    console.log(`[TEST] 💾 SAVED successfully!`);
   } catch (error) {
-    console.error("[TEST] Error saving conversation:", error);
+    console.error("[TEST] ❌ Error saving conversation:", error);
   }
 }
 
