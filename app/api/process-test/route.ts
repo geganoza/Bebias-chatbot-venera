@@ -527,7 +527,19 @@ CURRENT TIME: ${new Date().toISOString()}
     }
     conversationData.lastActive = new Date().toISOString();
 
+    // CRITICAL: Ensure recipientId matches senderId
+    conversationData.recipientId = senderId;
+    console.log(`[TEST] 📊 Before save: recipientId=${conversationData.recipientId}, history length=${conversationData.history.length}`);
+
     await saveConversation(conversationData);
+
+    // VERIFY: Read back immediately to confirm save worked
+    const verifyDoc = await db.collection("conversations").doc(senderId).get();
+    const verifyData = verifyDoc.exists ? verifyDoc.data() : null;
+    console.log(`[TEST] ✔️ VERIFY after save: history length=${verifyData?.history?.length || 'NOT FOUND'}`);
+    if (!verifyData || (verifyData.history?.length || 0) === 0) {
+      console.error(`[TEST] ❌ CRITICAL: Save verification FAILED! History not persisted!`);
+    }
     await clearMessageBatch(senderId);
 
     // Release the lock
