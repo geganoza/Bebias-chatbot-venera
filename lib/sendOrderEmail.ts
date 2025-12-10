@@ -7,6 +7,9 @@ export interface OrderData {
   telephone: string;
   address: string;
   total: string;
+  deliveryType?: 'express' | 'standard';
+  deliveryCompany?: string;
+  notes?: string;
 }
 
 export async function sendOrderEmail(orderData: OrderData, orderNumber?: string): Promise<boolean> {
@@ -61,6 +64,24 @@ export async function sendOrderEmail(orderData: OrderData, orderNumber?: string)
                 <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">ჯამი:</td>
                 <td style="padding: 8px 0; font-size: 18px; color: #2b6cb0; font-weight: bold;">${orderData.total}</td>
               </tr>
+              ${orderData.deliveryType ? `
+              <tr>
+                <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">მიწოდების ტიპი:</td>
+                <td style="padding: 8px 0;">${orderData.deliveryType === 'express' ? 'ექსპრეს' : 'სტანდარტული'}</td>
+              </tr>
+              ` : ''}
+              ${orderData.deliveryCompany ? `
+              <tr>
+                <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">მიწოდების კომპანია:</td>
+                <td style="padding: 8px 0;">${orderData.deliveryCompany}</td>
+              </tr>
+              ` : ''}
+              ${orderData.notes ? `
+              <tr>
+                <td style="padding: 8px 0; color: #4a5568; font-weight: bold;">შენიშვნა:</td>
+                <td style="padding: 8px 0; color: #e53e3e;">${orderData.notes}</td>
+              </tr>
+              ` : ''}
             </table>
           </div>
           <p style="color: #718096; font-size: 14px;">
@@ -77,6 +98,9 @@ ${orderNumber ? `\nშეკვეთის ნომერი: #${orderNumber}`
 ტელეფონი: ${orderData.telephone}
 მისამართი: ${orderData.address}
 ჯამი: ${orderData.total}
+${orderData.deliveryType ? `მიწოდების ტიპი: ${orderData.deliveryType === 'express' ? 'ექსპრეს' : 'სტანდარტული'}` : ''}
+${orderData.deliveryCompany ? `მიწოდების კომპანია: ${orderData.deliveryCompany}` : ''}
+${orderData.notes ? `შენიშვნა: ${orderData.notes}` : ''}
 
 ეს შეკვეთა გაგზავნილია VENERA ჩატბოტიდან.
       `,

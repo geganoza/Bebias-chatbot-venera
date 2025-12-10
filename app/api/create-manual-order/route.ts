@@ -1,17 +1,28 @@
 import { NextResponse } from 'next/server';
 import { logOrder } from '@/lib/orderLoggerWithFirestore';
 import { OrderData, sendOrderEmail } from '@/lib/sendOrderEmail';
-import fs from 'fs/promises';
-import path from 'path';
+import { db } from '@/lib/firestore';
+import { updateProductStock } from '@/lib/firestoreSync';
 
-// Load products from JSON file to get prices
-async function loadProducts(): Promise<any[]> {
+interface FirestoreProduct {
+  name: string;
+  price: number;
+  stock_qty: number;
+  type?: string;
+}
+
+// Load products from Firestore to get prices and stock
+async function loadProducts(): Promise<FirestoreProduct[]> {
   try {
-    const file = path.join(process.cwd(), 'data', 'products.json');
-    const txt = await fs.readFile(file, 'utf8');
-    return JSON.parse(txt);
+    const snapshot = await db.collection('products').get();
+    return snapshot.docs.map(doc => ({
+      name: doc.id, // Document ID is the product name
+      price: doc.data().price || 0,
+      stock_qty: doc.data().stock_qty || 0,
+      type: doc.data().type
+    }));
   } catch (err) {
-    console.error('❌ Error loading products:', err);
+    console.error('❌ Error loading products from Firestore:', err);
     return [];
   }
 }
@@ -19,7 +30,7 @@ async function loadProducts(): Promise<any[]> {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { products, customerName, telephone, address, notes } = body;
+    const { products, customerName, telephone, address, notes, deliveryType, deliveryCompany } = body;
 
     // Validate required fields
     if (!products || products.length === 0) {
@@ -40,43 +51,71 @@ export async function POST(req: Request) {
     console.log('Products:', products);
     console.log('Customer:', customerName);
 
-    // Load product catalog to get prices
+    // Load product catalog from Firestore to get prices and stock
     const productCatalog = await loadProducts();
+    console.log(`📦 Loaded ${productCatalog.length} products from Firestore`);
 
     // Build combined order data
     let totalAmount = 0;
-    const productDescriptions: string[] = [];
-    const productQuantities: number[] = [];
+    const productNames: string[] = [];
+    let totalQuantity = 0;
+    const stockWarnings: string[] = [];
+    const matchedProducts: { docId: string; quantity: number }[] = []; // Track for stock updates
 
-    // Calculate total and build product description
+    // Calculate total and check stock for each product
     for (const product of products) {
       const quantity = product.quantity || 1;
+      const inputName = product.name.toLowerCase().trim();
 
-      // Find product in catalog to get price
-      const catalogProduct = productCatalog.find(p =>
-        p.name.toLowerCase().includes(product.name.toLowerCase()) ||
-        product.name.toLowerCase().includes(p.name.toLowerCase())
-      );
+      // Find product in catalog - flexible matching for Georgian names
+      const catalogProduct = productCatalog.find(p => {
+        const catalogName = p.name.toLowerCase().trim();
+        // Exact match
+        if (catalogName === inputName) return true;
+        // Catalog name contains input
+        if (catalogName.includes(inputName)) return true;
+        // Input contains catalog name (for partial matches)
+        if (inputName.includes(catalogName) && catalogName.length > 10) return true;
+        // Word-based matching
+        const inputWords = inputName.split(/\s+/).filter(w => w.length > 2);
+        const catalogWords = catalogName.split(/\s+/);
+        const matchCount = inputWords.filter(iw =>
+          catalogWords.some(cw => cw.includes(iw) || iw.includes(cw))
+        ).length;
+        return matchCount >= Math.min(3, inputWords.length);
+      });
 
       if (catalogProduct) {
-        const price = parseFloat(catalogProduct.price) || 0;
+        const price = catalogProduct.price || 0;
         totalAmount += price * quantity;
         console.log(`💰 ${product.name}: ${price} x ${quantity} = ${price * quantity} ლარი`);
+
+        // Track matched product for stock update
+        matchedProducts.push({ docId: catalogProduct.name, quantity });
+
+        // Check stock
+        if (catalogProduct.stock_qty < quantity) {
+          stockWarnings.push(`${product.name}: მარაგშია ${catalogProduct.stock_qty}, მოთხოვნილია ${quantity}`);
+          console.warn(`⚠️ Low stock for ${product.name}: have ${catalogProduct.stock_qty}, need ${quantity}`);
+        }
       } else {
         console.warn(`⚠️ Product not found in catalog: ${product.name}`);
+        // Still add to order but with 0 price - admin can manually adjust
       }
 
-      // Add to product description (like bot does: "product x quantity")
-      productDescriptions.push(`${product.name} x ${quantity}`);
-      productQuantities.push(quantity);
+      // Add product name (quantity will be shown separately in total)
+      productNames.push(product.name);
+      totalQuantity += quantity;
     }
 
-    // Create combined product string (like bot does for multiple items)
-    const combinedProducts = productDescriptions.join(' + ');
-    const totalQuantity = productQuantities.reduce((sum, q) => sum + q, 0);
+    // Create product string - just names joined, total quantity separate
+    const combinedProducts = products.length === 1
+      ? productNames[0]
+      : productNames.join(' + ');
 
     console.log(`📦 Creating single order for: ${combinedProducts}`);
     console.log(`💰 Total amount: ${totalAmount} ლარი`);
+    console.log(`🚚 Delivery: ${deliveryType || 'standard'} via ${deliveryCompany || 'trackings.ge'}`);
 
     const orderData: OrderData = {
       product: combinedProducts,
@@ -84,13 +123,32 @@ export async function POST(req: Request) {
       clientName: customerName,
       telephone: telephone,
       address: address,
-      total: `${totalAmount} ლარი`
+      total: `${totalAmount} ლარი`,
+      deliveryType: deliveryType || 'standard',
+      deliveryCompany: deliveryCompany || (deliveryType === 'express' ? 'wolt' : 'trackings.ge'),
+      notes: notes || undefined
     };
 
     try {
       // Create ONE order for all products combined
-      const orderNumber = await logOrder(orderData, 'chat');
+      // Pass skipStockUpdate option since we'll handle stock manually for each product
+      const orderNumber = await logOrder(orderData, 'chat', { skipStockUpdate: true });
       console.log(`✅ Order created: ${orderNumber}`);
+
+      // Update stock for each matched product
+      console.log(`📦 Updating stock for ${matchedProducts.length} products...`);
+      for (const { docId, quantity } of matchedProducts) {
+        try {
+          const updated = await updateProductStock(docId, quantity, orderNumber);
+          if (updated) {
+            console.log(`✅ Stock updated for ${docId}: -${quantity}`);
+          } else {
+            console.warn(`⚠️ Failed to update stock for ${docId}`);
+          }
+        } catch (stockError: any) {
+          console.error(`❌ Error updating stock for ${docId}:`, stockError.message);
+        }
+      }
 
       // Send email notification
       try {
@@ -105,10 +163,11 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         orderNumber,
-        products: productDescriptions,
+        products: productNames,
         totalQuantity,
         totalAmount: `${totalAmount} ლარი`,
-        notes: notes || null
+        notes: notes || null,
+        stockWarnings: stockWarnings.length > 0 ? stockWarnings : undefined
       });
 
     } catch (error: any) {

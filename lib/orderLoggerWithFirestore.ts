@@ -221,6 +221,7 @@ export async function logOrder(
         productSku?: string;
         productId?: string;
         quantity?: number;
+        skipStockUpdate?: boolean; // For manual orders where stock is handled separately
     }
 ): Promise<string> {
     console.log(`🔵 [logOrder] STARTED for source: ${source}, product: ${orderData.product}`);
@@ -257,8 +258,8 @@ export async function logOrder(
         let firestoreUpdated = false;
         let paymentStatus: 'pending' | 'confirmed' | 'failed' = 'pending';
 
-        // Handle stock update based on payment method
-        if (productSku) {
+        // Handle stock update based on payment method (skip if handled externally)
+        if (productSku && !options?.skipStockUpdate) {
             console.log(`🔵 [logOrder] Step 3: Handling stock (method: ${paymentMethod})...`);
             if (paymentMethod === 'bank_transfer') {
                 // Reserve stock for bank transfer (will be confirmed later)

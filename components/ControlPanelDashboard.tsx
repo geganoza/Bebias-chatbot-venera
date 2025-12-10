@@ -69,6 +69,29 @@ export default function ControlPanelDashboard() {
   const [manualOrderMessage, setManualOrderMessage] = useState('');
   const [createdOrders, setCreatedOrders] = useState<any[]>([]);
 
+  // Delivery options
+  const [deliveryType, setDeliveryType] = useState<'express' | 'standard'>('standard');
+  const [deliveryCompany, setDeliveryCompany] = useState<string>('trackings.ge');
+  const [isRegion, setIsRegion] = useState<boolean>(false);
+
+  // Region cities for auto-detection
+  const REGION_CITIES = [
+    'ბათუმ', 'ქუთაის', 'რუსთავ', 'გორ', 'ზუგდიდ', 'ფოთ', 'ხაშურ', 'სამტრედ',
+    'სენაკ', 'ზესტაფონ', 'მარნეულ', 'თელავ', 'ახალციხ', 'ქობულეთ', 'ოზურგეთ',
+    'კასპ', 'ჭიათურ', 'წყალტუბ', 'საგარეჯ', 'გარდაბან', 'ბორჯომ', 'მცხეთ',
+    'ყვარელ', 'გურჯაან', 'ლაგოდეხ', 'სიღნაღ', 'ახმეტ', 'დუშეთ', 'სტეფანწმინდ', 'ყაზბეგ'
+  ];
+
+  // Check if address is in a region (not Tbilisi)
+  const detectRegion = (address: string): boolean => {
+    if (!address) return false;
+    const addressLower = address.toLowerCase();
+    // If Tbilisi is mentioned, it's not region
+    if (addressLower.includes('თბილის')) return false;
+    // Check for region cities
+    return REGION_CITIES.some(city => addressLower.includes(city.toLowerCase()));
+  };
+
   // Admin AI Chat states
   const [showAdminChat, setShowAdminChat] = useState(false);
   const [adminChatInput, setAdminChatInput] = useState('');
@@ -174,8 +197,27 @@ export default function ControlPanelDashboard() {
       if (response.ok) {
         const result = await response.json();
         setAnalyzedData(result.data);
-        setManualOrderMessage('Conversation analyzed successfully!');
-        setTimeout(() => setManualOrderMessage(''), 3000);
+
+        // Detect if address is in a region
+        const addressIsRegion = detectRegion(result.data.address || '');
+        setIsRegion(addressIsRegion);
+
+        // Set delivery type/company from AI analysis or auto-detect from address
+        if (result.data.deliveryType === 'express') {
+          setDeliveryType('express');
+          setDeliveryCompany(result.data.deliveryCompany || 'wolt');
+        } else {
+          setDeliveryType('standard');
+          setDeliveryCompany(result.data.deliveryCompany || 'trackings.ge');
+        }
+
+        // Show region notification if detected
+        if (addressIsRegion) {
+          setManualOrderMessage('✅ Analyzed! 📍 Region address detected - shipping will be set to region delivery');
+        } else {
+          setManualOrderMessage('Conversation analyzed successfully!');
+        }
+        setTimeout(() => setManualOrderMessage(''), 4000);
       } else {
         const error = await response.json();
         setManualOrderMessage('Failed to analyze: ' + (error.error || 'Unknown error'));
@@ -202,7 +244,12 @@ export default function ControlPanelDashboard() {
       const response = await fetch('/api/create-manual-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(analyzedData)
+        body: JSON.stringify({
+          ...analyzedData,
+          deliveryType,
+          deliveryCompany,
+          isRegion
+        })
       });
 
       if (response.ok) {
@@ -214,9 +261,16 @@ export default function ControlPanelDashboard() {
             orderNumber: result.orderNumber,
             product: result.products.join(' + '),
             quantity: result.totalQuantity,
+            total: result.totalAmount,
             status: 'success'
           }]);
-          setManualOrderMessage(`✅ Order ${result.orderNumber} created successfully!`);
+
+          // Show success message with stock warnings if any
+          let message = `✅ Order ${result.orderNumber} created! Total: ${result.totalAmount}`;
+          if (result.stockWarnings && result.stockWarnings.length > 0) {
+            message += `\n⚠️ Stock warnings:\n${result.stockWarnings.join('\n')}`;
+          }
+          setManualOrderMessage(message);
         } else {
           // Legacy format fallback (if needed)
           setCreatedOrders(result.orders || []);
@@ -229,6 +283,9 @@ export default function ControlPanelDashboard() {
           setAnalyzedData(null);
           setCreatedOrders([]);
           setManualOrderMessage('');
+          setDeliveryType('standard');
+          setDeliveryCompany('trackings.ge');
+          setIsRegion(false);
         }, 5000);
       } else {
         const error = await response.json();
@@ -1317,6 +1374,9 @@ export default function ControlPanelDashboard() {
                     setAnalyzedData(null);
                     setCreatedOrders([]);
                     setManualOrderMessage('');
+                    setDeliveryType('standard');
+                    setDeliveryCompany('trackings.ge');
+                    setIsRegion(false);
                   }}
                   style={{
                     background: '#f0f0f0',
@@ -1336,10 +1396,19 @@ export default function ControlPanelDashboard() {
                 <div style={{
                   padding: '12px',
                   borderRadius: '6px',
-                  backgroundColor: manualOrderMessage.includes('Error') || manualOrderMessage.includes('Failed') ? '#fee' : '#efe',
-                  color: manualOrderMessage.includes('Error') || manualOrderMessage.includes('Failed') ? '#c00' : '#080',
+                  backgroundColor: manualOrderMessage.includes('Error') || manualOrderMessage.includes('Failed')
+                    ? '#fee'
+                    : manualOrderMessage.includes('⚠️')
+                      ? '#fffbeb'
+                      : '#efe',
+                  color: manualOrderMessage.includes('Error') || manualOrderMessage.includes('Failed')
+                    ? '#c00'
+                    : manualOrderMessage.includes('⚠️')
+                      ? '#92400e'
+                      : '#080',
                   marginBottom: '16px',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  whiteSpace: 'pre-wrap'
                 }}>
                   {manualOrderMessage}
                 </div>
@@ -1405,9 +1474,10 @@ export default function ControlPanelDashboard() {
                             borderRadius: '6px',
                             marginBottom: '8px',
                             display: 'flex',
-                            justifyContent: 'space-between'
+                            alignItems: 'center',
+                            gap: '12px'
                           }}>
-                            <div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
                               <input
                                 type="text"
                                 value={product.name}
@@ -1418,14 +1488,15 @@ export default function ControlPanelDashboard() {
                                 }}
                                 style={{
                                   width: '100%',
-                                  padding: '4px 8px',
+                                  padding: '8px 12px',
                                   border: '1px solid #ddd',
                                   borderRadius: '4px',
-                                  fontSize: '14px'
+                                  fontSize: '14px',
+                                  boxSizing: 'border-box'
                                 }}
                               />
                             </div>
-                            <div style={{ marginLeft: '12px' }}>
+                            <div style={{ flexShrink: 0 }}>
                               <input
                                 type="number"
                                 value={product.quantity}
@@ -1436,10 +1507,11 @@ export default function ControlPanelDashboard() {
                                 }}
                                 style={{
                                   width: '60px',
-                                  padding: '4px 8px',
+                                  padding: '8px 12px',
                                   border: '1px solid #ddd',
                                   borderRadius: '4px',
-                                  fontSize: '14px'
+                                  fontSize: '14px',
+                                  textAlign: 'center'
                                 }}
                               />
                             </div>
@@ -1490,20 +1562,38 @@ export default function ControlPanelDashboard() {
 
                     {/* Address */}
                     <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
                         Address
+                        {isRegion && (
+                          <span style={{
+                            backgroundColor: '#f59e0b',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold'
+                          }}>
+                            📍 Region
+                          </span>
+                        )}
                       </label>
                       <textarea
                         value={analyzedData.address || ''}
-                        onChange={(e) => setAnalyzedData({ ...analyzedData, address: e.target.value })}
+                        onChange={(e) => {
+                          const newAddress = e.target.value;
+                          setAnalyzedData({ ...analyzedData, address: newAddress });
+                          // Re-detect region when address changes
+                          setIsRegion(detectRegion(newAddress));
+                        }}
                         style={{
                           width: '100%',
                           minHeight: '60px',
                           padding: '8px 12px',
-                          border: '1px solid #ddd',
+                          border: isRegion ? '2px solid #f59e0b' : '1px solid #ddd',
                           borderRadius: '6px',
                           fontSize: '14px',
-                          resize: 'vertical'
+                          resize: 'vertical',
+                          backgroundColor: isRegion ? '#fffbeb' : '#fff'
                         }}
                       />
                     </div>
@@ -1527,6 +1617,102 @@ export default function ControlPanelDashboard() {
                           resize: 'vertical'
                         }}
                       />
+                    </div>
+
+                    {/* Delivery Type */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        Delivery Type
+                      </label>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 16px',
+                          borderRadius: '6px',
+                          border: deliveryType === 'standard' ? '2px solid #2563eb' : '1px solid #ddd',
+                          backgroundColor: deliveryType === 'standard' ? '#eff6ff' : '#fff',
+                          cursor: 'pointer',
+                          flex: 1
+                        }}>
+                          <input
+                            type="radio"
+                            name="deliveryType"
+                            value="standard"
+                            checked={deliveryType === 'standard'}
+                            onChange={() => {
+                              setDeliveryType('standard');
+                              setDeliveryCompany('trackings.ge');
+                            }}
+                            style={{ margin: 0 }}
+                          />
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '13px' }}>Standard</div>
+                            <div style={{ fontSize: '11px', color: '#666' }}>1-3 days</div>
+                          </div>
+                        </label>
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 16px',
+                          borderRadius: '6px',
+                          border: deliveryType === 'express' ? '2px solid #dc2626' : '1px solid #ddd',
+                          backgroundColor: deliveryType === 'express' ? '#fef2f2' : '#fff',
+                          cursor: 'pointer',
+                          flex: 1
+                        }}>
+                          <input
+                            type="radio"
+                            name="deliveryType"
+                            value="express"
+                            checked={deliveryType === 'express'}
+                            onChange={() => {
+                              setDeliveryType('express');
+                              setDeliveryCompany('wolt');
+                            }}
+                            style={{ margin: 0 }}
+                          />
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '13px' }}>Express</div>
+                            <div style={{ fontSize: '11px', color: '#666' }}>Same day</div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Delivery Company */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#666' }}>
+                        Delivery Company
+                      </label>
+                      <select
+                        value={deliveryCompany}
+                        onChange={(e) => setDeliveryCompany(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {deliveryType === 'standard' ? (
+                          <>
+                            <option value="trackings.ge">Trackings.ge</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="wolt">Wolt</option>
+                          </>
+                        )}
+                      </select>
+                      <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                        {deliveryType === 'standard' ? 'Default for standard delivery' : 'Default for express delivery'}
+                      </div>
                     </div>
                   </div>
 

@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import fs from 'fs/promises';
-import path from 'path';
+import { db } from '@/lib/firestore';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 
-// Load products for AI context
+// Load products from Firestore for AI context
 async function loadProducts(): Promise<any[]> {
   try {
-    const file = path.join(process.cwd(), 'data', 'products.json');
-    const txt = await fs.readFile(file, 'utf8');
-    return JSON.parse(txt);
+    const snapshot = await db.collection('products').get();
+    return snapshot.docs.map(doc => ({
+      name: doc.id, // Document ID is the product name
+      price: doc.data().price || 0,
+      stock_qty: doc.data().stock_qty || 0,
+      type: doc.data().type
+    }));
   } catch (err) {
-    console.error('❌ Error loading products:', err);
+    console.error('❌ Error loading products from Firestore:', err);
     return [];
   }
 }
@@ -32,14 +35,21 @@ export async function POST(req: Request) {
 
     // Load products for context
     const products = await loadProducts();
-    const productContext = products
-      .map((p) => `${p.name} (ID: ${p.id}) - ${p.price} ${p.currency || 'GEL'}`)
+    console.log(`📦 Loaded ${products.length} products from Firestore for AI context`);
+
+    // Filter to only show sellable products (variations with price > 0, or simple products)
+    const sellableProducts = products.filter(p =>
+      p.price > 0 && p.type !== 'variable'
+    );
+
+    const productContext = sellableProducts
+      .map((p) => `${p.name} - ${p.price} ლარი (მარაგში: ${p.stock_qty})`)
       .join('\n');
 
     // AI prompt to extract order details
     const systemPrompt = `You are an AI assistant that extracts order information from customer conversations in Georgian language.
 
-# Available Products:
+# Available Products (from catalog):
 ${productContext}
 
 # Your Task:
@@ -48,24 +58,36 @@ Analyze the conversation and extract ALL order details. Return a JSON object wit
 {
   "products": [
     {
-      "name": "product name with size/color (exactly as in catalog)",
+      "name": "product name EXACTLY as shown in catalog above",
       "quantity": number
     }
   ],
   "customerName": "customer's full name",
   "telephone": "phone number",
   "address": "full delivery address",
-  "notes": "any additional notes or special requests"
+  "notes": "any additional notes or special requests (NOT delivery method)",
+  "deliveryType": "express" or "standard",
+  "deliveryCompany": "wolt" or "trackings.ge"
 }
 
+# Delivery Type Detection:
+- If customer mentions "ვოლტი", "wolt", "ექსპრესი", "express", "იმავე დღეს", "სწრაფი მიწოდება", "დღესვე" → deliveryType: "express", deliveryCompany: "wolt"
+- If customer mentions "სტანდარტული", "trackings", "1-3 დღე", or doesn't specify → deliveryType: "standard", deliveryCompany: "trackings.ge"
+- Default to "standard" and "trackings.ge" if no delivery preference mentioned
+
 # Important Rules:
-1. Match product names EXACTLY to the catalog (including size/color like "M", "L", etc.)
-2. If size/color is mentioned, include it in the product name (e.g., "წითელი ბამბის მოკლე ქუდი M")
-3. Extract phone number in any format (remove spaces/dashes if needed)
-4. If any field is missing, use empty string "" or empty array []
-5. For quantity, if not specified, assume 1
-6. Address should be complete with street, building, apartment if mentioned
-7. Return ONLY valid JSON, no other text`;
+1. IMPORTANT: Match product names EXACTLY to the catalog above. Use the full product name from the catalog.
+2. When customer uses informal names like colors only (მწვანე, შავი, ყავისფერი, წითელი), match to the correct product in catalog:
+   - "მწვანე" or "მწვანეს" = look for "მწვანე" in product names (e.g., "მწვანე ბამბის მოკლე ქუდი")
+   - "შავი" or "შავს" = look for "შავი" in product names
+   - "ყავისფერი" = look for "ყავისფერი" in product names
+3. If the price discussed (e.g., "49 ლარი") matches a product price, that confirms the product
+4. Extract phone number in any format (remove spaces/dashes if needed)
+5. If any field is missing, use empty string "" or empty array []
+6. For quantity, if not specified, assume 1
+7. Address should be complete with street, building, apartment if mentioned
+8. Do NOT put delivery method info in "notes" - use deliveryType and deliveryCompany fields instead
+9. Return ONLY valid JSON, no other text`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
