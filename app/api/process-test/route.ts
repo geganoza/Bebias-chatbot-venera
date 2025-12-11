@@ -337,18 +337,24 @@ async function getWoltContext(
 
   // User providing address - VALIDATE FIRST, then get price
   // Detect address change: user says "no, other address" or similar
-  const isAddressChange = /სხვა|შეცვალე|არა.*მინდა|შევცვალო|ახალი.*მისამართ/i.test(currentMessage);
-  // Extract just the address part if it's a change request
+  const hasChangeKeyword = /სხვა|შეცვალე|არა.*მინდა|შევცვალო|ახალი.*მისამართ/i.test(currentMessage);
+
+  // Detect Georgian street-like pattern: word ending in "ის" + number (e.g. "ცინცაძის 38")
+  const looksLikeGeorgianAddress = /[ა-ჰ]+ის\s+\d+|[ა-ჰ]+ის\s+ქუჩა/i.test(currentMessage);
+
+  const isAddressChange = hasChangeKeyword || (woltPriceShown && looksLikeGeorgianAddress);
+
+  // Extract just the address part if it's a change request with prefix
   let addressToValidate = currentMessage;
-  if (isAddressChange) {
-    // Try to extract address after common phrases
-    const addressMatch = currentMessage.match(/(?:სხვა\s*მინდა\s*[-–—]?\s*|არა\s*[-–—]?\s*|შეცვალე\s*[-–—]?\s*)(.+)/i);
+  if (hasChangeKeyword) {
+    // Try to extract address after common phrases - more comprehensive patterns
+    const addressMatch = currentMessage.match(/(?:არა\s+)?(?:სხვა\s+)?(?:მისამართი\s+)?(?:იყოს\s*)?[:\-–—]?\s*([ა-ჰ].+)/i);
     if (addressMatch) {
       addressToValidate = addressMatch[1].trim();
     }
   }
 
-  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, isAddressChange=${isAddressChange}, msgLen=${currentMessage.length}, msg="${currentMessage.substring(0, 30)}"`);
+  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, hasChangeKeyword=${hasChangeKeyword}, looksLikeAddress=${looksLikeGeorgianAddress}, msg="${currentMessage.substring(0, 40)}"`);
 
   // Validate if: (1) price not shown yet, OR (2) user is changing address
   if ((!woltPriceShown || isAddressChange) && addressToValidate.length >= 3 && !/^[0-9]$/.test(addressToValidate)) {
