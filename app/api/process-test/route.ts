@@ -240,10 +240,10 @@ async function getWoltContext(
         .join(" ");
     }
 
-    // Check for Wolt selection: "2" or contains "ვოლთ" or "wolt"
+    // Check for Wolt selection: "2" or contains "ვოლთ"/"ვოლტ" (both spellings) or "wolt"
     if (msg.role === "user") {
       const trimmed = content.trim();
-      if (trimmed === "2" || /ვოლთ|wolt/i.test(trimmed)) {
+      if (trimmed === "2" || /ვოლთ|ვოლტ|wolt/i.test(trimmed)) {
         woltSelected = true;
         console.log(`[TEST WOLT] ✅ Wolt selected in history: "${trimmed}"`);
       }
