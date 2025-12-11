@@ -272,9 +272,19 @@ async function getWoltContext(
   let lastUserAddress = "";
   for (let i = recentHistory.length - 1; i >= 0; i--) {
     const msg = recentHistory[i];
-    const content = typeof msg.content === "string" ? msg.content : "";
+    // Handle both string and array content formats
+    let content = "";
+    if (typeof msg.content === "string") {
+      content = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      content = msg.content
+        .filter((c: any) => c.type === "text")
+        .map((c: any) => c.text)
+        .join(" ");
+    }
     if (msg.role === "assistant" && !lastAssistantMsg) {
       lastAssistantMsg = content;
+      console.log(`[TEST WOLT] Last assistant msg found: "${content.substring(0, 100)}..."`);
     }
     // Find the original address user provided (before options were shown)
     if (msg.role === "user" && content.length > 3 && !/^[0-9]$/.test(content.trim())) {
