@@ -336,13 +336,26 @@ async function getWoltContext(
   }
 
   // User providing address - VALIDATE FIRST, then get price
-  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, msgLen=${currentMessage.length}, msg="${currentMessage.substring(0, 30)}"`);
+  // Detect address change: user says "no, other address" or similar
+  const isAddressChange = /სხვა|შეცვალე|არა.*მინდა|შევცვალო|ახალი.*მისამართ/i.test(currentMessage);
+  // Extract just the address part if it's a change request
+  let addressToValidate = currentMessage;
+  if (isAddressChange) {
+    // Try to extract address after common phrases
+    const addressMatch = currentMessage.match(/(?:სხვა\s*მინდა\s*[-–—]?\s*|არა\s*[-–—]?\s*|შეცვალე\s*[-–—]?\s*)(.+)/i);
+    if (addressMatch) {
+      addressToValidate = addressMatch[1].trim();
+    }
+  }
 
-  if (!woltPriceShown && currentMessage.length >= 3 && !/^[0-9]$/.test(currentMessage)) {
-    console.log(`[TEST WOLT] 📍 Step 1: Validating address: "${currentMessage}"`);
+  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, isAddressChange=${isAddressChange}, msgLen=${currentMessage.length}, msg="${currentMessage.substring(0, 30)}"`);
+
+  // Validate if: (1) price not shown yet, OR (2) user is changing address
+  if ((!woltPriceShown || isAddressChange) && addressToValidate.length >= 3 && !/^[0-9]$/.test(addressToValidate)) {
+    console.log(`[TEST WOLT] 📍 Step 1: Validating address: "${addressToValidate}"`);
 
     // STEP 1: Validate address
-    const validation = await validateAddress(currentMessage);
+    const validation = await validateAddress(addressToValidate);
     console.log(`[TEST WOLT] 📍 Validation result: action=${validation.action}, matchType=${validation.matchType}`);
 
     // Handle different actions per API contract
