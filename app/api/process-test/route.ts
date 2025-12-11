@@ -266,6 +266,56 @@ async function getWoltContext(
     return null;
   }
 
+  // Check if user is selecting from street options (bot showed numbered list)
+  // Get last assistant message
+  let lastAssistantMsg = "";
+  let lastUserAddress = "";
+  for (let i = recentHistory.length - 1; i >= 0; i--) {
+    const msg = recentHistory[i];
+    const content = typeof msg.content === "string" ? msg.content : "";
+    if (msg.role === "assistant" && !lastAssistantMsg) {
+      lastAssistantMsg = content;
+    }
+    // Find the original address user provided (before options were shown)
+    if (msg.role === "user" && content.length > 3 && !/^[0-9]$/.test(content.trim())) {
+      lastUserAddress = content.trim();
+    }
+  }
+
+  // Handle street selection ("1", "2", etc.) when bot showed options
+  if (/^[12]$/.test(currentMessage.trim()) && lastAssistantMsg.includes("გთხოვთ აირჩიოთ")) {
+    console.log(`[TEST WOLT] 🔢 User selected option ${currentMessage} from street list`);
+
+    // Extract street options from bot's message
+    const optionMatches = lastAssistantMsg.match(/\d+\.\s+([^\n]+)/g);
+    if (optionMatches) {
+      const selectedIndex = parseInt(currentMessage.trim()) - 1;
+      if (selectedIndex >= 0 && selectedIndex < optionMatches.length) {
+        const selectedStreet = optionMatches[selectedIndex].replace(/^\d+\.\s+/, '').trim();
+        console.log(`[TEST WOLT] 📍 Selected street: "${selectedStreet}"`);
+
+        // Extract building number from original address
+        const numberMatch = lastUserAddress.match(/\d+/);
+        const buildingNumber = numberMatch ? numberMatch[0] : '';
+        const fullAddress = `${selectedStreet} ${buildingNumber}`.trim();
+        console.log(`[TEST WOLT] 📍 Full address: "${fullAddress}"`);
+
+        // Re-validate with selected street
+        const validation = await validateAddress(fullAddress);
+        console.log(`[TEST WOLT] 📍 Re-validation result: action=${validation.action}`);
+
+        if (validation.action === 'SEND_TO_WOLT' && validation.shipping) {
+          const estimate = await getWoltEstimate(validation.shipping.formattedAddress);
+          if (estimate.available && estimate.price) {
+            return `[WOLT_ACTION: SEND_TO_WOLT]\n[WOLT_ADDRESS: ${validation.shipping.formattedAddress}]\n[WOLT_PRICE: ${estimate.price}]\n[WOLT_MESSAGE: მისამართი დადასტურებულია: ${validation.shipping.formattedAddress}]`;
+          }
+        }
+        // If still not exact match, return the validation result
+        return `[WOLT_ACTION: ${validation.action}]\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+      }
+    }
+  }
+
   // User providing address - VALIDATE FIRST, then get price
   console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, msgLen=${currentMessage.length}, msg="${currentMessage.substring(0, 30)}"`);
 
