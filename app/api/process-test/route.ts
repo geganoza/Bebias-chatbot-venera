@@ -267,9 +267,10 @@ async function getWoltContext(
   }
 
   // Check if user is selecting from street options (bot showed numbered list)
-  // Get last assistant message
+  // Get last assistant message and the user address that came right before it
   let lastAssistantMsg = "";
   let lastUserAddress = "";
+  let foundOptionsMsg = false;
   for (let i = recentHistory.length - 1; i >= 0; i--) {
     const msg = recentHistory[i];
     // Handle both string and array content formats
@@ -285,10 +286,18 @@ async function getWoltContext(
     if (msg.role === "assistant" && !lastAssistantMsg) {
       lastAssistantMsg = content;
       console.log(`[TEST WOLT] Last assistant msg found: "${content.substring(0, 100)}..."`);
+      // Check if this is the options message
+      if (content.includes("გთხოვთ აირჩიოთ")) {
+        foundOptionsMsg = true;
+      }
     }
-    // Find the original address user provided (before options were shown)
-    if (msg.role === "user" && content.length > 3 && !/^[0-9]$/.test(content.trim())) {
-      lastUserAddress = content.trim();
+    // Find the user address that came RIGHT BEFORE the options message (not just any address)
+    if (foundOptionsMsg && msg.role === "user" && content.length > 3 && !/^[0-9]$/.test(content.trim())) {
+      // This should be the original address user entered before getting options
+      if (!lastUserAddress) {
+        lastUserAddress = content.trim();
+        console.log(`[TEST WOLT] Original user address found: "${lastUserAddress}"`);
+      }
     }
   }
 
