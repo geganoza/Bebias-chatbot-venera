@@ -339,8 +339,10 @@ async function getWoltContext(
   // Detect address change: user says "no, other address" or similar
   const hasChangeKeyword = /სხვა|შეცვალე|არა.*მინდა|შევცვალო|ახალი.*მისამართ/i.test(currentMessage);
 
-  // Detect Georgian street-like pattern: word ending in "ის" + number (e.g. "ცინცაძის 38")
-  const looksLikeGeorgianAddress = /[ა-ჰ]+ის\s+\d+|[ა-ჰ]+ის\s+ქუჩა/i.test(currentMessage);
+  // Detect Georgian street-like pattern: word ending in "ის" or "ას" + number (e.g. "ცინცაძის 38", "კოსტავას 7")
+  // Georgian genitive case: "ის" (e.g. თავდადებულის) or "ას" (e.g. კოსტავას, ფშაველას)
+  // Also handle hyphens for compound names like "ვაჟა-ფშაველას"
+  const looksLikeGeorgianAddress = /[ა-ჰ-]+[ია]ს\s+\d+|[ა-ჰ-]+[ია]ს\s+ქუჩა/i.test(currentMessage);
 
   const isAddressChange = hasChangeKeyword || (woltPriceShown && looksLikeGeorgianAddress);
 
