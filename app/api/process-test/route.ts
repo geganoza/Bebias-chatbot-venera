@@ -335,35 +335,21 @@ async function getWoltContext(
     }
   }
 
-  // User providing address - VALIDATE FIRST, then get price
-  // Detect address change: user says "no, other address" or similar
-  const hasChangeKeyword = /სხვა|შეცვალე|არა.*მინდა|შევცვალო|ახალი.*მისამართ/i.test(currentMessage);
+  // SIMPLIFIED: Just send to Shipping Manager API - it handles all address parsing
+  // Only skip: single digits (time selection like "1", "2"), time keywords ("ახლა", "15:00")
+  const isTimeInput = /^[0-9]$/.test(currentMessage.trim()) ||
+                      /ახლა|^\d{1,2}[:\s]?\d{0,2}$|საათ|დღეს|ხვალ/.test(currentMessage.trim());
 
-  // Detect Georgian street-like pattern: word ending in "ის" or "ას" + number (e.g. "ცინცაძის 38", "კოსტავას 7")
-  // Georgian genitive case: "ის" (e.g. თავდადებულის) or "ას" (e.g. კოსტავას, ფშაველას)
-  // Also handle hyphens for compound names like "ვაჟა-ფშაველას"
-  const looksLikeGeorgianAddress = /[ა-ჰ-]+[ია]ს\s+\d+|[ა-ჰ-]+[ია]ს\s+ქუჩა/i.test(currentMessage);
+  // Skip validation if this looks like time input, otherwise let API decide
+  const shouldValidate = currentMessage.length >= 3 && !isTimeInput;
 
-  const isAddressChange = hasChangeKeyword || (woltPriceShown && looksLikeGeorgianAddress);
+  console.log(`[TEST WOLT] Checking: priceShown=${woltPriceShown}, isTimeInput=${isTimeInput}, shouldValidate=${shouldValidate}, msg="${currentMessage.substring(0, 40)}"`);
 
-  // Extract just the address part if it's a change request with prefix
-  let addressToValidate = currentMessage;
-  if (hasChangeKeyword) {
-    // Try to extract address after common phrases - more comprehensive patterns
-    const addressMatch = currentMessage.match(/(?:არა\s+)?(?:სხვა\s+)?(?:მისამართი\s+)?(?:იყოს\s*)?[:\-–—]?\s*([ა-ჰ].+)/i);
-    if (addressMatch) {
-      addressToValidate = addressMatch[1].trim();
-    }
-  }
+  if (shouldValidate) {
+    console.log(`[TEST WOLT] 📍 Sending to API for validation: "${currentMessage}"`);
 
-  console.log(`[TEST WOLT] Checking if address: priceShown=${woltPriceShown}, hasChangeKeyword=${hasChangeKeyword}, looksLikeAddress=${looksLikeGeorgianAddress}, msg="${currentMessage.substring(0, 40)}"`);
-
-  // Validate if: (1) price not shown yet, OR (2) user is changing address
-  if ((!woltPriceShown || isAddressChange) && addressToValidate.length >= 3 && !/^[0-9]$/.test(addressToValidate)) {
-    console.log(`[TEST WOLT] 📍 Step 1: Validating address: "${addressToValidate}"`);
-
-    // STEP 1: Validate address
-    const validation = await validateAddress(addressToValidate);
+    // STEP 1: Validate address - API handles all parsing
+    const validation = await validateAddress(currentMessage);
     console.log(`[TEST WOLT] 📍 Validation result: action=${validation.action}, matchType=${validation.matchType}`);
 
     // Handle different actions per API contract
