@@ -211,13 +211,19 @@ interface MapLinkResponse {
   error?: string;
 }
 
-async function generateMapLink(address: string): Promise<MapLinkResponse> {
+const CHATBOT_CALLBACK_URL = "https://bebias-venera-chatbot.vercel.app/api/location-confirmed-webhook";
+
+async function generateMapLink(address: string, senderId: string): Promise<MapLinkResponse> {
   try {
-    console.log(`[TEST WOLT] Generating map link for: ${address}`);
+    console.log(`[TEST WOLT] Generating map link for: ${address}, senderId: ${senderId}`);
     const response = await fetch(`${SHIPPING_MANAGER_URL}/api/location/generate-link`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address }),
+      body: JSON.stringify({
+        address,
+        senderId,
+        callbackUrl: CHATBOT_CALLBACK_URL
+      }),
     });
     const result = await response.json();
     console.log(`[TEST WOLT] Map link result:`, JSON.stringify(result));
@@ -249,7 +255,8 @@ async function getConfirmedLocation(sessionId: string): Promise<{ confirmed: boo
  */
 async function getWoltContext(
   history: Array<{ role: string; content: any }>,
-  currentMessage: string
+  currentMessage: string,
+  senderId: string
 ): Promise<string | null> {
   const recentHistory = history.slice(-10);
 
@@ -416,7 +423,7 @@ async function getWoltContext(
         const addressForEstimate = validation.shipping?.formattedAddress || currentMessage;
 
         // Generate map link with session ID for later confirmation
-        const mapLinkResult = await generateMapLink(addressForEstimate);
+        const mapLinkResult = await generateMapLink(addressForEstimate, senderId);
         console.log(`[TEST WOLT] 📍 Map link generated: sessionId=${mapLinkResult.sessionId}`);
 
         // Get preliminary price
@@ -676,7 +683,7 @@ async function handler(req: Request) {
       .join("\n");
 
     // Get Wolt context if in Wolt flow
-    const woltContext = await getWoltContext(conversationData.history, combinedText);
+    const woltContext = await getWoltContext(conversationData.history, combinedText, senderId);
     if (woltContext) {
       console.log(`[TEST WOLT] Injecting context: ${woltContext}`);
 
