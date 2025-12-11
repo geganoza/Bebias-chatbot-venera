@@ -204,6 +204,46 @@ async function validateWoltSchedule(scheduledTime: string): Promise<WoltValidate
   }
 }
 
+interface MapLinkResponse {
+  link: string;
+  sessionId: string;
+  expiresAt?: string;
+  error?: string;
+}
+
+async function generateMapLink(address: string): Promise<MapLinkResponse> {
+  try {
+    console.log(`[TEST WOLT] Generating map link for: ${address}`);
+    const response = await fetch(`${SHIPPING_MANAGER_URL}/api/location/generate-link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address }),
+    });
+    const result = await response.json();
+    console.log(`[TEST WOLT] Map link result:`, JSON.stringify(result));
+    return result;
+  } catch (error) {
+    console.error(`[TEST WOLT] Generate map link error:`, error);
+    return { link: '', sessionId: '', error: "API error" };
+  }
+}
+
+async function getConfirmedLocation(sessionId: string): Promise<{ confirmed: boolean; lat?: number; lon?: number }> {
+  try {
+    console.log(`[TEST WOLT] Getting confirmed location for session: ${sessionId}`);
+    const response = await fetch(`${SHIPPING_MANAGER_URL}/api/location/confirm?sessionId=${sessionId}`);
+    const result = await response.json();
+    console.log(`[TEST WOLT] Confirmed location result:`, JSON.stringify(result));
+    if (result.confirmed && result.data) {
+      return { confirmed: true, lat: result.data.lat, lon: result.data.lon };
+    }
+    return { confirmed: false };
+  } catch (error) {
+    console.error(`[TEST WOLT] Get confirmed location error:`, error);
+    return { confirmed: false };
+  }
+}
+
 /**
  * Detect Wolt flow and get context to inject
  */
@@ -371,16 +411,20 @@ async function getWoltContext(
       }
 
       case 'SEND_MAP_LINK': {
-        // Street found but needs map confirmation
-        console.log(`[TEST WOLT] 🗺️ SEND_MAP_LINK - sending map confirmation`);
-        const mapUrl = validation.mapConfirmationUrl || '';
+        // Street found but needs map confirmation - generate session-based link
+        console.log(`[TEST WOLT] 🗺️ SEND_MAP_LINK - generating session-based map link`);
         const addressForEstimate = validation.shipping?.formattedAddress || currentMessage;
+
+        // Generate map link with session ID for later confirmation
+        const mapLinkResult = await generateMapLink(addressForEstimate);
+        console.log(`[TEST WOLT] 📍 Map link generated: sessionId=${mapLinkResult.sessionId}`);
 
         // Get preliminary price
         const estimate = await getWoltEstimate(addressForEstimate);
         const priceInfo = estimate.available ? `[WOLT_PRICE_ESTIMATE: ${estimate.price}]` : '';
 
-        return `[WOLT_ACTION: SEND_MAP_LINK]\n[WOLT_MAP_URL: ${mapUrl}]\n[WOLT_ADDRESS: ${addressForEstimate}]\n${priceInfo}\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+        // Include sessionId in context so it can be saved in conversation state
+        return `[WOLT_ACTION: SEND_MAP_LINK]\n[WOLT_MAP_URL: ${mapLinkResult.link}]\n[WOLT_SESSION_ID: ${mapLinkResult.sessionId}]\n[WOLT_ADDRESS: ${addressForEstimate}]\n${priceInfo}\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
       }
 
       case 'ASK_TO_SELECT': {
@@ -453,6 +497,8 @@ interface ConversationData {
   orders?: any[];
   manualMode?: boolean;
   lastActive?: string;
+  woltSessionId?: string; // Session ID for map confirmation flow
+  woltAddress?: string;   // Address being validated
 }
 
 async function loadConversation(senderId: string): Promise<ConversationData> {
@@ -633,6 +679,20 @@ async function handler(req: Request) {
     const woltContext = await getWoltContext(conversationData.history, combinedText);
     if (woltContext) {
       console.log(`[TEST WOLT] Injecting context: ${woltContext}`);
+
+      // Extract and save sessionId if present (for map confirmation flow)
+      const sessionMatch = woltContext.match(/\[WOLT_SESSION_ID:\s*([^\]]+)\]/);
+      if (sessionMatch) {
+        conversationData.woltSessionId = sessionMatch[1].trim();
+        console.log(`[TEST WOLT] 📍 Saved sessionId: ${conversationData.woltSessionId}`);
+      }
+
+      // Extract and save address if present
+      const addressMatch = woltContext.match(/\[WOLT_ADDRESS:\s*([^\]]+)\]/);
+      if (addressMatch) {
+        conversationData.woltAddress = addressMatch[1].trim();
+        console.log(`[TEST WOLT] 📍 Saved address: ${conversationData.woltAddress}`);
+      }
     }
 
     // Build system prompt
@@ -670,6 +730,28 @@ CURRENT TIME: ${new Date().toISOString()}
     if (orderData) {
       console.log(`[TEST] Order detected! Creating...`);
       try {
+        // Check if we have a saved sessionId from map confirmation flow
+        if (conversationData.woltSessionId) {
+          console.log(`[TEST WOLT] 📍 Checking for confirmed location with sessionId: ${conversationData.woltSessionId}`);
+          const confirmedLocation = await getConfirmedLocation(conversationData.woltSessionId);
+          if (confirmedLocation.confirmed && confirmedLocation.lat && confirmedLocation.lon) {
+            console.log(`[TEST WOLT] ✅ Using confirmed coordinates: ${confirmedLocation.lat}, ${confirmedLocation.lon}`);
+            orderData.woltCoordinates = {
+              lat: confirmedLocation.lat,
+              lon: confirmedLocation.lon,
+            };
+          } else {
+            console.log(`[TEST WOLT] ⚠️ No confirmed location found for sessionId`);
+          }
+          // Clear the sessionId after using it
+          delete conversationData.woltSessionId;
+        }
+
+        // Use saved address if available
+        if (conversationData.woltAddress && !orderData.address) {
+          orderData.address = conversationData.woltAddress;
+        }
+
         const orderNumber = await createOrder(orderData);
         response = response.replace(/\[ORDER_NUMBER\]/g, orderNumber);
         console.log(`[TEST] ✅ Order created: ${orderNumber}`);
