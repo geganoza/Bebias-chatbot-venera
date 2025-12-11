@@ -99,15 +99,41 @@ async function loadProducts(): Promise<any[]> {
 // ==================== WOLT API INTEGRATION ====================
 
 interface AddressValidateResponse {
-  status: 'EXACT_MATCH' | 'FUZZY_MATCH' | 'GPOST_MATCH' | 'GOOGLE_MATCH' | 'WOLT_MATCH' | 'NOT_FOUND';
-  street: string | null;
-  suggestions: string[];
+  // Bot action instruction
+  action: 'SEND_TO_WOLT' | 'SEND_MAP_LINK' | 'ASK_TO_SELECT' | 'ASK_FOR_ADDRESS' | 'MANUAL_HANDLING';
+  matchType: 'EXACT' | 'PARTIAL' | 'STREET_ONLY' | 'AMBIGUOUS' | 'DISTRICT' | 'NOT_FOUND';
+
+  // Shipping data for Wolt (when action is SEND_TO_WOLT or SEND_MAP_LINK)
+  shipping?: {
+    coordinates: { lat: number; lon: number };
+    street: string;
+    city: string;
+    country: string;
+    language: string;
+    formattedAddress: string;
+  };
+
+  // Map confirmation URL (when action is SEND_MAP_LINK)
+  mapConfirmationUrl?: string;
+
+  // Street options (when action is ASK_TO_SELECT)
+  options?: string[];
+
+  // Customer-facing message (Georgian)
+  customerMessage: string;
+
+  // Confidence score (0-1)
   confidence: number;
-  source: string;
-  needsConfirmation: boolean;
-  escalateToManager: boolean;
-  message: string;
-  error_code?: string;
+
+  // Original parsed data
+  parsed?: {
+    street: string | null;
+    number: string | null;
+    originalAddress: string;
+  };
+
+  // Error code if any
+  error?: string;
 }
 
 interface WoltEstimateResponse {
@@ -139,14 +165,11 @@ async function validateAddress(address: string): Promise<AddressValidateResponse
   } catch (error) {
     console.error(`[TEST WOLT] Address validation error:`, error);
     return {
-      status: 'NOT_FOUND',
-      street: null,
-      suggestions: [],
+      action: 'MANUAL_HANDLING',
+      matchType: 'NOT_FOUND',
+      customerMessage: 'მისამართის შემოწმება ვერ მოხერხდა. გთხოვთ დაელოდოთ, მენეჯერი დაგეხმარებათ.',
       confidence: 0,
-      source: 'error',
-      needsConfirmation: false,
-      escalateToManager: true,
-      message: 'მისამართის შემოწმება ვერ მოხერხდა',
+      error: 'VALIDATION_ERROR',
     };
   }
 }
@@ -249,42 +272,69 @@ async function getWoltContext(
   if (!woltPriceShown && currentMessage.length >= 3 && !/^[0-9]$/.test(currentMessage)) {
     console.log(`[TEST WOLT] 📍 Step 1: Validating address: "${currentMessage}"`);
 
-    // STEP 1: Validate address first
+    // STEP 1: Validate address
     const validation = await validateAddress(currentMessage);
-    console.log(`[TEST WOLT] 📍 Validation result: ${validation.status}, confidence: ${validation.confidence}`);
+    console.log(`[TEST WOLT] 📍 Validation result: action=${validation.action}, matchType=${validation.matchType}`);
 
-    // Handle different validation statuses
-    if (validation.status === 'EXACT_MATCH') {
-      // Address is valid - proceed to get price
-      console.log(`[TEST WOLT] ✅ EXACT_MATCH - getting price`);
-      const estimate = await getWoltEstimate(currentMessage);
-      console.log(`[TEST WOLT] 📍 Price response:`, JSON.stringify(estimate));
-      if (estimate.available && estimate.price) {
-        return `[WOLT_ADDRESS_VALID: ${validation.street || currentMessage}]\n[WOLT_PRICE: ${estimate.price}]\n[WOLT_ADDRESS: ${estimate.formatted_address || currentMessage}]`;
-      } else {
-        return `[WOLT_ADDRESS_VALID: ${validation.street || currentMessage}]\n[WOLT_UNAVAILABLE]\n[WOLT_ERROR: ${estimate.error || "მისამართი არ არის ხელმისაწვდომი"}]`;
+    // Handle different actions per API contract
+    switch (validation.action) {
+      case 'SEND_TO_WOLT': {
+        // Exact match - use formattedAddress for price estimate
+        console.log(`[TEST WOLT] ✅ SEND_TO_WOLT - getting price for: ${validation.shipping?.formattedAddress}`);
+        const addressForEstimate = validation.shipping?.formattedAddress || currentMessage;
+        const estimate = await getWoltEstimate(addressForEstimate);
+        console.log(`[TEST WOLT] 📍 Price response:`, JSON.stringify(estimate));
+
+        if (estimate.available && estimate.price) {
+          // Store coordinates for later use in order
+          const coords = validation.shipping?.coordinates;
+          return `[WOLT_ACTION: SEND_TO_WOLT]\n[WOLT_ADDRESS: ${addressForEstimate}]\n[WOLT_PRICE: ${estimate.price}]\n[WOLT_COORDS: ${coords?.lat},${coords?.lon}]\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+        } else {
+          return `[WOLT_ACTION: SEND_TO_WOLT]\n[WOLT_ADDRESS: ${addressForEstimate}]\n[WOLT_UNAVAILABLE]\n[WOLT_ERROR: ${estimate.error || "Wolt მიტანა არ არის ხელმისაწვდომი"}]`;
+        }
       }
-    }
-    else if (validation.status === 'FUZZY_MATCH' || validation.status === 'GPOST_MATCH' ||
-             validation.status === 'GOOGLE_MATCH' || validation.status === 'WOLT_MATCH') {
-      // Similar addresses found - ask user to confirm
-      console.log(`[TEST WOLT] ⚠️ ${validation.status} - asking for confirmation`);
-      const suggestionsList = validation.suggestions.join(', ');
-      return `[WOLT_ADDRESS_FUZZY]\n[WOLT_SUGGESTIONS: ${suggestionsList}]\n[WOLT_MESSAGE: ${validation.message}]`;
-    }
-    else if (validation.status === 'NOT_FOUND') {
-      // Address not found - escalate to manager
-      console.log(`[TEST WOLT] ❌ NOT_FOUND - escalating to manager`);
-      return `[WOLT_ADDRESS_NOT_FOUND]\n[WOLT_ESCALATE_MANAGER: true]\n[WOLT_MESSAGE: ${validation.message}]`;
-    }
-    else {
-      // Unknown status - try direct estimate as fallback
-      console.log(`[TEST WOLT] ⚠️ Unknown validation status - falling back to direct estimate`);
-      const estimate = await getWoltEstimate(currentMessage);
-      if (estimate.available && estimate.price) {
-        return `[WOLT_PRICE: ${estimate.price}]\n[WOLT_ADDRESS: ${estimate.formatted_address || currentMessage}]`;
-      } else {
-        return `[WOLT_UNAVAILABLE]\n[WOLT_ERROR: ${estimate.error || "მისამართი არ არის ხელმისაწვდომი"}]`;
+
+      case 'SEND_MAP_LINK': {
+        // Street found but needs map confirmation
+        console.log(`[TEST WOLT] 🗺️ SEND_MAP_LINK - sending map confirmation`);
+        const mapUrl = validation.mapConfirmationUrl || '';
+        const addressForEstimate = validation.shipping?.formattedAddress || currentMessage;
+
+        // Get preliminary price
+        const estimate = await getWoltEstimate(addressForEstimate);
+        const priceInfo = estimate.available ? `[WOLT_PRICE_ESTIMATE: ${estimate.price}]` : '';
+
+        return `[WOLT_ACTION: SEND_MAP_LINK]\n[WOLT_MAP_URL: ${mapUrl}]\n[WOLT_ADDRESS: ${addressForEstimate}]\n${priceInfo}\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+      }
+
+      case 'ASK_TO_SELECT': {
+        // Multiple streets match - show options
+        console.log(`[TEST WOLT] ❓ ASK_TO_SELECT - showing ${validation.options?.length} options`);
+        const optionsList = validation.options?.join('\n') || '';
+        return `[WOLT_ACTION: ASK_TO_SELECT]\n[WOLT_OPTIONS:\n${optionsList}\n]\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+      }
+
+      case 'ASK_FOR_ADDRESS': {
+        // Only district provided - need full address
+        console.log(`[TEST WOLT] 📝 ASK_FOR_ADDRESS - need full street address`);
+        return `[WOLT_ACTION: ASK_FOR_ADDRESS]\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+      }
+
+      case 'MANUAL_HANDLING': {
+        // Address not found - escalate to manager
+        console.log(`[TEST WOLT] ❌ MANUAL_HANDLING - escalating to manager`);
+        return `[WOLT_ACTION: MANUAL_HANDLING]\n[WOLT_ESCALATE: true]\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+      }
+
+      default: {
+        // Unknown action - fallback to direct estimate
+        console.log(`[TEST WOLT] ⚠️ Unknown action - falling back to direct estimate`);
+        const estimate = await getWoltEstimate(currentMessage);
+        if (estimate.available && estimate.price) {
+          return `[WOLT_PRICE: ${estimate.price}]\n[WOLT_ADDRESS: ${estimate.formatted_address || currentMessage}]`;
+        } else {
+          return `[WOLT_UNAVAILABLE]\n[WOLT_ERROR: ${estimate.error || "მისამართი არ არის ხელმისაწვდომი"}]`;
+        }
       }
     }
   }
