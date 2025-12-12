@@ -208,8 +208,8 @@ async function handleInstagramMessage(event: any) {
 async function handleTextMessage(senderId: string, text: string, messageId?: string) {
   console.log(`💬 Text message from ${senderId}: "${text}"`);
 
+  // ALWAYS save user message to Control Panel first (before any potential errors)
   try {
-    // Save user message to Control Panel
     await saveToControlPanel(senderId, {
       id: messageId || `ig_${Date.now()}_user`,
       senderId: senderId,
@@ -217,12 +217,17 @@ async function handleTextMessage(senderId: string, text: string, messageId?: str
       text: text,
       timestamp: new Date().toISOString()
     });
+    console.log(`✅ User message saved to Control Panel`);
+  } catch (saveError) {
+    console.error("❌ Error saving user message to Control Panel:", saveError);
+  }
 
-    // TODO: Integrate with existing message processing logic
-    // For now, send a simple response
-    const response = "გამარჯობა! მადლობა შეტყობინებისთვის. ჩვენი Instagram ჩატბოტი მალე იმუშავებს სრულად! 🤖";
+  // Try to send response (may fail due to token issues, but that's OK for demo)
+  const response = "გამარჯობა! მადლობა შეტყობინებისთვის. ჩვენი Instagram ჩატბოტი მალე იმუშავებს სრულად! 🤖";
 
+  try {
     await sendInstagramMessage(senderId, { text: response });
+    console.log(`✅ Instagram response sent`);
 
     // Save bot response to Control Panel
     await saveToControlPanel(senderId, {
@@ -232,9 +237,21 @@ async function handleTextMessage(senderId: string, text: string, messageId?: str
       text: response,
       timestamp: new Date().toISOString()
     });
-
   } catch (error) {
-    console.error("❌ Error handling text message:", error);
+    console.error("❌ Error sending Instagram message (token may be expired):", error);
+
+    // Still save a "pending" bot response so it shows in Control Panel
+    try {
+      await saveToControlPanel(senderId, {
+        id: `ig_${Date.now()}_bot`,
+        senderId: 'bot',
+        senderType: 'bot',
+        text: `[Response pending - token refresh needed] ${response}`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error("❌ Error saving bot response:", e);
+    }
   }
 }
 
