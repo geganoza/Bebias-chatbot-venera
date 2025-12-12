@@ -7,12 +7,33 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log(`[LOCATION WEBHOOK] Received:`, JSON.stringify(body));
 
-    const { type, senderId, sessionId, lat, lon, address } = body;
+    const { type, senderId, sessionId, lat, lon, address, woltEstimate } = body;
 
     if (type === "location_confirmed" && senderId) {
       console.log(`[LOCATION WEBHOOK] ✅ Location confirmed for user ${senderId}`);
       console.log(`[LOCATION WEBHOOK] 📍 Coordinates: ${lat}, ${lon}`);
       console.log(`[LOCATION WEBHOOK] 📍 Address: ${address}`);
+      console.log(`[LOCATION WEBHOOK] 💰 Wolt Estimate:`, woltEstimate);
+
+      // Decode address if URL-encoded
+      let decodedAddress = address || "მისამართი შენახულია";
+      try {
+        decodedAddress = decodeURIComponent(decodedAddress);
+      } catch {
+        // Already decoded
+      }
+
+      // Build message with price info
+      let message = `მდებარეობა დადასტურდა! ✅\n\n📍 ${decodedAddress}`;
+
+      if (woltEstimate?.available && woltEstimate?.price) {
+        message += `\n\n🚚 მიტანის ფასი: ${woltEstimate.price} ${woltEstimate.currency || "GEL"}`;
+        if (woltEstimate.eta_minutes) {
+          message += `\n⏱ სავარაუდო დრო: ${woltEstimate.eta_minutes} წუთი`;
+        }
+      }
+
+      message += `\n\nროდის გინდა მიიღო შეკვეთა? (ორშაბათი-პარასკევი, 14:00-20:00)\nთუ ახლავე გინდა, დაწერე 'ახლა'`;
 
       // Send message to user via Facebook Send API
       const messageResponse = await fetch(
@@ -22,9 +43,7 @@ export async function POST(request: NextRequest) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             recipient: { id: senderId },
-            message: {
-              text: `მდებარეობა დადასტურდა! ✅\n\n📍 ${address || "მისამართი შენახულია"}\n\nროდის გინდა მიიღო შეკვეთა? (ორშაბათი-პარასკევი, 14:00-20:00)\nთუ ახლავე გინდა, დაწერე 'ახლა'`,
-            },
+            message: { text: message },
           }),
         }
       );

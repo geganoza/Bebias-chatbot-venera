@@ -250,6 +250,58 @@ async function getConfirmedLocation(sessionId: string): Promise<{ confirmed: boo
   }
 }
 
+interface WoltPreorderData {
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  coordinates: { lat: number; lon: number };
+  productName: string;
+  quantity: number;
+  productPrice: number;
+  deliveryPrice: number;
+  deliveryTime: string; // "now" or ISO timestamp
+  deliveryEta?: number; // minutes
+  deliveryInstructions?: string;
+}
+
+interface WoltPreorderResponse {
+  success: boolean;
+  preorderId?: string;
+  error?: string;
+}
+
+/**
+ * Create a Wolt preorder in Shipping Manager
+ * This creates a preorder that warehouse staff will confirm before sending to Wolt
+ */
+async function createWoltPreorder(orderData: WoltPreorderData): Promise<WoltPreorderResponse> {
+  try {
+    console.log(`[TEST WOLT] Creating Wolt preorder for order: ${orderData.orderNumber}`);
+    console.log(`[TEST WOLT] Preorder data:`, JSON.stringify(orderData));
+
+    const response = await fetch(`${SHIPPING_MANAGER_URL}/api/wolt/preorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
+    });
+
+    const result = await response.json();
+    console.log(`[TEST WOLT] Preorder result:`, JSON.stringify(result));
+
+    if (result.success) {
+      console.log(`[TEST WOLT] ✅ Preorder created: ${result.preorderId}`);
+      return { success: true, preorderId: result.preorderId };
+    } else {
+      console.error(`[TEST WOLT] ❌ Preorder creation failed:`, result.error);
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    console.error(`[TEST WOLT] ❌ Preorder API error:`, error);
+    return { success: false, error: "API error" };
+  }
+}
+
 /**
  * Detect Wolt flow and get context to inject
  */
@@ -376,7 +428,20 @@ async function getWoltContext(
             return `[WOLT_ACTION: SEND_TO_WOLT]\n[WOLT_ADDRESS: ${validation.shipping.formattedAddress}]\n[WOLT_PRICE: ${estimate.price}]\n[WOLT_MESSAGE: მისამართი დადასტურებულია: ${validation.shipping.formattedAddress}]`;
           }
         }
-        // If still not exact match, return the validation result
+
+        // CRITICAL: If SEND_MAP_LINK, generate the map link with URL!
+        if (validation.action === 'SEND_MAP_LINK') {
+          const addressForMap = validation.shipping?.formattedAddress || fullAddress;
+          const mapLinkResult = await generateMapLink(addressForMap, senderId);
+          console.log(`[TEST WOLT] 🗺️ Generated map link for street selection: ${mapLinkResult.link}`);
+
+          const estimate = await getWoltEstimate(addressForMap);
+          const priceInfo = estimate.available ? `[WOLT_PRICE_ESTIMATE: ${estimate.price}]` : '';
+
+          return `[WOLT_ACTION: SEND_MAP_LINK]\n[WOLT_MAP_URL: ${mapLinkResult.link}]\n[WOLT_SESSION_ID: ${mapLinkResult.sessionId}]\n[WOLT_ADDRESS: ${addressForMap}]\n${priceInfo}\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
+        }
+
+        // Other actions (ASK_FOR_ADDRESS, MANUAL_HANDLING, etc.)
         return `[WOLT_ACTION: ${validation.action}]\n[WOLT_MESSAGE: ${validation.customerMessage}]`;
       }
     }
@@ -574,7 +639,12 @@ function parseOrderConfirmation(text: string): any | null {
   if (nameMatch && phoneMatch && addressMatch && productMatch && totalMatch) {
     const isWoltOrder = text.includes("WOLT_ORDER: true") || text.includes("🚚");
     const woltPriceMatch = text.match(/🚚[^:]*:.*?(\d+(?:\.\d+)?)\s*₾/);
-    const timeMatch = text.match(/⏰[^:]*:\s*(.+?)(?=[\r\n]|💰|WOLT|$)/);
+    const timeMatch = text.match(/⏰[^:]*:\s*(.+?)(?=[\r\n]|⏱|💰|WOLT|$)/);
+    const etaMatch = text.match(/⏱[^:]*:\s*~?(\d+)\s*წუთი/);
+    const instructionsMatch = text.match(/📝[^:]*:\s*(.+?)(?=[\r\n]|💰|WOLT|$)/);
+
+    // Extract product price from product line (format: "product x 1 - 49₾")
+    const productPriceMatch = productMatch[1].match(/(\d+(?:\.\d+)?)\s*₾/);
 
     return {
       clientName: nameMatch[1].trim(),
@@ -587,6 +657,10 @@ function parseOrderConfirmation(text: string): any | null {
       deliveryPrice: woltPriceMatch ? parseFloat(woltPriceMatch[1]) : undefined,
       woltScheduledTime: timeMatch ? timeMatch[1].trim() : undefined,
       deliveryMethod: isWoltOrder ? "wolt" : undefined,
+      // New fields for Wolt preorder
+      etaMinutes: etaMatch ? parseInt(etaMatch[1]) : undefined,
+      deliveryInstructions: instructionsMatch ? instructionsMatch[1].trim() : undefined,
+      productPrice: productPriceMatch ? parseFloat(productPriceMatch[1]) : undefined,
     };
   }
 
@@ -762,6 +836,52 @@ CURRENT TIME: ${new Date().toISOString()}
         const orderNumber = await createOrder(orderData);
         response = response.replace(/\[ORDER_NUMBER\]/g, orderNumber);
         console.log(`[TEST] ✅ Order created: ${orderNumber}`);
+
+        // Create Wolt preorder if this is a Wolt order with coordinates
+        if (orderData.isWoltOrder && orderData.woltCoordinates) {
+          console.log(`[TEST WOLT] 📦 Creating Wolt preorder for order ${orderNumber}`);
+
+          // Parse product name and quantity from product string
+          // Format: "product name x quantity - price₾"
+          const productParts = orderData.product.match(/^(.+?)\s*x\s*(\d+)/);
+          const productName = productParts ? productParts[1].trim() : orderData.product;
+          const quantity = productParts ? parseInt(productParts[2]) : 1;
+
+          // Determine delivery time
+          // "now", "ახლა", or specific time like "16:00" or full ISO timestamp
+          let deliveryTime = "now";
+          if (orderData.woltScheduledTime) {
+            const timeStr = orderData.woltScheduledTime.toLowerCase();
+            if (timeStr === "now" || timeStr === "ახლა" || timeStr.includes("ახლავე")) {
+              deliveryTime = "now";
+            } else {
+              // Already a formatted time or ISO string
+              deliveryTime = orderData.woltScheduledTime;
+            }
+          }
+
+          const preorderData: WoltPreorderData = {
+            orderNumber,
+            customerName: orderData.clientName,
+            customerPhone: orderData.telephone,
+            address: orderData.address,
+            coordinates: orderData.woltCoordinates,
+            productName,
+            quantity,
+            productPrice: orderData.productPrice || 0,
+            deliveryPrice: orderData.deliveryPrice || 0,
+            deliveryTime,
+            deliveryEta: orderData.etaMinutes,
+            deliveryInstructions: orderData.deliveryInstructions !== "-" ? orderData.deliveryInstructions : undefined,
+          };
+
+          const preorderResult = await createWoltPreorder(preorderData);
+          if (preorderResult.success) {
+            console.log(`[TEST WOLT] ✅ Wolt preorder created: ${preorderResult.preorderId}`);
+          } else {
+            console.error(`[TEST WOLT] ⚠️ Wolt preorder failed but Firestore order was created`);
+          }
+        }
 
         conversationData.orders = conversationData.orders || [];
         conversationData.orders.push({

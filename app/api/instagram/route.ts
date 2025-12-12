@@ -1,9 +1,27 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firestore";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+/**
+ * Log Instagram webhook event to Firestore for viewing in control panel
+ */
+async function logInstagramWebhook(type: string, data: any, status: 'received' | 'processing' | 'completed' | 'error' = 'received') {
+  try {
+    await db.collection('instagram_webhooks').add({
+      type,
+      data,
+      status,
+      timestamp: new Date().toISOString(),
+      createdAt: new Date()
+    });
+  } catch (error) {
+    console.error("Failed to log Instagram webhook:", error);
+  }
+}
 
 // Environment variables
 const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || "";
@@ -53,9 +71,13 @@ export async function POST(req: Request) {
     console.log("📨 Instagram webhook received:");
     console.log(JSON.stringify(body, null, 2));
 
+    // Log the raw webhook for the control panel
+    await logInstagramWebhook('webhook_received', body, 'received');
+
     // Verify this is an Instagram webhook
     if (body.object !== "instagram") {
       console.log("⚠️  Not an Instagram webhook, ignoring");
+      await logInstagramWebhook('non_instagram', body, 'completed');
       return NextResponse.json({ status: "ok" });
     }
 
@@ -65,7 +87,24 @@ export async function POST(req: Request) {
         // Instagram sends messaging events
         if (entry.messaging) {
           for (const event of entry.messaging) {
+            // Log each message event
+            await logInstagramWebhook('message_event', {
+              senderId: event.sender?.id,
+              recipientId: event.recipient?.id,
+              messageText: event.message?.text || '[attachment/media]',
+              messageType: event.message?.text ? 'text' : 'attachment',
+              timestamp: event.timestamp,
+              raw: event
+            }, 'processing');
+
             await handleInstagramMessage(event);
+
+            // Log completion
+            await logInstagramWebhook('message_processed', {
+              senderId: event.sender?.id,
+              messageText: event.message?.text || '[attachment/media]',
+              status: 'Bot response sent'
+            }, 'completed');
           }
         }
       }
@@ -76,6 +115,7 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("❌ Error processing Instagram webhook:", error);
+    await logInstagramWebhook('error', { error: String(error) }, 'error');
     // Still return 200 to prevent Facebook from disabling webhook
     return NextResponse.json({ status: "error" }, { status: 200 });
   }
