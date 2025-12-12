@@ -23,6 +23,53 @@ async function logInstagramWebhook(type: string, data: any, status: 'received' |
   }
 }
 
+/**
+ * Save Instagram message to metaMessages collection (appears in Control Panel)
+ */
+async function saveToControlPanel(userId: string, message: {
+  id: string;
+  senderId: string;
+  senderType: 'user' | 'bot' | 'human';
+  text: string;
+  timestamp: string;
+}) {
+  try {
+    // Use IG_ prefix to distinguish Instagram users from Facebook users
+    const igUserId = userId.startsWith('IG_') ? userId : `IG_${userId}`;
+    const docRef = db.collection('metaMessages').doc(igUserId);
+    const doc = await docRef.get();
+
+    if (doc.exists) {
+      // Add to existing conversation
+      const data = doc.data();
+      const messages = data?.messages || [];
+      messages.push(message);
+      await docRef.update({ messages, updatedAt: new Date().toISOString() });
+    } else {
+      // Create new conversation
+      await docRef.set({
+        userId: igUserId,
+        platform: 'instagram',
+        messages: [message],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // Update user profile for display in control panel
+    await db.collection('userProfiles').doc(igUserId).set({
+      name: `Instagram User`,
+      profile_pic: null,
+      platform: 'instagram',
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    console.log(`✅ Message saved to Control Panel for ${igUserId}`);
+  } catch (error) {
+    console.error("Failed to save to Control Panel:", error);
+  }
+}
+
 // Environment variables
 const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || "";
 const INSTAGRAM_VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || "ig_webhook_verify_token";
@@ -142,7 +189,7 @@ async function handleInstagramMessage(event: any) {
   // Handle different message types
   if (message.text) {
     // Regular text message
-    await handleTextMessage(senderId, message.text);
+    await handleTextMessage(senderId, message.text, message.mid);
   } else if (message.attachments) {
     // Image, video, or other attachment
     await handleAttachment(senderId, message.attachments);
@@ -158,20 +205,33 @@ async function handleInstagramMessage(event: any) {
 /**
  * Handle text messages
  */
-async function handleTextMessage(senderId: string, text: string) {
+async function handleTextMessage(senderId: string, text: string, messageId?: string) {
   console.log(`💬 Text message from ${senderId}: "${text}"`);
 
   try {
+    // Save user message to Control Panel
+    await saveToControlPanel(senderId, {
+      id: messageId || `ig_${Date.now()}_user`,
+      senderId: senderId,
+      senderType: 'user',
+      text: text,
+      timestamp: new Date().toISOString()
+    });
+
     // TODO: Integrate with existing message processing logic
     // For now, send a simple response
-
-    // Import the message processing logic from Messenger
-    // You can reuse the same AI logic here
-
-    // Temporary simple response
     const response = "გამარჯობა! მადლობა შეტყობინებისთვის. ჩვენი Instagram ჩატბოტი მალე იმუშავებს სრულად! 🤖";
 
     await sendInstagramMessage(senderId, { text: response });
+
+    // Save bot response to Control Panel
+    await saveToControlPanel(senderId, {
+      id: `ig_${Date.now()}_bot`,
+      senderId: 'bot',
+      senderType: 'bot',
+      text: response,
+      timestamp: new Date().toISOString()
+    });
 
   } catch (error) {
     console.error("❌ Error handling text message:", error);
