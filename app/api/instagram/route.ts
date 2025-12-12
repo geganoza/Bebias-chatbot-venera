@@ -1,10 +1,141 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firestore";
+import OpenAI from "openai";
+import * as fs from "fs";
+import * as path from "path";
+import { addMessageToBatch } from "@/lib/redis";
+import { Client as QStashClient } from "@upstash/qstash";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "",
+});
+
+// Use same content path as test bot
+const TEST_CONTENT_PATH = "test-bot/data/content";
+
+/**
+ * Load content file (same as process-test)
+ */
+function loadTestContent(filename: string): string {
+  try {
+    const filePath = path.join(process.cwd(), TEST_CONTENT_PATH, filename);
+    return fs.readFileSync(filePath, "utf-8");
+  } catch (error) {
+    console.error(`[IG] Error loading ${filename}:`, error);
+    return "";
+  }
+}
+
+/**
+ * Load ALL content files (same as process-test)
+ */
+function loadAllTestContent(): string {
+  const files = [
+    "bot-instructions-modular.md",
+    "purchase-flow.md",
+    "delivery-info.md",
+    "payment-info.md",
+    "tone-style.md",
+    "faqs.md",
+  ];
+
+  const contents: string[] = [];
+  for (const file of files) {
+    const content = loadTestContent(file);
+    if (content) {
+      contents.push(`\n--- ${file} ---\n${content}`);
+    }
+  }
+  return contents.join("\n");
+}
+
+/**
+ * Load products from Firestore (same as process-test)
+ */
+async function loadProducts(): Promise<any[]> {
+  try {
+    const snapshot = await db.collection("products").get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("[IG] Error loading products:", error);
+    return [];
+  }
+}
+
+/**
+ * Generate AI response using same logic as process-test
+ */
+async function generateAIResponse(userMessage: string, userId: string): Promise<string> {
+  try {
+    // Get conversation history from Firestore
+    const igUserId = userId.startsWith('IG_') ? userId : `IG_${userId}`;
+    const docRef = db.collection('metaMessages').doc(igUserId);
+    const doc = await docRef.get();
+
+    // Load system content (same as test bot)
+    const systemContent = loadAllTestContent();
+
+    // Load products
+    const products = await loadProducts();
+    const productList = products
+      .filter((p: any) => (p.stock_qty || 0) > 0)
+      .map((p: any) => `- ${p.name}: ${p.price}₾ (მარაგშია: ${p.stock_qty})`)
+      .join("\n");
+
+    // Build system prompt (same as test bot)
+    const systemPrompt = `${systemContent}
+
+--- AVAILABLE PRODUCTS ---
+${productList}
+
+IMPORTANT: Respond in the SAME LANGUAGE as the user's message.
+CURRENT TIME: ${new Date().toISOString()}
+`;
+
+    // Build messages
+    const messages: any[] = [{ role: 'system', content: systemPrompt }];
+
+    // Add conversation history if exists
+    if (doc.exists) {
+      const data = doc.data();
+      const history = data?.messages || [];
+      const recentHistory = history.slice(-10);
+      for (const msg of recentHistory) {
+        if (msg.senderType === 'user') {
+          messages.push({ role: 'user', content: msg.text });
+        } else if (msg.senderType === 'bot') {
+          const cleanText = msg.text.replace(/^\[Response pending.*?\]\s*/, '');
+          messages.push({ role: 'assistant', content: cleanText });
+        }
+      }
+    }
+
+    messages.push({ role: 'user', content: userMessage });
+
+    console.log(`🤖 [IG] Generating AI response for: "${userMessage}"`);
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: messages,
+      max_tokens: 1000,
+      temperature: 0.7,
+    });
+
+    const response = completion.choices[0]?.message?.content || 'მადლობა შეტყობინებისთვის!';
+    console.log(`✅ [IG] AI response: "${response.substring(0, 100)}..."`);
+
+    return response;
+  } catch (error) {
+    console.error('❌ [IG] Error generating AI response:', error);
+    return 'გმადლობთ შეტყობინებისთვის! დამატებითი დახმარებისთვის დაგვიკავშირდით.';
+  }
+}
 
 /**
  * Log Instagram webhook event to Firestore for viewing in control panel
@@ -131,10 +262,13 @@ export async function POST(req: Request) {
     // Process each entry
     if (body.entry) {
       for (const entry of body.entry) {
-        // Instagram sends messaging events
+        // Instagram sends messaging events in two formats:
+        // 1. Real-time messages: entry.messaging[]
+        // 2. Test/subscription events: entry.changes[].value
+
+        // Handle real-time messaging format
         if (entry.messaging) {
           for (const event of entry.messaging) {
-            // Log each message event
             await logInstagramWebhook('message_event', {
               senderId: event.sender?.id,
               recipientId: event.recipient?.id,
@@ -146,12 +280,36 @@ export async function POST(req: Request) {
 
             await handleInstagramMessage(event);
 
-            // Log completion
             await logInstagramWebhook('message_processed', {
               senderId: event.sender?.id,
               messageText: event.message?.text || '[attachment/media]',
               status: 'Bot response sent'
             }, 'completed');
+          }
+        }
+
+        // Handle changes format (used by Meta's Test button)
+        if (entry.changes) {
+          for (const change of entry.changes) {
+            if (change.field === 'messages' && change.value) {
+              const event = change.value;
+              await logInstagramWebhook('message_event_changes', {
+                senderId: event.sender?.id,
+                recipientId: event.recipient?.id,
+                messageText: event.message?.text || '[attachment/media]',
+                messageType: event.message?.text ? 'text' : 'attachment',
+                timestamp: event.timestamp,
+                raw: event
+              }, 'processing');
+
+              await handleInstagramMessage(event);
+
+              await logInstagramWebhook('message_processed_changes', {
+                senderId: event.sender?.id,
+                messageText: event.message?.text || '[attachment/media]',
+                status: 'Bot response sent (from changes format)'
+              }, 'completed');
+            }
           }
         }
       }
@@ -167,6 +325,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "error" }, { status: 200 });
   }
 }
+
+// Our Page's Instagram Business Account ID (bebias_handcrafted)
+const PAGE_INSTAGRAM_ID = "17841424690552638";
 
 /**
  * Handle different types of Instagram messages
@@ -186,13 +347,25 @@ async function handleInstagramMessage(event: any) {
     return;
   }
 
+  // Echo detection: Skip messages from our own page (bot responding to itself)
+  if (senderId === PAGE_INSTAGRAM_ID) {
+    console.log("⚠️ Skipping echo message from page itself (senderId === PAGE_INSTAGRAM_ID)");
+    return;
+  }
+
+  // Also skip if this is a message we sent (checking is_echo flag)
+  if (message.is_echo) {
+    console.log("⚠️ Skipping echo message (is_echo flag set)");
+    return;
+  }
+
   // Handle different message types
   if (message.text) {
     // Regular text message
     await handleTextMessage(senderId, message.text, message.mid);
   } else if (message.attachments) {
     // Image, video, or other attachment
-    await handleAttachment(senderId, message.attachments);
+    await handleAttachment(senderId, message.attachments, message.mid);
   } else if (message.story_mention) {
     // User mentioned you in their story
     await handleStoryMention(senderId, message.story_mention);
@@ -203,12 +376,15 @@ async function handleInstagramMessage(event: any) {
 }
 
 /**
- * Handle text messages
+ * Handle text messages - uses Redis batching like Messenger
  */
 async function handleTextMessage(senderId: string, text: string, messageId?: string) {
-  console.log(`💬 Text message from ${senderId}: "${text}"`);
+  console.log(`💬 [IG] Text message from ${senderId}: "${text}"`);
 
-  // ALWAYS save user message to Control Panel first (before any potential errors)
+  // Use IG_ prefix for storage/batching to distinguish from Messenger users
+  const igSenderId = `IG_${senderId}`;
+
+  // Save user message to Control Panel
   try {
     await saveToControlPanel(senderId, {
       id: messageId || `ig_${Date.now()}_user`,
@@ -217,40 +393,57 @@ async function handleTextMessage(senderId: string, text: string, messageId?: str
       text: text,
       timestamp: new Date().toISOString()
     });
-    console.log(`✅ User message saved to Control Panel`);
+    console.log(`✅ [IG] User message saved to Control Panel`);
   } catch (saveError) {
-    console.error("❌ Error saving user message to Control Panel:", saveError);
+    console.error("❌ [IG] Error saving user message to Control Panel:", saveError);
   }
 
-  // Try to send response (may fail due to token issues, but that's OK for demo)
-  const response = "გამარჯობა! მადლობა შეტყობინებისთვის. ჩვენი Instagram ჩატბოტი მალე იმუშავებს სრულად! 🤖";
-
+  // Add to Redis batch (same as Messenger)
   try {
-    await sendInstagramMessage(senderId, { text: response });
-    console.log(`✅ Instagram response sent`);
-
-    // Save bot response to Control Panel
-    await saveToControlPanel(senderId, {
-      id: `ig_${Date.now()}_bot`,
-      senderId: 'bot',
-      senderType: 'bot',
-      text: response,
-      timestamp: new Date().toISOString()
+    await addMessageToBatch(igSenderId, {
+      messageId: messageId || `ig_${Date.now()}`,
+      text: text,
+      attachments: null,
+      timestamp: Date.now(),
+      platform: 'instagram',
+      originalSenderId: senderId // Keep original for API calls
     });
-  } catch (error) {
-    console.error("❌ Error sending Instagram message (token may be expired):", error);
+    console.log(`✅ [IG] Message added to Redis batch for ${igSenderId}`);
 
-    // Still save a "pending" bot response so it shows in Control Panel
+    // Queue to QStash for processing (with delay for batching)
+    const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
+    const batchWindow = Math.floor(Date.now() / 3000) * 3000;
+    const conversationId = `batch_${igSenderId}_${batchWindow}`;
+
+    // All Instagram users go through test processing (same as test users)
+    const processingUrl = `${process.env.NEXT_PUBLIC_CHAT_API_BASE || 'https://bebias-venera-chatbot.vercel.app'}/api/process-test`;
+
+    await qstash.publishJSON({
+      url: processingUrl,
+      body: { senderId: igSenderId, batchKey: conversationId },
+      deduplicationId: conversationId,
+      delay: 3, // 3 second delay for batching
+    });
+
+    console.log(`✅ [IG] Queued to QStash: ${conversationId}`);
+  } catch (error) {
+    console.error("❌ [IG] Error queueing message:", error);
+
+    // Fallback: process directly if batching fails
+    console.log(`⚠️ [IG] Falling back to direct processing`);
+    const response = await generateAIResponse(text, senderId);
+
     try {
+      await sendInstagramMessage(senderId, { text: response });
       await saveToControlPanel(senderId, {
         id: `ig_${Date.now()}_bot`,
         senderId: 'bot',
         senderType: 'bot',
-        text: `[Response pending - token refresh needed] ${response}`,
+        text: response,
         timestamp: new Date().toISOString()
       });
-    } catch (e) {
-      console.error("❌ Error saving bot response:", e);
+    } catch (sendError) {
+      console.error("❌ [IG] Fallback send failed:", sendError);
     }
   }
 }
@@ -258,26 +451,56 @@ async function handleTextMessage(senderId: string, text: string, messageId?: str
 /**
  * Handle attachments (images, videos, etc.)
  */
-async function handleAttachment(senderId: string, attachments: any[]) {
+async function handleAttachment(senderId: string, attachments: any[], messageId?: string) {
   console.log(`📎 Attachment from ${senderId}:`, attachments);
 
   try {
     for (const attachment of attachments) {
+      const attachmentType = attachment.type || 'file';
+      const attachmentUrl = attachment.payload?.url || '';
+      const messageText = `[${attachmentType.toUpperCase()}] ${attachmentUrl ? attachmentUrl.substring(0, 50) + '...' : 'Media attachment'}`;
+
+      // Save user attachment to Control Panel
+      try {
+        await saveToControlPanel(senderId, {
+          id: messageId || `ig_${Date.now()}_user_attachment`,
+          senderId: senderId,
+          senderType: 'user',
+          text: messageText,
+          timestamp: new Date().toISOString()
+        });
+        console.log(`✅ Attachment saved to Control Panel`);
+      } catch (saveError) {
+        console.error("❌ Error saving attachment to Control Panel:", saveError);
+      }
+
+      let response = "";
       if (attachment.type === "image") {
-        // Handle image
         const imageUrl = attachment.payload?.url;
         console.log(`🖼️  Image received: ${imageUrl}`);
-
-        // TODO: Implement image recognition (like Facebook ads)
-        // Can use GPT-4o vision API here
-
-        await sendInstagramMessage(senderId, {
-          text: "მადლობა სურათისთვის! ვამუშავებთ თქვენს მოთხოვნას... 📸"
-        });
+        response = "მადლობა სურათისთვის! ვამუშავებთ თქვენს მოთხოვნას... 📸";
       } else {
-        // Other attachment types
-        await sendInstagramMessage(senderId, {
-          text: "მივიღეთ თქვენი ფაილი. დამატებითი ინფორმაციისთვის მოგვწერეთ ტექსტური შეტყობინება. 📄"
+        response = "მივიღეთ თქვენი ფაილი. დამატებითი ინფორმაციისთვის მოგვწერეთ ტექსტური შეტყობინება. 📄";
+      }
+
+      // Try to send response
+      try {
+        await sendInstagramMessage(senderId, { text: response });
+        await saveToControlPanel(senderId, {
+          id: `ig_${Date.now()}_bot`,
+          senderId: 'bot',
+          senderType: 'bot',
+          text: response,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("❌ Error sending Instagram message (token may be expired):", error);
+        await saveToControlPanel(senderId, {
+          id: `ig_${Date.now()}_bot`,
+          senderId: 'bot',
+          senderType: 'bot',
+          text: `[Response pending - token refresh needed] ${response}`,
+          timestamp: new Date().toISOString()
         });
       }
     }

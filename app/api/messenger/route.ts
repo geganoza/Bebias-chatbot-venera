@@ -250,6 +250,7 @@ const openai = new OpenAI({
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN || "";
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "your_verify_token_123";
+const INSTAGRAM_VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || "ig_webhook_verify_token";
 
 const MAX_HISTORY_LENGTH = 20; // Keep last 20 exchanges (40 messages) per user
 
@@ -284,8 +285,16 @@ type ConversationData = {
  * Save message to Firestore and queue to QStash for async processing
  * This replaces synchronous processing with async queueing
  */
-async function saveMessageAndQueue(event: any): Promise<void> {
-  const senderId = event.sender?.id;
+async function saveMessageAndQueue(event: any, platform: 'messenger' | 'instagram' = 'messenger'): Promise<void> {
+  // For Instagram, use the prefixed senderId for storage but keep original for API calls
+  let senderId = event.sender?.id;
+  const originalSenderId = senderId;
+
+  // Add IG_ prefix for Instagram users (for storage/batching)
+  if (platform === 'instagram' && senderId && !senderId.startsWith('IG_')) {
+    senderId = `IG_${senderId}`;
+  }
+
   const message = event.message;
   const messageText = message?.text;
   const messageAttachments = message?.attachments;
@@ -296,7 +305,7 @@ async function saveMessageAndQueue(event: any): Promise<void> {
     return;
   }
 
-  console.log(`📝 Saving message from ${senderId} to Firestore...`);
+  console.log(`📝 Saving ${platform} message from ${senderId} to Firestore...`);
 
   // Extract message content (same logic as processMessagingEvent)
   let userContent: MessageContent = "";
@@ -1670,14 +1679,17 @@ export async function GET(req: Request) {
   console.log("  Mode check:", mode === "subscribe");
   console.log("  Challenge:", challenge);
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN && challenge) {
-    console.log("✅ Messenger webhook verified successfully!");
+  // Accept both Messenger and Instagram verify tokens
+  const tokenValid = token === VERIFY_TOKEN || token === INSTAGRAM_VERIFY_TOKEN;
+
+  if (mode === "subscribe" && tokenValid && challenge) {
+    console.log("✅ Webhook verified successfully!");
     return new NextResponse(challenge, { status: 200 });
   }
 
-  console.error("❌ Messenger webhook verification failed");
+  console.error("❌ Webhook verification failed");
   console.error(`  Mode: '${mode}' (expected: 'subscribe')`);
-  console.error(`  Token: '${token}' (expected: '${VERIFY_TOKEN}')`);
+  console.error(`  Token: '${token}' (expected: '${VERIFY_TOKEN}' or '${INSTAGRAM_VERIFY_TOKEN}')`);
   console.error(`  Challenge: '${challenge}'`);
   return new NextResponse("Forbidden", { status: 403 });
 }
@@ -2177,28 +2189,74 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  console.log("📩 Incoming Messenger webhook");
+  console.log("📩 Incoming webhook");
 
-  if (body.object !== "page") {
-    console.log("⚠️ Unknown webhook event");
+  // Instagram Business Account ID (bebias_handcrafted) for echo detection
+  const PAGE_INSTAGRAM_ID = "17841424690552638";
+
+  // Accept both Facebook Messenger ("page") and Instagram ("instagram") webhooks
+  const isMessenger = body.object === "page";
+  const isInstagram = body.object === "instagram";
+
+  if (!isMessenger && !isInstagram) {
+    console.log("⚠️ Unknown webhook event:", body.object);
     return NextResponse.json({ status: "ignored" }, { status: 200 });
   }
 
+  console.log(`📱 Platform: ${isInstagram ? 'Instagram' : 'Messenger'}`);
+
   // Process events synchronously (serverless terminates after response)
   for (const entry of body.entry || []) {
-    for (const event of entry.messaging || []) {
-      const senderId = event.sender?.id;
-      const recipientId = event.recipient?.id;
+    // Collect events from both messaging[] (standard) and changes[] (Instagram Test button)
+    const events: any[] = [];
+
+    // Standard messaging format (both Messenger and Instagram)
+    if (entry.messaging) {
+      for (const event of entry.messaging) {
+        events.push({ ...event, _source: 'messaging' });
+      }
+    }
+
+    // Instagram changes format (Meta's Test button uses this)
+    if (isInstagram && entry.changes) {
+      for (const change of entry.changes) {
+        if (change.field === 'messages' && change.value) {
+          events.push({ ...change.value, _source: 'changes' });
+        }
+      }
+    }
+
+    for (const event of events) {
+      // For Instagram, prefix sender ID with IG_ to distinguish from Messenger users
+      let senderId = event.sender?.id;
+      if (isInstagram && senderId && !senderId.startsWith('IG_')) {
+        senderId = `IG_${senderId}`;
+      }
+      // Store original sender ID for API calls
+      const originalSenderId = event.sender?.id;
+
+      let recipientId = event.recipient?.id;
+      if (isInstagram && recipientId && !recipientId.startsWith('IG_')) {
+        recipientId = `IG_${recipientId}`;
+      }
+
       const messageId = event.message?.mid;
       const webhookId = Math.random().toString(36).substring(2, 8);
       const isEcho = event.message?.is_echo;
 
+      // Instagram echo detection: skip messages from our own page
+      if (isInstagram && originalSenderId === PAGE_INSTAGRAM_ID) {
+        console.log(`⏭️ [WH:${webhookId}] INSTAGRAM ECHO - message from page itself, skipping`);
+        continue;
+      }
+
       // Enhanced logging to debug echo messages
-      console.log(`📨 [WH:${webhookId}] Event received:`);
-      console.log(`   Sender: ${senderId}`);
+      console.log(`📨 [WH:${webhookId}] Event received (${event._source}):`);
+      console.log(`   Sender: ${senderId} (original: ${originalSenderId})`);
       console.log(`   Recipient: ${recipientId}`);
       console.log(`   Message ID: ${messageId}`);
       console.log(`   Is Echo: ${isEcho}`);
+      console.log(`   Platform: ${isInstagram ? 'Instagram' : 'Messenger'}`);
 
       // Log full raw event to capture ad referral data
       console.log(`📦 [WH:${webhookId}] RAW EVENT:`, JSON.stringify({
@@ -2571,9 +2629,9 @@ export async function POST(req: Request) {
       // ═══════════════════════════════════════════════════════
       // QUEUE TO QSTASH (Quick - just HTTP POST)
       // ═══════════════════════════════════════════════════════
-      console.log(`🚀 [WH:${webhookId}] Queueing ${messageId}`);
+      console.log(`🚀 [WH:${webhookId}] Queueing ${messageId} (platform: ${isInstagram ? 'instagram' : 'messenger'})`);
       try {
-        await saveMessageAndQueue(event);
+        await saveMessageAndQueue(event, isInstagram ? 'instagram' : 'messenger');
         console.log(`✅ [WH:${webhookId}] Queued ${messageId}`);
       } catch (err) {
         console.error(`❌ [WH:${webhookId}] Queue error:`, err);

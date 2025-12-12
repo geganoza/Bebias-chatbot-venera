@@ -607,20 +607,35 @@ async function saveConversation(data: ConversationData): Promise<void> {
 // ==================== MESSAGE SENDING ====================
 
 async function sendMessage(recipientId: string, text: string): Promise<void> {
-  const url = `https://graph.facebook.com/v21.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
+  // Detect Instagram users by IG_ prefix
+  const isInstagram = recipientId.startsWith('IG_');
+  const actualRecipientId = isInstagram ? recipientId.replace('IG_', '') : recipientId;
+  const token = isInstagram
+    ? process.env.INSTAGRAM_PAGE_ACCESS_TOKEN
+    : process.env.PAGE_ACCESS_TOKEN;
+
+  const url = `https://graph.facebook.com/v21.0/me/messages?access_token=${token}`;
 
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        recipient: { id: recipientId },
+        recipient: { id: actualRecipientId },
         message: { text },
       }),
     });
-    console.log(`[TEST] ✅ Sent message to ${recipientId}`);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`[TEST] ❌ API error:`, errorData);
+      throw new Error(`API error: ${JSON.stringify(errorData)}`);
+    }
+
+    console.log(`[TEST] ✅ Sent ${isInstagram ? 'Instagram' : 'Messenger'} message to ${actualRecipientId}`);
   } catch (error) {
     console.error(`[TEST] ❌ Failed to send message:`, error);
+    throw error;
   }
 }
 
@@ -899,21 +914,27 @@ CURRENT TIME: ${new Date().toISOString()}
     const imageMatches = [...response.matchAll(imageRegex)];
     response = response.replace(imageRegex, "").trim();
 
-    // Send product images
+    // Send product images (with Instagram support)
+    const isInstagram = senderId.startsWith('IG_');
+    const actualSenderId = isInstagram ? senderId.replace('IG_', '') : senderId;
+    const imageToken = isInstagram
+      ? process.env.INSTAGRAM_PAGE_ACCESS_TOKEN
+      : process.env.PAGE_ACCESS_TOKEN;
+
     for (const match of imageMatches) {
       const productId = match[1].trim();
       const product = products.find(p => p.id === productId);
       if (product?.image && product.image.startsWith("http")) {
         try {
-          await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`, {
+          await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${imageToken}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              recipient: { id: senderId },
+              recipient: { id: actualSenderId },
               message: { attachment: { type: "image", payload: { url: product.image } } },
             }),
           });
-          console.log(`[TEST] ✅ Sent image for ${productId}`);
+          console.log(`[TEST] ✅ Sent image for ${productId} via ${isInstagram ? 'Instagram' : 'Messenger'}`);
         } catch (err) {
           console.error(`[TEST] ❌ Failed to send image:`, err);
         }
