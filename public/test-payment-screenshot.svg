@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="600" viewBox="0 0 375 600">
+  <!-- Background -->
+  <rect width="375" height="600" fill="white"/>
+
+  <!-- TBC Blue Header -->
+  <rect width="375" height="120" fill="#00A3E0"/>
+
+  <!-- Status bar -->
+  <text x="20" y="25" fill="white" font-family="Arial" font-size="12">14:32</text>
+  <text x="340" y="25" fill="white" font-family="Arial" font-size="12">100%</text>
+
+  <!-- Back arrow and title -->
+  <text x="20" y="70" fill="white" font-family="Arial" font-size="24">&lt;-</text>
+  <text x="60" y="70" fill="white" font-family="Arial" font-size="18">გადარიცხვა</text>
+
+  <!-- White card -->
+  <rect x="20" y="100" width="335" height="420" rx="20" fill="white" filter="url(#shadow)"/>
+
+  <!-- Success circle -->
+  <circle cx="187" cy="180" r="50" fill="#22C55E"/>
+  <text x="187" y="195" fill="white" font-family="Arial" font-size="40" text-anchor="middle">✓</text>
+
+  <!-- Success text -->
+  <text x="187" y="260" fill="#1F2937" font-family="Arial" font-size="18" font-weight="bold" text-anchor="middle">წარმატებით შესრულდა</text>
+  <text x="187" y="285" fill="#6B7280" font-family="Arial" font-size="14" text-anchor="middle">თანხა გადარიცხულია</text>
+
+  <!-- Amount -->
+  <text x="187" y="340" fill="#00A3E0" font-family="Arial" font-size="36" font-weight="bold" text-anchor="middle">57.99 ₾</text>
+
+  <!-- Divider -->
+  <line x1="40" y1="370" x2="335" y2="370" stroke="#E5E7EB" stroke-width="1"/>
+
+  <!-- Details -->
+  <text x="40" y="400" fill="#6B7280" font-family="Arial" font-size="14">მიმღები</text>
+  <text x="335" y="400" fill="#1F2937" font-family="Arial" font-size="14" text-anchor="end">BEBIAS</text>
+
+  <text x="40" y="430" fill="#6B7280" font-family="Arial" font-size="14">თარიღი</text>
+  <text x="335" y="430" fill="#1F2937" font-family="Arial" font-size="14" text-anchor="end">13/12/2024</text>
+
+  <text x="40" y="460" fill="#6B7280" font-family="Arial" font-size="14">დრო</text>
+  <text x="335" y="460" fill="#1F2937" font-family="Arial" font-size="14" text-anchor="end">14:32</text>
+
+  <text x="40" y="490" fill="#6B7280" font-family="Arial" font-size="14">ტრანზაქცია</text>
+  <text x="335" y="490" fill="#1F2937" font-family="Arial" font-size="12" text-anchor="end">TRX89274651</text>
+
+  <!-- Shadow filter -->
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+</svg>

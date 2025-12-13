@@ -15,6 +15,10 @@ import { db } from "@/lib/firestore";
 import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
+import { facebookImageToBase64 } from "@/lib/bot-core";
+
+// Type for message content (text or multimodal)
+type MessageContent = string | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
 
 // ==================== CONSTANTS ====================
 const TEST_CONTENT_PATH = "test-bot/data/content";
@@ -571,6 +575,8 @@ interface ConversationData {
   lastActive?: string;
   woltSessionId?: string; // Session ID for map confirmation flow
   woltAddress?: string;   // Address being validated
+  woltPrice?: number;     // Delivery price from Wolt estimate
+  woltEta?: number;       // Delivery ETA in minutes
 }
 
 async function loadConversation(senderId: string): Promise<ConversationData> {
@@ -607,18 +613,31 @@ async function saveConversation(data: ConversationData): Promise<void> {
 // ==================== MESSAGE SENDING ====================
 
 async function sendMessage(recipientId: string, text: string): Promise<void> {
-  const url = `https://graph.facebook.com/v21.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
+  // Detect Instagram users by IG_ prefix
+  const isInstagram = recipientId.startsWith('IG_');
+  const actualRecipientId = isInstagram ? recipientId.replace('IG_', '') : recipientId;
+
+  // Both Facebook and Instagram use PAGE_ACCESS_TOKEN (same Page)
+  const token = process.env.PAGE_ACCESS_TOKEN;
+  const url = `https://graph.facebook.com/v21.0/me/messages?access_token=${token}`;
 
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        recipient: { id: recipientId },
+        recipient: { id: actualRecipientId },
         message: { text },
       }),
     });
-    console.log(`[TEST] ✅ Sent message to ${recipientId}`);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`[TEST] ❌ API error for ${isInstagram ? 'Instagram' : 'Facebook'}:`, errorData);
+      throw new Error(JSON.stringify(errorData));
+    }
+
+    console.log(`[TEST] ✅ Sent ${isInstagram ? 'Instagram' : 'Facebook'} message to ${actualRecipientId}`);
   } catch (error) {
     console.error(`[TEST] ❌ Failed to send message:`, error);
   }
@@ -628,7 +647,8 @@ async function sendMessage(recipientId: string, text: string): Promise<void> {
 
 function parseOrderConfirmation(text: string): any | null {
   if (!text.includes("შეკვეთა მიღებულია")) return null;
-  if (!text.includes("[ORDER_NUMBER]") && !text.includes("🎫")) return null;
+  // Accept both [ORDER_NUMBER] and [WOLT_ORDER_NUMBER] placeholders
+  if (!text.includes("[ORDER_NUMBER]") && !text.includes("[WOLT_ORDER_NUMBER]") && !text.includes("🎫")) return null;
 
   const nameMatch = text.match(/👤[^:]*:\s*(.+?)(?=[\r\n]|📞|$)/);
   const phoneMatch = text.match(/📞[^:]*:\s*(.+?)(?=[\r\n]|📍|$)/);
@@ -669,7 +689,9 @@ function parseOrderConfirmation(text: string): any | null {
 
 async function createOrder(orderData: any): Promise<string> {
   const { logOrder } = await import("@/lib/orderLoggerWithFirestore");
-  return await logOrder(orderData, "messenger");
+  // Use 'wolt' source for Wolt orders (700xxx numbering), 'messenger' for regular orders (900xxx)
+  const source = orderData.isWoltOrder ? "wolt" : "messenger";
+  return await logOrder(orderData, source);
 }
 
 // ==================== MAIN HANDLER ====================
@@ -723,13 +745,50 @@ async function handler(req: Request) {
 
     console.log(`[TEST] Processing ${messages.length} messages`);
 
-    // Combine messages
+    // Combine messages and process attachments
     const combinedText = messages.map(m => m.text).filter(Boolean).join(". ");
     console.log(`[TEST] Combined text: "${combinedText}"`);
 
+    // Process all attachments from batched messages
+    const contentParts: ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[] = [];
+    const allAttachments = messages.flatMap(m => m.attachments || []);
+
+    if (combinedText) {
+      contentParts.push({ type: "text", text: combinedText });
+    }
+
+    for (const attachment of allAttachments) {
+      const imageUrl = attachment?.payload?.url || attachment?.url;
+      if (attachment.type === "image" && imageUrl) {
+        console.log(`[TEST] 🖼️ Processing image attachment: ${imageUrl.substring(0, 60)}...`);
+        const base64Image = await facebookImageToBase64(imageUrl);
+        if (base64Image) {
+          contentParts.push({ type: "image_url", image_url: { url: base64Image } });
+          console.log(`[TEST] ✅ Image converted to base64`);
+        } else {
+          console.warn(`[TEST] ⚠️ Failed to convert image`);
+          if (!combinedText) {
+            contentParts.push({ type: "text", text: "[User sent an image]" });
+          }
+        }
+      }
+    }
+
+    // Determine final user content
+    let userContent: MessageContent;
+    if (contentParts.length === 0) {
+      userContent = combinedText || "[No text content]";
+    } else if (contentParts.length === 1 && contentParts[0].type === "text") {
+      userContent = contentParts[0].text;
+    } else {
+      userContent = contentParts;
+    }
+
+    console.log(`[TEST] 📎 Total attachments: ${allAttachments.length}`);
+
     // Handle "clear" command - reset conversation history
     if (combinedText.toLowerCase().trim() === "clear") {
-      console.log(`[TEST] 🧹 Clear command received - resetting history`);
+      console.log(`[TEST] 🧹 Clear command received - resetting history for ${senderId}`);
 
       // Clear Firestore conversation
       await db.collection("conversations").doc(senderId).set({
@@ -738,6 +797,30 @@ async function handler(req: Request) {
         orders: [],
         lastActive: new Date().toISOString(),
       });
+
+      // Also clear metaMessages (Control Panel) for both Facebook and Instagram
+      const isInstagram = senderId.startsWith('IG_');
+      if (isInstagram) {
+        // For Instagram, clear metaMessages with the IG_ prefix
+        await db.collection("metaMessages").doc(senderId).set({
+          userId: senderId,
+          platform: 'instagram',
+          messages: [],
+          clearedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log(`[TEST] 🧹 Cleared Instagram metaMessages for ${senderId}`);
+      } else {
+        // For Facebook, clear metaMessages
+        await db.collection("metaMessages").doc(senderId).set({
+          userId: senderId,
+          platform: 'facebook',
+          messages: [],
+          clearedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log(`[TEST] 🧹 Cleared Facebook metaMessages for ${senderId}`);
+      }
 
       await sendMessage(senderId, "✅ ისტორია წაიშალა! შეგიძლია თავიდან დაიწყო ტესტირება 🧹");
       await clearMessageBatch(senderId);
@@ -791,7 +874,7 @@ CURRENT TIME: ${new Date().toISOString()}
     const aiMessages: any[] = [
       { role: "system", content: systemPrompt },
       ...conversationData.history.slice(-20),
-      { role: "user", content: combinedText },
+      { role: "user", content: userContent },  // Now supports images!
     ];
 
     // Call OpenAI
@@ -808,23 +891,33 @@ CURRENT TIME: ${new Date().toISOString()}
 
     // Process order if detected
     const orderData = parseOrderConfirmation(response);
+    console.log(`[TEST] parseOrderConfirmation result:`, orderData ? 'ORDER DETECTED' : 'NO ORDER');
     if (orderData) {
-      console.log(`[TEST] Order detected! Creating...`);
+      console.log(`[TEST] Order detected! Data:`, JSON.stringify({
+        clientName: orderData.clientName,
+        product: orderData.product,
+        isWoltOrder: orderData.isWoltOrder
+      }));
+      console.log(`[TEST] Creating order...`);
       try {
-        // Check if we have a saved sessionId from map confirmation flow
+        // For Wolt orders: fetch coordinates AND save sessionId
         if (conversationData.woltSessionId) {
-          console.log(`[TEST WOLT] 📍 Checking for confirmed location with sessionId: ${conversationData.woltSessionId}`);
+          console.log(`[TEST WOLT] 📍 Processing sessionId: ${conversationData.woltSessionId}`);
+
+          // Save sessionId for Shipping Manager lookup
+          orderData.sessionId = conversationData.woltSessionId;
+
+          // Also fetch and store coordinates directly
           const confirmedLocation = await getConfirmedLocation(conversationData.woltSessionId);
           if (confirmedLocation.confirmed && confirmedLocation.lat && confirmedLocation.lon) {
-            console.log(`[TEST WOLT] ✅ Using confirmed coordinates: ${confirmedLocation.lat}, ${confirmedLocation.lon}`);
-            orderData.woltCoordinates = {
-              lat: confirmedLocation.lat,
-              lon: confirmedLocation.lon,
-            };
+            console.log(`[TEST WOLT] ✅ Got confirmed coordinates: ${confirmedLocation.lat}, ${confirmedLocation.lon}`);
+            orderData.lat = confirmedLocation.lat;
+            orderData.lon = confirmedLocation.lon;
           } else {
-            console.log(`[TEST WOLT] ⚠️ No confirmed location found for sessionId`);
+            console.log(`[TEST WOLT] ⚠️ No confirmed location yet - sessionId saved for later lookup`);
           }
-          // Clear the sessionId after using it
+
+          // Clear the sessionId from conversation after using
           delete conversationData.woltSessionId;
         }
 
@@ -833,55 +926,21 @@ CURRENT TIME: ${new Date().toISOString()}
           orderData.address = conversationData.woltAddress;
         }
 
-        const orderNumber = await createOrder(orderData);
-        response = response.replace(/\[ORDER_NUMBER\]/g, orderNumber);
-        console.log(`[TEST] ✅ Order created: ${orderNumber}`);
-
-        // Create Wolt preorder if this is a Wolt order with coordinates
-        if (orderData.isWoltOrder && orderData.woltCoordinates) {
-          console.log(`[TEST WOLT] 📦 Creating Wolt preorder for order ${orderNumber}`);
-
-          // Parse product name and quantity from product string
-          // Format: "product name x quantity - price₾"
-          const productParts = orderData.product.match(/^(.+?)\s*x\s*(\d+)/);
-          const productName = productParts ? productParts[1].trim() : orderData.product;
-          const quantity = productParts ? parseInt(productParts[2]) : 1;
-
-          // Determine delivery time
-          // "now", "ახლა", or specific time like "16:00" or full ISO timestamp
-          let deliveryTime = "now";
-          if (orderData.woltScheduledTime) {
-            const timeStr = orderData.woltScheduledTime.toLowerCase();
-            if (timeStr === "now" || timeStr === "ახლა" || timeStr.includes("ახლავე")) {
-              deliveryTime = "now";
-            } else {
-              // Already a formatted time or ISO string
-              deliveryTime = orderData.woltScheduledTime;
-            }
-          }
-
-          const preorderData: WoltPreorderData = {
-            orderNumber,
-            customerName: orderData.clientName,
-            customerPhone: orderData.telephone,
-            address: orderData.address,
-            coordinates: orderData.woltCoordinates,
-            productName,
-            quantity,
-            productPrice: orderData.productPrice || 0,
-            deliveryPrice: orderData.deliveryPrice || 0,
-            deliveryTime,
-            deliveryEta: orderData.etaMinutes,
-            deliveryInstructions: orderData.deliveryInstructions !== "-" ? orderData.deliveryInstructions : undefined,
-          };
-
-          const preorderResult = await createWoltPreorder(preorderData);
-          if (preorderResult.success) {
-            console.log(`[TEST WOLT] ✅ Wolt preorder created: ${preorderResult.preorderId}`);
-          } else {
-            console.error(`[TEST WOLT] ⚠️ Wolt preorder failed but Firestore order was created`);
-          }
+        // Use saved Wolt price if available
+        if (conversationData.woltPrice && !orderData.deliveryPrice) {
+          orderData.deliveryPrice = conversationData.woltPrice;
         }
+
+        // Use saved ETA if available
+        if (conversationData.woltEta && !orderData.etaMinutes) {
+          orderData.etaMinutes = conversationData.woltEta;
+        }
+
+        const orderNumber = await createOrder(orderData);
+        // Replace both [ORDER_NUMBER] and [WOLT_ORDER_NUMBER] placeholders
+        response = response.replace(/\[ORDER_NUMBER\]/g, orderNumber);
+        response = response.replace(/\[WOLT_ORDER_NUMBER\]/g, orderNumber);
+        console.log(`[TEST] ✅ Order created: ${orderNumber}`);
 
         conversationData.orders = conversationData.orders || [];
         conversationData.orders.push({
@@ -891,6 +950,13 @@ CURRENT TIME: ${new Date().toISOString()}
         });
       } catch (err) {
         console.error(`[TEST] ❌ Order creation failed:`, err);
+        console.error(`[TEST] ❌ Error details:`, {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined
+        });
+        // IMPORTANT: Replace placeholder with error indicator so user sees something went wrong
+        response = response.replace(/\[ORDER_NUMBER\]/g, '[ORDER-ERROR]');
+        response = response.replace(/\[WOLT_ORDER_NUMBER\]/g, '[ORDER-ERROR]');
       }
     }
 

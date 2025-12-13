@@ -16,6 +16,12 @@ export interface OrderData {
   deliveryPrice?: number;
   woltScheduledTime?: string;  // ISO string or "now"
   isWoltOrder?: boolean;
+  sessionId?: string;  // Map confirmation session ID - Shipping Manager uses this to look up coordinates
+  deliveryInstructions?: string;  // Customer instructions for courier
+  // Coordinates from map confirmation
+  lat?: number;
+  lon?: number;
+  etaMinutes?: number;  // Wolt delivery ETA in minutes
 }
 
 export async function sendOrderEmail(orderData: OrderData, orderNumber?: string): Promise<boolean> {

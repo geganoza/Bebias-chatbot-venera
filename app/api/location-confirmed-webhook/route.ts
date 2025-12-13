@@ -10,7 +10,11 @@ export async function POST(request: NextRequest) {
     const { type, senderId, sessionId, lat, lon, address, woltEstimate } = body;
 
     if (type === "location_confirmed" && senderId) {
-      console.log(`[LOCATION WEBHOOK] ✅ Location confirmed for user ${senderId}`);
+      // Detect Instagram users by IG_ prefix
+      const isInstagram = senderId.startsWith('IG_');
+      const actualRecipientId = isInstagram ? senderId.replace('IG_', '') : senderId;
+
+      console.log(`[LOCATION WEBHOOK] ✅ Location confirmed for ${isInstagram ? 'Instagram' : 'Facebook'} user ${actualRecipientId}`);
       console.log(`[LOCATION WEBHOOK] 📍 Coordinates: ${lat}, ${lon}`);
       console.log(`[LOCATION WEBHOOK] 📍 Address: ${address}`);
       console.log(`[LOCATION WEBHOOK] 💰 Wolt Estimate:`, woltEstimate);
@@ -33,23 +37,24 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      message += `\n\nროდის გინდა მიიღო შეკვეთა? (ორშაბათი-პარასკევი, 14:00-20:00)\nთუ ახლავე გინდა, დაწერე 'ახლა'`;
+      message += `\n\n🛒 გინდა ახლავე შეუკვეთო?`;
 
-      // Send message to user via Facebook Send API
+      // Send message to user via Facebook/Instagram Send API
+      // Both use PAGE_ACCESS_TOKEN, just with the actual recipient ID (no prefix)
       const messageResponse = await fetch(
         `https://graph.facebook.com/v21.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            recipient: { id: senderId },
+            recipient: { id: actualRecipientId },
             message: { text: message },
           }),
         }
       );
 
       if (messageResponse.ok) {
-        console.log(`[LOCATION WEBHOOK] ✅ Message sent to user ${senderId}`);
+        console.log(`[LOCATION WEBHOOK] ✅ Message sent to ${isInstagram ? 'Instagram' : 'Facebook'} user ${actualRecipientId}`);
         return NextResponse.json({ success: true, message: "Message sent" });
       } else {
         const errorData = await messageResponse.json();

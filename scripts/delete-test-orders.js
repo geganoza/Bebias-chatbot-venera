@@ -25,16 +25,17 @@ const db = new Firestore({
   credentials: { client_email: clientEmail, private_key: privateKey },
 });
 
-async function getDetails() {
-  const ids = ['11736', '11738'];
-  
-  for (const id of ids) {
-    const doc = await db.collection('orders').doc(id).get();
-    if (doc.exists) {
-      console.log('\n=== ORDER', id, '===');
-      console.log(JSON.stringify(doc.data(), null, 2));
-    }
+const ordersToDelete = ['700006', '700004', '900112', '800019'];
+
+async function deleteOrders() {
+  console.log('Deleting test orders from გიორგი ნოზაძე...\n');
+
+  for (const id of ordersToDelete) {
+    await db.collection('orders').doc(id).delete();
+    console.log('🗑️  Deleted order', id);
   }
+
+  console.log('\n✅ Done! 4 test orders removed.');
 }
 
-getDetails().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+deleteOrders().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

@@ -2,6 +2,62 @@
 
 Base URL: `https://shipping-manager-standalone.vercel.app`
 
+**Address Resolution Version: v5.1** (Super Smart Hybrid Matching)
+
+---
+
+## Address Validation (v5.1)
+
+**POST `/api/address/validate`**
+
+Request:
+```json
+{
+  "address": "ჭავჭავაძის 45"
+}
+```
+
+Response:
+```json
+{
+  "action": "SEND_MAP_LINK",
+  "shipping": {
+    "street": "ილია ჭავჭავაძის გამზირი",
+    "city": "თბილისი",
+    "coordinates": {
+      "lat": 41.708846,
+      "lon": 44.7746786
+    }
+  },
+  "woltValid": true,
+  "woltPrice": 6.85,
+  "confidence": 0.95,
+  "resolvedBy": "v5_smart_wolt",
+  "streetDbMatch": {
+    "officialName": "ილია ჭავჭავაძის გამზირი (N 2/2-ის გარდა)",
+    "matchScore": 0.8,
+    "streetType": "გამზირი",
+    "streetTypePriority": 100
+  }
+}
+```
+
+### resolvedBy Values
+- `v5_smart_wolt` - v5.1 matched from local DB, validated via Wolt
+- `v5_smart_osm` - v5.1 matched, coordinates from OSM
+- `v5_smart_google` - v5.1 matched, coordinates from Google
+- `smart_wolt` - v3 fallback via Wolt
+- `smart_osm` - v3 fallback via OSM
+- `smart_google` - v3 fallback via Google
+
+### v5.1 Features
+- **PREFIX-BASED matching** - No false positives from similar surnames
+- **STREET TYPE HIERARCHY** - Prefers გამზირი (100) > ქუჩა (80) > შესახვევი (40)
+- **LOW-PRIORITY REJECTION** - ჩიხი/შესახვევი excluded unless explicitly mentioned
+- **100% Wolt validation** - All results validated for deliverability
+
+---
+
 ## Location Confirmation Flow
 
 ### 1. Generate Map Link
@@ -188,4 +244,6 @@ export async function POST(request: NextRequest) {
 
 ---
 
-Last Updated: 2025-12-11
+Last Updated: 2025-12-12
+
+**Address Resolution v5.1 deployed** - See ADDRESS_RESOLUTION_DOCUMENTATION.md in shipping-manager-standalone for full details.

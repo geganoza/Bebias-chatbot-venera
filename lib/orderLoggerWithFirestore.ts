@@ -73,7 +73,7 @@ function extractCity(address: string): string {
 export interface OrderLog extends OrderData {
     orderNumber: string;
     timestamp: string;
-    source: 'messenger' | 'chat' | 'chatbot';
+    source: 'messenger' | 'chat' | 'chatbot' | 'wolt';
     paymentMethod?: 'bank_transfer' | 'cash_on_delivery' | 'confirmed';
     paymentStatus?: 'pending' | 'confirmed' | 'failed';
     firestoreUpdated?: boolean;
@@ -89,8 +89,9 @@ export interface OrderLog extends OrderData {
 // Generate order number based on source using Firestore counter
 // Messenger: 9 + 5 digits (e.g., 900001)
 // Chat: 8 + 5 digits (e.g., 800001)
-async function generateOrderNumber(source: 'messenger' | 'chat'): Promise<string> {
-    const prefix = source === 'messenger' ? '9' : '8';
+// Wolt: 7 + 5 digits (e.g., 700001)
+async function generateOrderNumber(source: 'messenger' | 'chat' | 'wolt'): Promise<string> {
+    const prefix = source === 'wolt' ? '7' : (source === 'messenger' ? '9' : '8');
     const counterDoc = `orderCounter_${source}`;
 
     try {
@@ -221,7 +222,7 @@ async function extractProductInfo(productName: string): Promise<{ docId: string;
 
 export async function logOrder(
     orderData: OrderData,
-    source: 'messenger' | 'chat',
+    source: 'messenger' | 'chat' | 'wolt',
     options?: {
         paymentMethod?: 'bank_transfer' | 'cash_on_delivery' | 'confirmed';
         productSku?: string;
@@ -325,20 +326,48 @@ export async function logOrder(
             }
             orderLog.telephone = phone;
 
-            // Include Wolt-specific fields if provided
+            // Include ALL Wolt-specific fields
             if (orderData.deliveryPrice) {
                 orderLog.deliveryPrice = orderData.deliveryPrice;
             }
             if (orderData.woltScheduledTime) {
                 orderLog.woltScheduledTime = orderData.woltScheduledTime;
             }
+            if (orderData.sessionId) {
+                orderLog.sessionId = orderData.sessionId;
+            }
+            if (orderData.lat) {
+                orderLog.lat = orderData.lat;
+            }
+            if (orderData.lon) {
+                orderLog.lon = orderData.lon;
+            }
+            if (orderData.etaMinutes) {
+                orderLog.etaMinutes = orderData.etaMinutes;
+            }
+            if (orderData.deliveryInstructions) {
+                orderLog.deliveryInstructions = orderData.deliveryInstructions;
+            }
 
-            console.log(`🚚 [logOrder] Wolt order details: phone=${orderLog.telephone}, deliveryPrice=${orderLog.deliveryPrice}, scheduledTime=${orderLog.woltScheduledTime}`);
+            console.log(`🚚 [logOrder] Wolt order stored with ALL fields:`);
+            console.log(`   - clientName: ${orderLog.clientName}`);
+            console.log(`   - telephone: ${orderLog.telephone}`);
+            console.log(`   - address: ${orderLog.address}`);
+            console.log(`   - product: ${orderLog.product}`);
+            console.log(`   - deliveryPrice: ${orderLog.deliveryPrice}`);
+            console.log(`   - etaMinutes: ${orderLog.etaMinutes}`);
+            console.log(`   - sessionId: ${orderLog.sessionId}`);
+            console.log(`   - lat/lon: ${orderLog.lat}, ${orderLog.lon}`);
+            console.log(`   - deliveryInstructions: ${orderLog.deliveryInstructions}`);
         }
 
         // Save to Firestore orders collection
+        // CRITICAL: Remove undefined values - Firestore rejects them
+        const cleanOrderLog = Object.fromEntries(
+            Object.entries(orderLog).filter(([_, value]) => value !== undefined)
+        );
         console.log(`🔵 [logOrder] Step 4: Saving to Firestore...`);
-        await db.collection('orders').doc(orderNumber).set(orderLog);
+        await db.collection('orders').doc(orderNumber).set(cleanOrderLog);
         console.log(`✅ [logOrder] Step 4 complete (${Date.now() - startTime}ms)`);
 
         console.log(`✅ [logOrder] COMPLETED: ${orderNumber} (total: ${Date.now() - startTime}ms)`);

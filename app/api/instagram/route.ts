@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firestore";
+import { Client as QStashClient } from "@upstash/qstash";
+import { addMessageToBatch } from "@/lib/redis";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Page Instagram ID for echo detection (to skip messages from bot itself)
+const PAGE_INSTAGRAM_ID = "17841424690552638";
 
 /**
  * Log Instagram webhook event to Firestore for viewing in control panel
@@ -71,9 +76,9 @@ async function saveToControlPanel(userId: string, message: {
 }
 
 // Environment variables
-const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || "";
+// Use PAGE_ACCESS_TOKEN (same as Messenger) since Instagram uses the Page's access token
+const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN || process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || "";
 const INSTAGRAM_VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || "ig_webhook_verify_token";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 // Instagram API version
 const GRAPH_API_VERSION = "v18.0";
@@ -186,13 +191,25 @@ async function handleInstagramMessage(event: any) {
     return;
   }
 
+  // Echo detection: Skip messages from the page's own Instagram account
+  if (senderId === PAGE_INSTAGRAM_ID) {
+    console.log("⚠️  Skipping echo message from page itself (ID:", senderId, ")");
+    return;
+  }
+
+  // Also check for is_echo flag (some webhooks include this)
+  if (message.is_echo) {
+    console.log("⚠️  Skipping echo message (is_echo flag)");
+    return;
+  }
+
   // Handle different message types
   if (message.text) {
     // Regular text message
     await handleTextMessage(senderId, message.text, message.mid);
   } else if (message.attachments) {
-    // Image, video, or other attachment
-    await handleAttachment(senderId, message.attachments);
+    // Image, video, or other attachment - pass messageId for batching
+    await handleAttachment(senderId, message.attachments, message.mid);
   } else if (message.story_mention) {
     // User mentioned you in their story
     await handleStoryMention(senderId, message.story_mention);
@@ -203,12 +220,14 @@ async function handleInstagramMessage(event: any) {
 }
 
 /**
- * Handle text messages
+ * Handle text messages - uses same batching system as Messenger
  */
 async function handleTextMessage(senderId: string, text: string, messageId?: string) {
-  console.log(`💬 Text message from ${senderId}: "${text}"`);
+  // Use IG_ prefix to identify Instagram users in process-test
+  const igSenderId = `IG_${senderId}`;
+  console.log(`💬 [IG] Text message from ${senderId} (batched as ${igSenderId}): "${text}"`);
 
-  // ALWAYS save user message to Control Panel first (before any potential errors)
+  // Save user message to Control Panel
   try {
     await saveToControlPanel(senderId, {
       id: messageId || `ig_${Date.now()}_user`,
@@ -217,72 +236,131 @@ async function handleTextMessage(senderId: string, text: string, messageId?: str
       text: text,
       timestamp: new Date().toISOString()
     });
-    console.log(`✅ User message saved to Control Panel`);
+    console.log(`✅ [IG] User message saved to Control Panel`);
   } catch (saveError) {
-    console.error("❌ Error saving user message to Control Panel:", saveError);
+    console.error("❌ [IG] Error saving user message to Control Panel:", saveError);
   }
 
-  // Try to send response (may fail due to token issues, but that's OK for demo)
-  const response = "გამარჯობა! მადლობა შეტყობინებისთვის. ჩვენი Instagram ჩატბოტი მალე იმუშავებს სრულად! 🤖";
-
+  // Use Redis batching + QStash (same as Messenger)
   try {
-    await sendInstagramMessage(senderId, { text: response });
-    console.log(`✅ Instagram response sent`);
-
-    // Save bot response to Control Panel
-    await saveToControlPanel(senderId, {
-      id: `ig_${Date.now()}_bot`,
-      senderId: 'bot',
-      senderType: 'bot',
-      text: response,
-      timestamp: new Date().toISOString()
+    // Add message to Redis batch with IG_ prefix
+    await addMessageToBatch(igSenderId, {
+      messageId: messageId || `ig_${Date.now()}`,
+      text: text,
+      timestamp: Date.now()
     });
-  } catch (error) {
-    console.error("❌ Error sending Instagram message (token may be expired):", error);
 
-    // Still save a "pending" bot response so it shows in Control Panel
+    // Queue processing with QStash (same as Messenger)
+    const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
+
+    // Use timestamp-based deduplication to allow separate batches
+    const batchWindow = Math.floor(Date.now() / 3000) * 3000;
+    const conversationId = `batch_${igSenderId}_${batchWindow}`;
+
+    // Route to process-test endpoint
+    const processingUrl = 'https://bebias-venera-chatbot.vercel.app/api/process-test';
+
+    await qstash.publishJSON({
+      url: processingUrl,
+      body: {
+        senderId: igSenderId,  // IG_ prefix tells process-test this is Instagram
+        batchKey: `msgbatch:${igSenderId}`,
+        timestamp: Date.now()
+      },
+      delay: 3, // Wait 3 seconds to collect more messages
+      deduplicationId: conversationId,
+      retries: 0
+    });
+
+    console.log(`✅ [IG] Message batched and queued to QStash: ${conversationId}`);
+
+  } catch (error) {
+    console.error("❌ [IG] Error with batching/QStash:", error);
+
+    // Fallback: save error message to Control Panel
     try {
       await saveToControlPanel(senderId, {
         id: `ig_${Date.now()}_bot`,
         senderId: 'bot',
         senderType: 'bot',
-        text: `[Response pending - token refresh needed] ${response}`,
+        text: `[Processing error] გთხოვთ სცადოთ მოგვიანებით.`,
         timestamp: new Date().toISOString()
       });
     } catch (e) {
-      console.error("❌ Error saving bot response:", e);
+      console.error("❌ [IG] Error saving error message:", e);
     }
   }
 }
 
 /**
- * Handle attachments (images, videos, etc.)
+ * Handle attachments (images, videos, etc.) - now uses batching system like text messages
  */
-async function handleAttachment(senderId: string, attachments: any[]) {
-  console.log(`📎 Attachment from ${senderId}:`, attachments);
+async function handleAttachment(senderId: string, attachments: any[], messageId?: string) {
+  const igSenderId = `IG_${senderId}`;
+  console.log(`📎 [IG] Attachment from ${senderId} (batched as ${igSenderId}):`, attachments);
 
   try {
+    // Extract image URLs for processing
+    const imageUrls: string[] = [];
     for (const attachment of attachments) {
-      if (attachment.type === "image") {
-        // Handle image
-        const imageUrl = attachment.payload?.url;
-        console.log(`🖼️  Image received: ${imageUrl}`);
-
-        // TODO: Implement image recognition (like Facebook ads)
-        // Can use GPT-4o vision API here
-
-        await sendInstagramMessage(senderId, {
-          text: "მადლობა სურათისთვის! ვამუშავებთ თქვენს მოთხოვნას... 📸"
-        });
-      } else {
-        // Other attachment types
-        await sendInstagramMessage(senderId, {
-          text: "მივიღეთ თქვენი ფაილი. დამატებითი ინფორმაციისთვის მოგვწერეთ ტექსტური შეტყობინება. 📄"
-        });
+      if (attachment.type === "image" && attachment.payload?.url) {
+        imageUrls.push(attachment.payload.url);
+        console.log(`🖼️ [IG] Image received: ${attachment.payload.url.substring(0, 60)}...`);
       }
     }
+
+    // Process ALL attachments through AI (images, files, etc.)
+    // No more generic responses - let AI decide what to do
+
+    // Save to Control Panel
+    try {
+      const attachmentTypes = attachments.map(a => a.type).join(", ");
+      await saveToControlPanel(senderId, {
+        id: messageId || `ig_${Date.now()}_user`,
+        senderId: senderId,
+        senderType: 'user',
+        text: imageUrls.length > 0
+          ? `[სურათი გაგზავნილია - ${imageUrls.length} ფოტო]`
+          : `[ფაილი გაგზავნილია: ${attachmentTypes}]`,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`✅ [IG] Attachment message saved to Control Panel`);
+    } catch (saveError) {
+      console.error("❌ [IG] Error saving attachment message to Control Panel:", saveError);
+    }
+
+    // Add to Redis batch with attachments (same as Messenger)
+    await addMessageToBatch(igSenderId, {
+      messageId: messageId || `ig_${Date.now()}`,
+      text: "[User sent an image]",  // Placeholder text for logging
+      attachments: attachments,  // Pass full attachments for AI processing
+      timestamp: Date.now()
+    });
+    console.log(`✅ [IG] Image attachment added to batch`);
+
+    // Queue to QStash for processing
+    const conversationId = `ig_conv_${senderId}_${Date.now()}`;
+    const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
+
+    await qstash.publishJSON({
+      url: 'https://bebias-venera-chatbot.vercel.app/api/process-test',
+      body: {
+        senderId: igSenderId,
+        batchKey: `msgbatch:${igSenderId}`,
+        timestamp: Date.now()
+      },
+      delay: 3,  // 3 second delay to batch multiple messages
+      deduplicationId: conversationId,
+      retries: 0
+    });
+    console.log(`✅ [IG] Image queued to QStash for AI processing`);
+
   } catch (error) {
-    console.error("❌ Error handling attachment:", error);
+    console.error("❌ [IG] Error handling attachment:", error);
+    // Send fallback message on error
+    await sendInstagramMessage(senderId, {
+      text: "მადლობა სურათისთვის! ვამუშავებთ თქვენს მოთხოვნას... 📸"
+    });
   }
 }
 
